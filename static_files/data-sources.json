@@ -1,0 +1,19 @@
+{
+    "sources": {
+        "bonuses.json": {
+            "source_name": "Raidbots bonuses mappings",
+            "href": "https://www.raidbots.com/static/data/live/bonuses.json",
+            "local_fn": "bonuses.json"
+        },
+        "rank-mappings.json": {
+            "source_name": "Calculated rank mappings for recipes",
+            "href": "",
+            "local_fn": "rank-mappings.json"
+        },
+        "shopping-recipe-exclusion-list.json": {
+            "source_name": "Preset shopping list recipe exclusions",
+            "href": "",
+            "local_fn": "shopping-recipe-exclusion-list.json"
+        }
+    }
+}

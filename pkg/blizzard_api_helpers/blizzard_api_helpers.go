@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/redis_cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 )
@@ -120,9 +120,9 @@ func checkPageSearchResults(page BlizzardApi.ItemSearch, item_name globalTypes.I
 }
 
 func GetItemId(region globalTypes.RegionCode, item_name globalTypes.ItemName) (globalTypes.ItemID, error) {
-	if found, err := redis_cache_provider.CacheCheck(ITEM_SEARCH_CACHE, item_name); err == nil && found {
+	if found, err := cache_provider.CacheCheck(ITEM_SEARCH_CACHE, item_name); err == nil && found {
 		item := globalTypes.ItemID(0)
-		fndErr := redis_cache_provider.CacheGet(ITEM_SEARCH_CACHE, item_name, &item)
+		fndErr := cache_provider.CacheGet(ITEM_SEARCH_CACHE, item_name, &item)
 		return item, fndErr
 	}
 
@@ -142,7 +142,7 @@ func GetItemId(region globalTypes.RegionCode, item_name globalTypes.ItemName) (g
 		found_control <- false
 	}
 
-	redis_cache_provider.CacheSet(ITEM_SEARCH_CACHE, item_name, item_id, redis_cache_provider.GetStaticTimeWithShift())
+	cache_provider.CacheSet(ITEM_SEARCH_CACHE, item_name, item_id, cache_provider.GetStaticTimeWithShift())
 
 	return item_id, nil
 }
@@ -167,9 +167,9 @@ func getAllConnectedRealms(region globalTypes.RegionCode) (BlizzardApi.Connected
 func GetConnectedRealmId(server_name globalTypes.RealmName, server_region globalTypes.RegionCode) (globalTypes.ConnectedRealmID, error) {
 	connected_realm_key := fmt.Sprintf("%s::%s", server_region, server_name)
 
-	if found, err := redis_cache_provider.CacheCheck(CONNECTED_REALM_ID_CACHE, connected_realm_key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(CONNECTED_REALM_ID_CACHE, connected_realm_key); err == nil && found {
 		item := globalTypes.ConnectedRealmID(0)
-		fndErr := redis_cache_provider.CacheGet(CONNECTED_REALM_ID_CACHE, connected_realm_key, &item)
+		fndErr := cache_provider.CacheGet(CONNECTED_REALM_ID_CACHE, connected_realm_key, &item)
 		return item, fndErr
 	}
 
@@ -211,7 +211,7 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 		}
 	}
 
-	redis_cache_provider.CacheSet(CONNECTED_REALM_ID_CACHE, connected_realm_key, realm_id, redis_cache_provider.GetStaticTimeWithShift())
+	cache_provider.CacheSet(CONNECTED_REALM_ID_CACHE, connected_realm_key, realm_id, cache_provider.GetStaticTimeWithShift())
 	cpclog.Infof("Found Connected Realm ID: %d for %s %s", realm_id, server_region, server_name)
 
 	// Return that connected realm ID
@@ -222,9 +222,9 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 	// Check if we've already run this check, and if so return the cached version, otherwise keep on
 	key := fmt.Sprintf("%s::%d::%v", region, item_id, character_professions)
 
-	if found, err := redis_cache_provider.CacheCheck(CRAFTABLE_BY_PROFESSION_SET_CACHE, key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(CRAFTABLE_BY_PROFESSION_SET_CACHE, key); err == nil && found {
 		item := globalTypes.CraftingStatus{}
-		fndErr := redis_cache_provider.CacheGet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, &item)
+		fndErr := cache_provider.CacheGet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, &item)
 		return item, fndErr
 	}
 
@@ -244,7 +244,7 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 	if item_detail.Description != "" {
 		if strings.Contains(item_detail.Description, "vendor") {
 			cpclog.Debug("Skipping vendor recipe")
-			redis_cache_provider.CacheSet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, recipe_options, redis_cache_provider.GetComputedTimeWithShift())
+			cache_provider.CacheSet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, recipe_options, cache_provider.GetComputedTimeWithShift())
 			return recipe_options, nil
 		}
 	}
@@ -276,7 +276,7 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 		recipe_options.Craftable = recipe_options.Craftable || profession_crafting_check.Craftable
 	}
 
-	redis_cache_provider.CacheSet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, recipe_options, redis_cache_provider.GetComputedTimeWithShift())
+	cache_provider.CacheSet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, recipe_options, cache_provider.GetComputedTimeWithShift())
 	//{craftable: found_craftable, recipe_id: found_recipe_id, crafting_profession: found_profession};
 	return recipe_options, nil
 }
@@ -297,9 +297,9 @@ func getProfessionId(profession_list BlizzardApi.ProfessionsIndex, profession_na
 
 func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item) (globalTypes.CraftingStatus, error) {
 	cache_key := fmt.Sprintf("%s:%s:%d", region, prof, item_id)
-	if found, err := redis_cache_provider.CacheCheck(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key); err == nil && found {
 		item := globalTypes.CraftingStatus{}
-		fndErr := redis_cache_provider.CacheGet(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key, &item)
+		fndErr := cache_provider.CacheGet(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key, &item)
 		return item, fndErr
 	}
 	profession_recipe_options := globalTypes.CraftingStatus{}
@@ -411,7 +411,7 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 	//    return checkProfessionTierCrafting(tier, region);
 	//}));
 
-	redis_cache_provider.CacheSet(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key, profession_recipe_options, redis_cache_provider.GetComputedTimeWithShift())
+	cache_provider.CacheSet(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key, profession_recipe_options, cache_provider.GetComputedTimeWithShift())
 
 	return profession_recipe_options, nil
 
@@ -590,9 +590,9 @@ func uint_slice_has(arr []uint, value uint) (found bool) {
 func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode) SkillTierCyclicLinksBuild {
 	cache_key := fmt.Sprintf("%s::%s::%d", region, skill_tier.Name, profession.Id)
 
-	if found, err := redis_cache_provider.CacheCheck(CYCLIC_LINK_CACHE, cache_key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(CYCLIC_LINK_CACHE, cache_key); err == nil && found {
 		var item SkillTierCyclicLinksBuild
-		redis_cache_provider.CacheGet(CYCLIC_LINK_CACHE, cache_key, &item)
+		cache_provider.CacheGet(CYCLIC_LINK_CACHE, cache_key, &item)
 		return item
 	}
 
@@ -661,7 +661,7 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 			}
 		}
 	}
-	redis_cache_provider.CacheSet(CYCLIC_LINK_CACHE, cache_key, found_links, redis_cache_provider.GetStaticTimeWithShift())
+	cache_provider.CacheSet(CYCLIC_LINK_CACHE, cache_key, found_links, cache_provider.GetStaticTimeWithShift())
 	return found_links
 }
 

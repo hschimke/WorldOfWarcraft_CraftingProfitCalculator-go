@@ -1,4 +1,4 @@
-package redis_cache_provider
+package cache_provider
 
 import (
 	"math/rand"

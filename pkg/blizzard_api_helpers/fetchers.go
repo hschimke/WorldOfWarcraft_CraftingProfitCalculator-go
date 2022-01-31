@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/redis_cache_provider"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 )
@@ -13,9 +13,9 @@ import (
 func GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (BlizzardApi.Item, error) {
 	var key = fmt.Sprint(item_id)
 
-	if found, err := redis_cache_provider.CacheCheck(ITEM_DATA_CACHE, key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(ITEM_DATA_CACHE, key); err == nil && found {
 		item := BlizzardApi.Item{}
-		fndErr := redis_cache_provider.CacheGet(ITEM_DATA_CACHE, key, &item)
+		fndErr := cache_provider.CacheGet(ITEM_DATA_CACHE, key, &item)
 		return item, fndErr
 	}
 
@@ -29,7 +29,7 @@ func GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (
 	if fetchErr != nil {
 		return BlizzardApi.Item{}, fetchErr
 	}
-	redis_cache_provider.CacheSet(ITEM_DATA_CACHE, key, &result, redis_cache_provider.GetStaticTimeWithShift())
+	cache_provider.CacheSet(ITEM_DATA_CACHE, key, &result, cache_provider.GetStaticTimeWithShift())
 	return result, nil
 
 }
@@ -39,9 +39,9 @@ func GetBlizProfessionsList(region globalTypes.RegionCode) (BlizzardApi.Professi
 	key := region
 	const profession_list_uri string = "/data/wow/profession/index" // professions.name / professions.id
 
-	if found, err := redis_cache_provider.CacheCheck(PROFESSION_LIST_CACHE, key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(PROFESSION_LIST_CACHE, key); err == nil && found {
 		item := BlizzardApi.ProfessionsIndex{}
-		fndErr := redis_cache_provider.CacheGet(PROFESSION_LIST_CACHE, key, &item)
+		fndErr := cache_provider.CacheGet(PROFESSION_LIST_CACHE, key, &item)
 		return item, fndErr
 	}
 
@@ -53,16 +53,16 @@ func GetBlizProfessionsList(region globalTypes.RegionCode) (BlizzardApi.Professi
 	if fetchErr != nil {
 		return BlizzardApi.ProfessionsIndex{}, fetchErr
 	}
-	redis_cache_provider.CacheSet(PROFESSION_LIST_CACHE, key, &result, redis_cache_provider.GetStaticTimeWithShift())
+	cache_provider.CacheSet(PROFESSION_LIST_CACHE, key, &result, cache_provider.GetStaticTimeWithShift())
 	return result, nil
 }
 
 func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) (BlizzardApi.Profession, error) {
 	key := fmt.Sprintf("%s::%d", region, profession_id)
 
-	if found, err := redis_cache_provider.CacheCheck(PROFESSION_DETAIL_CACHE, key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(PROFESSION_DETAIL_CACHE, key); err == nil && found {
 		item := BlizzardApi.Profession{}
-		fndErr := redis_cache_provider.CacheGet(PROFESSION_DETAIL_CACHE, key, &item)
+		fndErr := cache_provider.CacheGet(PROFESSION_DETAIL_CACHE, key, &item)
 		return item, fndErr
 	}
 
@@ -75,16 +75,16 @@ func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) 
 	if fetchErr != nil {
 		return BlizzardApi.Profession{}, fetchErr
 	}
-	redis_cache_provider.CacheSet(PROFESSION_DETAIL_CACHE, key, &result, redis_cache_provider.GetStaticTimeWithShift())
+	cache_provider.CacheSet(PROFESSION_DETAIL_CACHE, key, &result, cache_provider.GetStaticTimeWithShift())
 	return result, nil
 }
 
 func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID, region globalTypes.RegionCode) (BlizzardApi.ConnectedRealm, error) {
 	key := fmt.Sprintf("%s::%d", region, connected_realm_id)
 
-	if found, err := redis_cache_provider.CacheCheck(COMPOSITE_REALM_NAME_CACHE, key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(COMPOSITE_REALM_NAME_CACHE, key); err == nil && found {
 		item := BlizzardApi.ConnectedRealm{}
-		fndErr := redis_cache_provider.CacheGet(COMPOSITE_REALM_NAME_CACHE, key, &item)
+		fndErr := cache_provider.CacheGet(COMPOSITE_REALM_NAME_CACHE, key, &item)
 		return item, fndErr
 	}
 
@@ -97,16 +97,16 @@ func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID
 	if fetchErr != nil {
 		return BlizzardApi.ConnectedRealm{}, fetchErr
 	}
-	redis_cache_provider.CacheSet(COMPOSITE_REALM_NAME_CACHE, key, &result, redis_cache_provider.GetDynamicTimeWithShift())
+	cache_provider.CacheSet(COMPOSITE_REALM_NAME_CACHE, key, &result, cache_provider.GetDynamicTimeWithShift())
 	return result, nil
 }
 
 func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region globalTypes.RegionCode) (BlizzardApi.ProfessionSkillTier, error) {
 	key := fmt.Sprintf("%s::%d::%d", region, profession_id, skillTier_id)
 
-	if found, err := redis_cache_provider.CacheCheck(PROFESSION_SKILL_TIER_DETAILS_CACHE, key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(PROFESSION_SKILL_TIER_DETAILS_CACHE, key); err == nil && found {
 		item := BlizzardApi.ProfessionSkillTier{}
-		fndErr := redis_cache_provider.CacheGet(PROFESSION_SKILL_TIER_DETAILS_CACHE, key, &item)
+		fndErr := cache_provider.CacheGet(PROFESSION_SKILL_TIER_DETAILS_CACHE, key, &item)
 		return item, fndErr
 	}
 
@@ -119,16 +119,16 @@ func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region global
 	if fetchErr != nil {
 		return BlizzardApi.ProfessionSkillTier{}, fetchErr
 	}
-	redis_cache_provider.CacheSet(PROFESSION_SKILL_TIER_DETAILS_CACHE, key, &result, redis_cache_provider.GetStaticTimeWithShift())
+	cache_provider.CacheSet(PROFESSION_SKILL_TIER_DETAILS_CACHE, key, &result, cache_provider.GetStaticTimeWithShift())
 	return result, nil
 }
 
 func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (BlizzardApi.Recipe, error) {
 	key := fmt.Sprintf("%s::%d", region, recipe_id)
 
-	if found, err := redis_cache_provider.CacheCheck(PROFESSION_RECIPE_DETAIL_CACHE, key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(PROFESSION_RECIPE_DETAIL_CACHE, key); err == nil && found {
 		item := BlizzardApi.Recipe{}
-		fndErr := redis_cache_provider.CacheGet(PROFESSION_RECIPE_DETAIL_CACHE, key, &item)
+		fndErr := cache_provider.CacheGet(PROFESSION_RECIPE_DETAIL_CACHE, key, &item)
 		return item, fndErr
 	}
 
@@ -141,16 +141,16 @@ func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (Blizzar
 	if fetchErr != nil {
 		return BlizzardApi.Recipe{}, fetchErr
 	}
-	redis_cache_provider.CacheSet(PROFESSION_RECIPE_DETAIL_CACHE, key, &result, redis_cache_provider.GetStaticTimeWithShift())
+	cache_provider.CacheSet(PROFESSION_RECIPE_DETAIL_CACHE, key, &result, cache_provider.GetStaticTimeWithShift())
 	return result, nil
 }
 
 func GetAuctionHouse(server_id globalTypes.ConnectedRealmID, server_region globalTypes.RegionCode) (BlizzardApi.Auctions, error) {
 	key := fmt.Sprint(server_id)
 
-	if found, err := redis_cache_provider.CacheCheck(AUCTION_DATA_CACHE, key); err == nil && found {
+	if found, err := cache_provider.CacheCheck(AUCTION_DATA_CACHE, key); err == nil && found {
 		item := BlizzardApi.Auctions{}
-		fndErr := redis_cache_provider.CacheGet(AUCTION_DATA_CACHE, key, &item)
+		fndErr := cache_provider.CacheGet(AUCTION_DATA_CACHE, key, &item)
 		return item, fndErr
 	}
 
@@ -163,6 +163,6 @@ func GetAuctionHouse(server_id globalTypes.ConnectedRealmID, server_region globa
 	if fetchErr != nil {
 		return BlizzardApi.Auctions{}, fetchErr
 	}
-	redis_cache_provider.CacheSet(AUCTION_DATA_CACHE, key, &result, time.Duration(time.Hour*1))
+	cache_provider.CacheSet(AUCTION_DATA_CACHE, key, &result, time.Duration(time.Hour*1))
 	return result, nil
 }

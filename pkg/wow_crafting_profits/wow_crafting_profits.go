@@ -16,8 +16,7 @@ import (
 )
 
 type recipeCost struct {
-	High, Low uint
-	Average   float64
+	High, Low, Average float64
 }
 
 /**
@@ -30,30 +29,41 @@ type recipeCost struct {
  */
 func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions, bonus_level_required uint) globalTypes.AHItemPriceObject {
 	// Find the item and return best, worst, average prices
-	auction_high := uint(0)
-	auction_low := uint(math.MaxUint)
+	auction_high := float64(0)
+	auction_low := float64(math.MaxUint)
 	auction_average := float64(0)
 	auction_counter := uint(0)
 	auction_average_accumulator := float64(0)
 
+	bl_inc := func(array []uint, search uint) (found bool) {
+		found = false
+		for _, element := range array {
+			if element == search {
+				found = true
+				break
+			}
+		}
+		return
+	}
+
 	for _, auction := range auction_house.Auctions {
 		if auction.Item.Id == item_id {
 
-			if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && auction.Item.Bonus_lists.includes(bonus_level_required))) || (bonus_level_required == 0) {
+			if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && bl_inc(auction.Item.Bonus_lists, bonus_level_required))) || (bonus_level_required == 0) {
 				if auction.Buyout != 0 {
-					if auction.Buyout > auction_high {
-						auction_high = auction.Buyout
+					if float64(auction.Buyout) > auction_high {
+						auction_high = float64(auction.Buyout)
 					}
-					if auction.Buyout < auction_low {
-						auction_low = auction.Buyout
+					if float64(auction.Buyout) < auction_low {
+						auction_low = float64(auction.Buyout)
 					}
 					auction_average_accumulator += float64(auction.Buyout * auction.Quantity)
 				} else {
-					if auction.Unit_price > auction_high {
-						auction_high = auction.Unit_price
+					if float64(auction.Unit_price) > auction_high {
+						auction_high = float64(auction.Unit_price)
 					}
-					if auction.Unit_price < auction_low {
-						auction_low = auction.Unit_price
+					if float64(auction.Unit_price) < auction_low {
+						auction_low = float64(auction.Unit_price)
 					}
 					auction_average_accumulator += float64(auction.Unit_price * auction.Quantity)
 				}
@@ -117,7 +127,7 @@ func findNoneAHPrice(item_id globalTypes.ItemID, region globalTypes.RegionCode) 
  * @param {number} item_id Item ID to scan
  * @param {object} auction_house The auction house data to use as a source.
  */
-func getItemBonusLists(item_id globalTypes.ItemID, auction_house BlizzardApi.Auctions) [][]uint {
+func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions) [][]uint {
 
 	array_every := func(array []uint, find []uint) (found bool) {
 		found = true
@@ -175,6 +185,50 @@ func getLvlModifierForBonus(bonus_id uint) uint {
 	return 0
 }
 
+func filterArrayToSetDouble(array [][]uint) (result [][]uint) {
+	hld := make(map[string]bool)
+	for _, element := range array {
+		srch := fmt.Sprint(element)
+		if _, present := hld[srch]; !present {
+			hld[srch] = true
+			result = append(result, element)
+		}
+	}
+	return
+}
+
+func filterArrayToSet(array []uint) (result []uint) {
+	hld := make(map[uint]bool)
+	for _, element := range array {
+		if _, present := hld[element]; present {
+			hld[element] = true
+			result = append(result, element)
+		}
+	}
+	return
+}
+
+func flattenArray(aray [][]uint) []uint {
+	//arr.reduce((acc, val) => acc.concat(val), []);
+	r := make([]uint, 0)
+	for _, el := range aray {
+		for _, itm := range el {
+			r = append(r, itm)
+		}
+	}
+	return r
+}
+
+func arrayContains(array []uint, search uint) (found bool) {
+	found = false
+	for _, item := range array {
+		if item == search {
+			found = true
+		}
+	}
+	return
+}
+
 /**
  * Analyze the profit potential for constructing or buying an item based on available recipes.
  * @param {!string} region The region in which to search.
@@ -185,139 +239,202 @@ func getLvlModifierForBonus(bonus_id uint) uint {
  * @param {?object} passed_ah If an auction house is already available, pass it in and it will be used.
  */
 func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.RealmName, character_professions []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, qauntity uint, passed_ah *BlizzardApi.Auctions) (globalTypes.ProfitAnalysisObject, error) {
-	/*
-	   // Check if we have to figure out the item id ourselves
-	   let item_id = 0;
-	   if (typeof item === 'number') {
-	       item_id = item;
-	   }
-	   else if (Number.isFinite(Number(item))) {
-	       item_id = Number(item);
-	   } else {
-	       item_id = await getItemId(region, item);
-	       if (item_id < 0) {
-	           logger.error(`No itemId could be found for ${item}`);
-	           throw (new Error(`No itemId could be found for ${item}`));
-	       }
-	       logger.info(`Found ${item_id} for ${item}`);
-	   }
+	// Check if we have to figure out the item id ourselves
+	item_id := uint(0)
+	if item.ItemId != 0 {
+		item_id = item.ItemId
+	} else {
+		item_id, err := blizzard_api_helpers.GetItemId(region, item.ItemName)
+		if (item_id <= 0) || err != nil {
+			cpclog.Error("No itemId could be found for ", item)
+			return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("no itemId could be found for %v -> %v", item, err)
+			//throw (new Error(`No itemId could be found for ${item}`));
+		}
+		cpclog.Infof("Found %v for %v", item_id, item)
+	}
 
-	   const item_detail = await getItemDetails(item_id, region);
+	raidbots_bonus_lists_ptr, err := static_sources.GetBonuses()
+	if err != nil {
+		return globalTypes.ProfitAnalysisObject{}, err
+	}
+	raidbots_bonus_lists := *raidbots_bonus_lists_ptr
 
-	   const base_ilvl = item_detail.level;
+	rankings_ptr := static_sources.GetRankMappings()
+	rankings := *rankings_ptr
 
-	   const craftable_item_swaps = await buildCyclicRecipeList(region);
+	item_detail, err := blizzard_api_helpers.GetItemDetails(item_id, region)
+	if err != nil {
+		return globalTypes.ProfitAnalysisObject{}, err
+	}
 
-	   let price_obj = {} as ProfitAnalysisObject;
-	   price_obj.item_id = item_id;
-	   price_obj.item_name = item_detail.name;
+	base_ilvl := item_detail.Level
 
-	   logger.info(`Analyzing profits potential for ${item_detail.name} (${item_id})`);
+	craftable_item_swaps, err := blizzard_api_helpers.BuildCyclicRecipeList(region)
+	if err != nil {
+		return globalTypes.ProfitAnalysisObject{}, err
+	}
 
-	   // Get the realm id
-	   const server_id = await getConnectedRealmId(server, region);
+	var price_obj globalTypes.ProfitAnalysisObject
+	price_obj.Item_id = item_id
+	price_obj.Item_name = item_detail.Name
 
-	   //Get the auction house
-	   const auction_house = (passed_ah !== undefined) ? passed_ah : await getAuctionHouse(server_id, region);
+	cpclog.Info("Analyzing profits potential for ", item_detail.Name, " (", item_id, ")")
 
-	   // Get Item AH price
-	   price_obj.ah_price = await getAHItemPrice(item_id, auction_house);
+	// Get the realm id
+	server_id, err := blizzard_api_helpers.GetConnectedRealmId(server, region)
+	if err != nil {
+		return globalTypes.ProfitAnalysisObject{}, err
+	}
 
-	   price_obj.item_quantity = qauntity;
+	var auction_house *BlizzardApi.Auctions
 
-	   const item_craftable = await checkIsCrafting(item_id, character_professions, region);
+	//Get the auction house
+	if passed_ah == nil {
+		ah, err := blizzard_api_helpers.GetAuctionHouse(server_id, region)
+		if err != nil {
+			return globalTypes.ProfitAnalysisObject{}, err
+		}
+		auction_house = &ah
+	} else {
+		auction_house = passed_ah
+	}
 
-	   // Get NON AH price
-	   if (!item_craftable.craftable) {
-	       price_obj.vendor_price = await findNoneAHPrice(item_id, region);
-	   } else {
-	       price_obj.vendor_price = -1;
-	   }
+	// Get Item AH price
+	price_obj.Ah_price = getAHItemPrice(item_id, auction_house, 0)
 
-	   price_obj.crafting_status = item_craftable;
+	price_obj.Item_quantity = float64(qauntity)
 
-	   // Eventually bonus_lists should be treated as separate items and this should happen first
-	   // When that's the case we should actually return an entire extra set of price data based on each
-	   // possible bonus_list. They're actually different items, blizz just tells us they aren't.
-	   price_obj.bonus_lists = Array.from(new Set(await getItemBonusLists(item_id, auction_house)));
-	   let bonus_link: Record<number, number> = {};
-	   const bl_flat = (Array.from(new Set(price_obj.bonus_lists.flat())).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));
-	   for (const bonus of bl_flat) {
-	       const mod = getLvlModifierForBonus(bonus);
-	       if (mod !== -1) {
-	           const new_level = base_ilvl + mod
-	           bonus_link[new_level] = bonus;
-	           logger.debug(`Bonus level ${bonus} results in crafted ilvl of ${new_level}`);
-	       }
-	   }
+	item_craftable, err := blizzard_api_helpers.CheckIsCrafting(item_id, character_professions, region)
+	if err != nil {
+		return globalTypes.ProfitAnalysisObject{}, err
+	}
 
-	   const recipe_id_list = item_craftable.recipe_ids.sort();
+	// Get NON AH price
+	if !item_craftable.Craftable {
+		prc, err := findNoneAHPrice(item_id, region)
+		if err != nil {
+			return globalTypes.ProfitAnalysisObject{}, err
+		}
 
-	   price_obj.recipe_options = [];
+		price_obj.Vendor_price = prc
+	} else {
+		price_obj.Vendor_price = 0
+	}
 
-	   if (item_craftable.craftable) {
-	       logger.debug(`Item ${item_detail.name} (${item_id}) has ${item_craftable.recipes.length} recipes.`);
-	       for (const recipe of item_craftable.recipes) {
-	           // Get Reagents
-	           const item_bom = await getCraftingRecipe(recipe.recipe_id, region);
+	price_obj.Crafting_status = item_craftable
 
-	           price_obj.item_quantity = qauntity / getRecipeOutputValues(item_bom).min;
+	// Eventually bonus_lists should be treated as separate items and this should happen first
+	// When that's the case we should actually return an entire extra set of price data based on each
+	// possible bonus_list. They're actually different items, blizz just tells us they aren't.
 
-	           // Get prices for BOM
-	           const bom_prices: ProfitAnalysisObject[] = [];
+	//  price_obj.bonus_lists = Array.from(new Set(await getItemBonusLists(item_id, auction_house)));
+	price_obj.Bonus_lists = filterArrayToSetDouble(getItemBonusLists(item_id, auction_house))
+	bonus_link := make(map[uint]uint)
+	//bl_flat := filterArrayToSet(flattenArray(price_obj.bonus_lists)).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));
+	bl_flat_hld := filterArrayToSet(flattenArray(price_obj.Bonus_lists))
+	bl_flat := make([]uint, 0)
+	for _, bonus := range bl_flat_hld {
+		bns, rb_b_pres := raidbots_bonus_lists[bonus]
+		if rb_b_pres {
+			if bns.Level != 0 {
+				//return truedfdf
+				bl_flat = append(bl_flat, bonus)
+			}
+		}
+	}
+	for _, bonus := range bl_flat {
+		mod := getLvlModifierForBonus(bonus)
+		if mod != 0 {
+			new_level := base_ilvl + mod
+			bonus_link[new_level] = bonus
+			cpclog.Debug("Bonus level ", bonus, " results in crafted ilvl of ", new_level)
+		}
+	}
 
-	           logger.debug(`Recipe ${item_bom.name} (${recipe.recipe_id}) has ${item_bom.reagents.length} reagents`);
+	recipe_id_list := item_craftable.Recipe_ids
 
-	           const bom_promises = item_bom.reagents.map((reagent) => {
-	               if (craftable_item_swaps[reagent.reagent.id] !== undefined) {
-	                   // We're in a cyclic relationship, what do we do?
-	                   logger.error('Cycles are not fully implemented.', craftable_item_swaps[reagent.reagent.id]);
-	                   throw new Error( `Cycles are not supported.`);
-	               }
-	               return performProfitAnalysis(region, server, character_professions, reagent.reagent.id, reagent.quantity, auction_house)
-	           });
+	//price_obj.recipe_options = [];
 
-	           (await Promise.all(bom_promises)).forEach((price) => {
-	               bom_prices.push(price);
-	           });
+	if item_craftable.Craftable {
+		cpclog.Debug("Item ", item_detail.Name, " (", item_id, ") has ", len(item_craftable.Recipes), " recipes.")
+		for _, recipe := range item_craftable.Recipes {
+			// Get Reagents
+			item_bom, err := blizzard_api_helpers.GetCraftingRecipe(recipe.Recipe_id, region)
+			if err != nil {
+				return globalTypes.ProfitAnalysisObject{}, err
+			}
 
-	           let rank_level = 0;
-	           let rank_AH = {} as AHItemPriceObject;
-	           if (recipe_id_list.length > 1) {
-	               rank_level = recipe_id_list.indexOf(recipe.recipe_id) > -1 ? rankings.available_levels[rankings.rank_mapping[recipe_id_list.indexOf(recipe.recipe_id)]] : 0;
-	               if (bonus_link[rank_level] != undefined) {
-	                   logger.debug(`Looking for AH price for ${item_id} for level ${rank_level} using bonus is ${bonus_link[rank_level]}`);
-	                   rank_AH = await getAHItemPrice(item_id, auction_house, bonus_link[rank_level]);
-	               } else {
-	                   logger.debug(`Item ${item_id} has no auctions for level ${rank_level}`);
-	               }
-	           }
+			price_obj.Item_quantity = float64(qauntity) / float64(getRecipeOutputValues(item_bom).Min)
 
-	           price_obj.recipe_options.push({
-	               recipe: recipe,
-	               prices: bom_prices,
-	               rank: rank_level,
-	               rank_ah: rank_AH,
-	           });
-	       }
-	   } else {
-	       logger.debug(`Item ${item_detail.name} (${item_id}) not craftable with professions: ${character_professions}`);
-	       if (price_obj.bonus_lists.length > 0) {
-	           price_obj.bonus_prices = [];
-	           for (const bonus of bl_flat) {
-	               const rbl = raidbots_bonus_lists[bonus];
-	               const level_uncrafted_ah_cost = {
-	                   level: base_ilvl + (rbl.level !== undefined ? rbl.level : 0),
-	                   ah: await getAHItemPrice(item_id, auction_house, bonus)
-	               };
-	               price_obj.bonus_prices.push(level_uncrafted_ah_cost);
-	           }
-	       }
-	   }
+			// Get prices for BOM
+			bom_prices := make([]globalTypes.ProfitAnalysisObject, 0)
 
-	   return price_obj;
-	*/
-	return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("not implemented")
+			cpclog.Debug("Recipe ", item_bom.Name, " (", recipe.Recipe_id, ") has ", len(item_bom.Reagents), " reagents")
+
+			for _, reagent := range item_bom.Reagents {
+				if _, fnd := craftable_item_swaps[reagent.Reagent.Id]; fnd {
+					cpclog.Error("Cycles are not fully implemented.", craftable_item_swaps[reagent.Reagent.Id])
+					return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("cycles are not supported.")
+				}
+				itm := globalTypes.ItemSoftIdentity{
+					ItemId: reagent.Reagent.Id,
+				}
+				new_analysis, err := performProfitAnalysis(region, server, character_professions, itm, reagent.Quantity, auction_house)
+				if err != nil {
+					return globalTypes.ProfitAnalysisObject{}, err
+				}
+				bom_prices = append(bom_prices, new_analysis)
+			}
+			rank_level := uint(0)
+			var rank_AH globalTypes.AHItemPriceObject
+			if len(recipe_id_list) > 1 {
+				var rank_level uint
+				if arrayContains(recipe_id_list, recipe.Recipe_id) {
+					for loc, el := range recipe_id_list {
+						if el == recipe.Recipe_id {
+							rank_level = rankings.Available_levels[rankings.Rank_mapping[loc]]
+							break
+						}
+					}
+					//rank_level = rankings.Available_levels[rankings.Rank_mapping[recipe_id_list.indexOf(recipe.Recipe_id)]]
+				} else {
+					rank_level = 0
+				}
+				//	               rank_level = recipe_id_list.indexOf(recipe.recipe_id) > -1 ? rankings.available_levels[rankings.rank_mapping[recipe_id_list.indexOf(recipe.recipe_id)]] : 0;
+				if bonus_link[rank_level] != 0 {
+					cpclog.Debugf(`Looking for AH price for %s for level %s using bonus is %s`, item_id, rank_level, bonus_link[rank_level])
+					rank_AH = getAHItemPrice(item_id, auction_house, bonus_link[rank_level])
+				} else {
+					cpclog.Debugf(`Item %s has no auctions for level %s`, item_id, rank_level)
+				}
+			}
+
+			price_obj.Recipe_options = append(price_obj.Recipe_options, globalTypes.RecipeOption{
+				Recipe:  recipe,
+				Prices:  bom_prices,
+				Rank:    rank_level,
+				Rank_ah: rank_AH,
+			})
+		}
+	} else {
+		cpclog.Debugf(`Item %s (%s) not craftable with professions: %s`, item_detail.Name, item_id, character_professions)
+		if len(price_obj.Bonus_lists) > 0 {
+			//price_obj.bonus_prices = [];
+			for _, bonus := range bl_flat {
+				rbl := raidbots_bonus_lists[bonus]
+				level_uncrafted_ah_cost := struct {
+					Level uint
+					Ah    globalTypes.AHItemPriceObject
+				}{
+					Level: base_ilvl + rbl.Level,
+					Ah:    getAHItemPrice(item_id, auction_house, bonus),
+				}
+				price_obj.Bonus_prices = append(price_obj.Bonus_prices, level_uncrafted_ah_cost)
+			}
+		}
+	}
+
+	return price_obj, nil
 }
 
 /**
@@ -342,8 +459,8 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 			cpclog.Debug("Use vendor price for ", component.Item_name, " (", component.Item_id, ")")
 		} else if component.Crafting_status.Craftable == false {
 
-			high := uint(0)
-			low := uint(math.MaxUint64)
+			high := float64(0)
+			low := float64(math.MaxUint64)
 			average := float64(0)
 			count := 0
 			if component.Ah_price.Total_sales > 0 {
@@ -365,8 +482,8 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 			ave_acc := float64(0)
 			ave_cnt := 0
 
-			high := uint(0)
-			low := uint(math.MaxUint64)
+			high := float64(0)
+			low := math.MaxFloat64
 
 			for _, opt := range component.Recipe_options {
 				//rc_price_promises.push(recipeCostCalculator(opt));
@@ -399,76 +516,87 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
  * @param {!string} region The region in which to work.
  */
 func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region globalTypes.RegionCode) globalTypes.OutputFormatObject {
-	/*
-				const object_output = {} as OutputFormatObject;
-		        object_output.name = price_data.item_name;
-		        object_output.id = price_data.item_id;
-		        object_output.required = price_data.item_quantity;
-		        object_output.recipes = [];
+	object_output := globalTypes.OutputFormatObject{
+		Name:     price_data.Item_name,
+		Id:       price_data.Item_id,
+		Required: price_data.Item_quantity,
+	}
 
-		        if ((price_data.ah_price != undefined) && (price_data.ah_price.total_sales > 0)) {
-		            object_output.ah = {
-		                sales: price_data.ah_price.total_sales,
-		                high: price_data.ah_price.high,
-		                low: price_data.ah_price.low,
-		                average: price_data.ah_price.average,
-		            }
-		        }
-		        if (price_data.vendor_price > 0) {
-		            object_output.vendor = price_data.vendor_price;
-		        }
-		        if (price_data.recipe_options != undefined) {
-		            for (let recipe_option of price_data.recipe_options) {
-		                const option_price = await recipeCostCalculator(recipe_option);
-		                const recipe = await getBlizRecipeDetail(recipe_option.recipe.recipe_id, region);
-		                const obj_recipe = {} as OutputFormatObject["recipes"][number];
-		                obj_recipe.name = recipe.name;
-		                obj_recipe.rank = recipe_option.rank;
-		                obj_recipe.id = recipe_option.recipe.recipe_id;
-		                obj_recipe.output = getRecipeOutputValues(recipe);
-		                obj_recipe.high = option_price.high;
-		                obj_recipe.low = option_price.low;
-		                obj_recipe.average = option_price.average;
-		                obj_recipe.parts = [];
+	if (price_data.Ah_price.Total_sales != 0) && (price_data.Ah_price.Total_sales > 0) {
+		object_output.Ah = globalTypes.OutputFormatPrice{
+			Sales:   price_data.Ah_price.Total_sales,
+			High:    price_data.Ah_price.High,
+			Low:     price_data.Ah_price.Low,
+			Average: price_data.Ah_price.Average,
+		}
+	}
+	if price_data.Vendor_price > 0 {
+		object_output.Vendor = price_data.Vendor_price
+	}
+	if len(price_data.Recipe_options) > 0 {
+		for _, recipe_option := range price_data.Recipe_options {
+			option_price := recipeCostCalculator(recipe_option)
+			recipe, err := blizzard_api_helpers.GetBlizRecipeDetail(recipe_option.Recipe.Recipe_id, region)
+			if err != nil {
+				return globalTypes.OutputFormatObject{}
+			}
+			obj_recipe := struct {
+				Name    string
+				Rank    uint
+				Id      uint
+				Output  globalTypes.OutpoutFormatRecipeOutput
+				Ah      globalTypes.OutputFormatPrice
+				High    float64
+				Low     float64
+				Average float64
+				Parts   []globalTypes.OutputFormatObject
+			}{
+				Name:    recipe.Name,
+				Rank:    recipe_option.Rank,
+				Id:      recipe_option.Recipe.Recipe_id,
+				Output:  getRecipeOutputValues(recipe),
+				High:    option_price.High,
+				Low:     option_price.Low,
+				Average: option_price.Average,
+			}
+			//obj_recipe.parts = [];
 
-		                if ((recipe_option.rank_ah != undefined) && (recipe_option.rank_ah.total_sales > 0)) {
-		                    obj_recipe.ah = {
-		                        sales: recipe_option.rank_ah.total_sales,
-		                        high: recipe_option.rank_ah.high,
-		                        low: recipe_option.rank_ah.low,
-		                        average: recipe_option.rank_ah.average,
-		                    };
-		                }
-		                let prom_list = [];
-		                if (recipe_option.prices != undefined) {
-		                    for (let opt of recipe_option.prices) {
-		                        prom_list.push(generateOutputFormat(opt, region));
-		                    }
-		                    (await Promise.all(prom_list)).forEach((data) => {
-		                        obj_recipe.parts.push(data);
-		                    });
-		                }
+			if (recipe_option.Rank_ah.Total_sales != 0) && (recipe_option.Rank_ah.Total_sales > 0) {
+				obj_recipe.Ah = globalTypes.OutputFormatPrice{
+					Sales:   recipe_option.Rank_ah.Total_sales,
+					High:    recipe_option.Rank_ah.High,
+					Low:     recipe_option.Rank_ah.Low,
+					Average: recipe_option.Rank_ah.Average,
+				}
+			}
+			//let prom_list = [];
+			if len(recipe_option.Prices) > 0 {
+				for _, opt := range recipe_option.Prices {
+					obj_recipe.Parts = append(obj_recipe.Parts, generateOutputFormat(opt, region))
+				}
+			}
 
-		                object_output.recipes.push(obj_recipe);
-		            }
-		        }
+			object_output.Recipes = append(object_output.Recipes, obj_recipe)
+		}
+	}
 
-		        if (price_data.bonus_prices !== undefined) {
-		            object_output.bonus_prices = price_data.bonus_prices.map((bonus_price) => {
-		                return {
-		                    level: bonus_price.level,
-		                    ah: {
-		                        sales: bonus_price.ah.total_sales,
-		                        high: bonus_price.ah.high,
-		                        low: bonus_price.ah.low,
-		                        average: bonus_price.ah.average,
-		                    }
-		                };
-		            })
-		        }
+	if len(price_data.Bonus_prices) > 0 {
+		for _, bonus_price := range price_data.Bonus_prices {
+			object_output.Bonus_prices = append(object_output.Bonus_prices, struct {
+				Level uint
+				Ah    globalTypes.OutputFormatPrice
+			}{
+				Level: bonus_price.Level,
+				Ah: globalTypes.OutputFormatPrice{
+					Sales:   bonus_price.Ah.Total_sales,
+					High:    bonus_price.Ah.High,
+					Low:     bonus_price.Ah.Low,
+					Average: bonus_price.Ah.Average,
+				}})
+		}
+	}
 
-		        return object_output;
-	*/
+	return object_output
 }
 
 /*
@@ -525,7 +653,7 @@ func getShoppingListRanks(intermediate_data globalTypes.OutputFormatObject) []ui
  * @param {!object} intermediate_data Data from generateOutputFormat.
  * @param {!RunConfiguration} on_hand A provided inventory to get existing items from.
  */
-func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_hand globalTypes.RunConfiguration) globalTypes.OutputFormatShoppingList {
+func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_hand *globalTypes.RunConfiguration) globalTypes.OutputFormatShoppingList {
 	var shopping_lists globalTypes.OutputFormatShoppingList
 	for _, rank := range getShoppingListRanks(intermediate_data) {
 		cpclog.Debug("Resetting inventory for rank shopping list.")
@@ -536,12 +664,12 @@ func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_
 			available := on_hand.ItemCount(li.Id)
 
 			cpclog.Debugf("%s (%s) %s needed with %s available", li.Name, li.Id, needed, available)
-			if needed <= available {
+			if needed <= float64(available) {
 				cpclog.Debugf("$%s (%s) used %s of the available %s", li.Name, li.Id, needed, available)
 				needed = 0
 				on_hand.AdjustInventory(li.Id, (int(needed) * -1))
-			} else if (needed > available) && (int(available) != 0) {
-				needed -= available
+			} else if (needed > float64(available)) && (int(available) != 0) {
+				needed -= float64(available)
 				cpclog.Debugf("%s (%s) used all of the available %s and still need %s", li.Name, li.Id, available, needed)
 				on_hand.AdjustInventory(li.Id, (int(available) * -1))
 			}
@@ -569,79 +697,87 @@ func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_
  * @param {number} rank_requested The specific rank to generate a list for, only matters for legendary base items in Shadowlands.
  */
 func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_requested uint) []globalTypes.ShoppingList {
-	/*
-	   let shopping_list = [];
+	shopping_list := make([]globalTypes.ShoppingList, 0)
 
-	   logger.debug(`Build shopping list for ${intermediate_data.name} (${intermediate_data.id}) rank ${rank_requested}`);
+	shopping_recipe_exclusions_ptr := static_sources.GetShoppingRecipeExclusionList()
+	shopping_recipe_exclusions := *shopping_recipe_exclusions_ptr
 
-	   let needed = intermediate_data.required;
+	cpclog.Debugf(`Build shopping list for %s (%s) rank %s`, intermediate_data.Name, intermediate_data.Id, rank_requested)
 
-	   if (intermediate_data.recipes.length === 0) {
-	       shopping_list.push({
-	           id: intermediate_data.id,
-	           name: intermediate_data.name,
-	           quantity: intermediate_data.required,
-	           cost: {
-	               ah: intermediate_data.ah,
-	               vendor: intermediate_data.vendor,
-	           },
-	       });
-	       logger.debug(`${intermediate_data.name} (${intermediate_data.id}) cannot be crafted.`);
-	   } else {
-	       for (let recipe of intermediate_data.recipes) {
-	           // Make sure the recipe isn't on the exclusion list
-	           if (shopping_recipe_exclusions.exclusions.includes(recipe.id)) {
-	               logger.debug(`${recipe.name} (${recipe.id}) is on the exclusion list. Add it directly`);
-	               shopping_list.push({
-	                   id: intermediate_data.id,
-	                   name: intermediate_data.name,
-	                   quantity: intermediate_data.required,
-	                   cost: {
-	                       ah: intermediate_data.ah,
-	                       vendor: intermediate_data.vendor,
-	                   },
-	               });
-	           } else {
-	               if (recipe.rank == rank_requested) {
-	                   for (let part of recipe.parts) {
-	                       // Only top level searches can have ranks
-	                       build_shopping_list(part, 0).forEach((sl) => {
-	                           //let al = sl;
-	                           logger.debug(`Need ${sl.quantity} of ${sl.name} (${sl.id}) for each of ${needed}`);
+	needed := intermediate_data.Required
 
-	                           sl.quantity = sl.quantity * needed;
+	if len(intermediate_data.Recipes) == 0 {
+		shopping_list = append(shopping_list, globalTypes.ShoppingList{
+			Id:       intermediate_data.Id,
+			Name:     intermediate_data.Name,
+			Quantity: intermediate_data.Required,
+			Cost: struct {
+				Vendor float64
+				Ah     globalTypes.OutputFormatPrice
+			}{
+				Ah:     intermediate_data.Ah,
+				Vendor: intermediate_data.Vendor,
+			},
+		})
+		cpclog.Debug(intermediate_data.Name, "(", intermediate_data.Id, ") cannot be crafted.")
+	} else {
+		for _, recipe := range intermediate_data.Recipes {
+			// Make sure the recipe isn't on the exclusion list
+			if arrayContains(shopping_recipe_exclusions.Exclusions, recipe.Id) {
+				cpclog.Debug(recipe.Name, " (", recipe.Id, ") is on the exclusion list. Add it directly")
+				shopping_list = append(shopping_list, globalTypes.ShoppingList{
+					Id:       intermediate_data.Id,
+					Name:     intermediate_data.Name,
+					Quantity: intermediate_data.Required,
+					Cost: struct {
+						Vendor float64
+						Ah     globalTypes.OutputFormatPrice
+					}{
+						Ah:     intermediate_data.Ah,
+						Vendor: intermediate_data.Vendor,
+					},
+				})
+			} else {
+				if recipe.Rank == rank_requested {
+					for _, part := range recipe.Parts {
+						// Only top level searches can have ranks
+						for _, sl := range build_shopping_list(part, 0) {
+							//let al = sl;
+							cpclog.Debug(`Need %s of %s (%s) for each of %s`, sl.Quantity, sl.Name, sl.Id, needed)
 
-	                           shopping_list.push(sl);
-	                       });
-	                   }
-	               } else {
-	                   logger.debug(`Skipping recipe ${recipe.id} because its rank (${recipe.rank}) does not match the requested rank (${rank_requested})`);
-	               }
-	           }
-	       }
-	   }
+							sl.Quantity = sl.Quantity * needed
+							shopping_list = append(shopping_list, sl)
+						}
+					}
+				} else {
+					cpclog.Debugf(`Skipping recipe %s because its rank (%s) does not match the requested rank (%s)`, recipe.Id, recipe.Rank, rank_requested)
+				}
+			}
+		}
+	}
 
-	   // Build the return shopping list.
-	   let tmp: Record<number | string, ShoppingList> = {};
-	   let ret_list: ShoppingList[] = [];
-	   //logger.debug(shopping_list);
-	   for (let list_element of shopping_list) {
-	       if (!(list_element.id in tmp)) {
-	           tmp[list_element.id] = {
-	               id: list_element.id,
-	               name: list_element.name,
-	               quantity: 0,
-	               cost: list_element.cost,
-	           };
-	       }
-	       tmp[list_element.id].quantity += list_element.quantity;
-	   }
-	   Object.keys(tmp).forEach((id) => {
-	       ret_list.push(tmp[id]);
-	   });
+	// Build the return shopping list.
+	tmp := make(map[uint]globalTypes.ShoppingList)
+	ret_list := make([]globalTypes.ShoppingList, 0)
+	//logger.debug(shopping_list);
+	for _, list_element := range shopping_list {
+		/*if (!(list_element.id in tmp)) {
+		    tmp[list_element.id] = {
+		        id: list_element.id,
+		        name: list_element.name,
+		        quantity: 0,
+		        cost: list_element.cost,
+		    };
+		}*/
+		hld := tmp[list_element.Id]
+		hld.Quantity += list_element.Quantity
+		tmp[list_element.Id] = hld
+	}
+	for _, list := range tmp {
+		ret_list = append(ret_list, list)
+	}
 
-	   return ret_list;
-	*/
+	return ret_list
 }
 
 // Get the globalTypes.RegionCode version of a string or an error
@@ -673,7 +809,7 @@ func getRegionCode(region string) (region_coded globalTypes.RegionCode, err erro
  * @param {!RunConfiguration} json_config A RunConfiguration object containing the available inventory.
  * @param {!number} count The number of items required.
  */
-func run(region string, server globalTypes.RealmName, professions []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, json_config globalTypes.RunConfiguration, count uint) (globalTypes.RunReturn, error) {
+func run(region string, server globalTypes.RealmName, professions []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, json_config *globalTypes.RunConfiguration, count uint) (globalTypes.RunReturn, error) {
 
 	cpclog.Info("World of Warcraft Crafting Profit Calculator")
 
@@ -754,7 +890,7 @@ func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data g
  * Perform a run with pure json configuration from the addon.
  * @param {RunConfiguration} json_config The configuration object.
  */
-func RunWithJSONConfig(json_config globalTypes.RunConfiguration) (globalTypes.RunReturn, error) {
+func RunWithJSONConfig(json_config *globalTypes.RunConfiguration) (globalTypes.RunReturn, error) {
 	return run(json_config.Realm_region, json_config.Realm_name, json_config.Professions, json_config.Item, json_config, json_config.Item_count)
 	//return globalTypes.RunReturn{}, fmt.Errorf("not implemented")
 }
@@ -763,7 +899,7 @@ func RunWithJSONConfig(json_config globalTypes.RunConfiguration) (globalTypes.Ru
  * Run from the command prompt.
  * @param {RunConfiguration} json_config The configuration object to execute.
  */
-func CliRun(json_config globalTypes.RunConfiguration) error {
+func CliRun(json_config *globalTypes.RunConfiguration) error {
 	results, err := RunWithJSONConfig(json_config)
 	if err != nil {
 		return err

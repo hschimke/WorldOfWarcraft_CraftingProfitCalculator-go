@@ -24,17 +24,17 @@ type SkillTierCyclicLinks map[uint][]struct {
 
 type OutputFormatPrice struct {
 	Sales   uint
-	High    uint
-	Low     uint
+	High    float64
+	Low     float64
 	Average float64
 }
 
 type ShoppingList struct {
-	Quantity uint
+	Quantity float64
 	Id       ItemID
 	Name     ItemName
 	Cost     struct {
-		Vendor uint
+		Vendor float64
 		Ah     OutputFormatPrice
 	}
 }
@@ -50,20 +50,20 @@ type OutpoutFormatRecipeOutput struct {
 type OutputFormatObject struct {
 	Name     string
 	Id       uint
-	Required uint
+	Required float64
 	Recipes  []struct {
 		Name    string
 		Rank    uint
 		Id      uint
 		Output  OutpoutFormatRecipeOutput
 		Ah      OutputFormatPrice
-		High    uint
-		Low     uint
+		High    float64
+		Low     float64
 		Average float64
 		Parts   []OutputFormatObject
 	}
 	Ah           OutputFormatPrice
-	Vendor       uint
+	Vendor       float64
 	Bonus_prices []struct {
 		Level uint
 		Ah    OutputFormatPrice
@@ -74,14 +74,15 @@ type OutputFormatObject struct {
 type AHItemPriceObject struct {
 	Total_sales uint
 	Average     float64
-	High        uint
-	Low         uint
+	High        float64
+	Low         float64
 }
 
 type RecipeOption struct {
 	Prices []ProfitAnalysisObject
 	Recipe struct {
-		Recipe_id uint
+		Recipe_id           uint
+		Crafting_profession string
 	}
 	Rank    uint
 	Rank_ah AHItemPriceObject
@@ -91,8 +92,8 @@ type ProfitAnalysisObject struct {
 	Item_id         uint
 	Item_name       string
 	Ah_price        AHItemPriceObject
-	Item_quantity   uint
-	Vendor_price    uint
+	Item_quantity   float64
+	Vendor_price    float64
 	Crafting_status CraftingStatus
 	Bonus_lists     [][]uint
 	Recipe_options  []RecipeOption

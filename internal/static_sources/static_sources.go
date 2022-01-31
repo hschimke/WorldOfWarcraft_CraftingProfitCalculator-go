@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"time"
+
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 )
 
 const (
@@ -58,7 +60,7 @@ func fetchFromUri(uri string, target interface{}) error {
 		Timeout: 10 * time.Second,
 	}
 
-	req, err := http.NewRequest(http.MethodPost, uri, nil)
+	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		//logger.Fatal(err)
 		//level.Error(logger).Log(err)
@@ -87,7 +89,7 @@ func fetchFromUri(uri string, target interface{}) error {
 
 func GetBonuses() (*BonusesCache, error) {
 	if bonus_cache == nil {
-		fn := path.Join(static_source_dir, bonuses_cache_fn)
+		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, bonuses_cache_fn)
 		err := loadStaticResource(fn, bonus_cache)
 		if err != nil {
 			// lets go get it
@@ -102,7 +104,7 @@ func GetBonuses() (*BonusesCache, error) {
 
 func GetRankMappings() *RankMappingsCache {
 	if rank_mapping_cache == nil {
-		fn := path.Join(static_source_dir, rank_mappings_cache_fn)
+		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, rank_mappings_cache_fn)
 		err := loadStaticResource(fn, rank_mapping_cache)
 		if err != nil {
 			rank_mapping_cache = &RankMappingsCache{}
@@ -113,7 +115,7 @@ func GetRankMappings() *RankMappingsCache {
 
 func GetShoppingRecipeExclusionList() *ShoppingRecipeExclusionList {
 	if shopping_recipe_exclusion_list == nil {
-		fn := path.Join(static_source_dir, shopping_recipe_exclusion_list_fn)
+		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, shopping_recipe_exclusion_list_fn)
 		err := loadStaticResource(fn, shopping_recipe_exclusion_list)
 		if err != nil {
 			shopping_recipe_exclusion_list = &ShoppingRecipeExclusionList{}

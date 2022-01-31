@@ -70,7 +70,7 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 
 		res, getErr := httpClient.Do(req)
 		if getErr != nil {
-			cpclog.Errorf("An error was encountered while retrieving an authorization token: ", getErr)
+			cpclog.Errorf("An error was encountered while retrieving an authorization token: ", getErr.Error())
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, getErr)
 		}
 

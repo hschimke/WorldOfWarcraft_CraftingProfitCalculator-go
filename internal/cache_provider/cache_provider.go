@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/environment_variables"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 )
 
 var redisClient *redis.Client

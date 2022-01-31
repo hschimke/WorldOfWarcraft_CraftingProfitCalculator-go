@@ -833,7 +833,7 @@ func run(region string, server globalTypes.RealmName, professions []globalTypes.
 
 	cpclog.Info("World of Warcraft Crafting Profit Calculator")
 
-	cpclog.Infof("Checking %s in %s for %s with available professions %s", server, region, item, professions)
+	cpclog.Infof("Checking %s in %s for %v with available professions %s", server, region, item, professions)
 
 	//let formatted_data = 'NO DATA';
 

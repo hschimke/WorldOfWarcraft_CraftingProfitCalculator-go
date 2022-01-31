@@ -23,6 +23,7 @@ var (
 	SERVER_PORT                uint64 = 0
 	CLUSTER_SIZE               uint64 = 1
 	DATABASE_CONNECTION_STRING string = ""
+	STATIC_DIR_ROOT            string = ""
 )
 
 func getBoolean(variable string) (result bool) {
@@ -107,4 +108,6 @@ func init() {
 	} else {
 		log.Fatalf("STANDALONE_CONTAINER must be one of {%s}", standaloneContainerOptions)
 	}
+
+	STATIC_DIR_ROOT = os.Getenv("STATIC_DIR_ROOT")
 }

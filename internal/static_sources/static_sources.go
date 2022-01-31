@@ -8,6 +8,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 )
 
@@ -56,6 +57,7 @@ func loadStaticResource(fn string, target interface{}) error {
 }
 
 func fetchFromUri(uri string, target interface{}) error {
+	cpclog.Debug("Downloading Bonuses from web")
 	httpClient := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -89,10 +91,12 @@ func fetchFromUri(uri string, target interface{}) error {
 
 func GetBonuses() (*BonusesCache, error) {
 	if bonus_cache == nil {
+		bonus_cache = &BonusesCache{}
 		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, bonuses_cache_fn)
 		err := loadStaticResource(fn, bonus_cache)
 		if err != nil {
 			// lets go get it
+			cpclog.Debug(err.Error())
 			fetchErr := fetchFromUri(raidbots_dl_uri, bonus_cache)
 			if fetchErr != nil {
 				return nil, fetchErr

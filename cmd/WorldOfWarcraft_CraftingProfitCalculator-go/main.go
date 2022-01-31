@@ -12,6 +12,9 @@ import (
 )
 
 func main() {
+
+	cpclog.LogLevel = cpclog.GetLevel("debug")
+
 	fRegion := flag.String("region", "us", "Region")
 	fServer := flag.String("server", "Hyjal", "Server")
 	fProfession := flag.String("profession", "[\"Jewelcrafting\", \"Tailoring\", \"Alchemy\", \"Herbalism\", \"Inscription\", \"Enchanting\", \"Blacksmithing\", \"Mining\", \"Engineering\", \"Leatherworking\", \"Skinning\", \"Cooking\"]", "Profession")

@@ -26,11 +26,11 @@ var (
 	shopping_recipe_exclusion_list *ShoppingRecipeExclusionList
 )
 
-type BonusesCache map[uint]struct {
-	Id      uint
-	Level   uint
-	Quality uint
-	Socket  uint
+type BonusesCache map[string]struct {
+	Id      int `json:"id,omitempty"`
+	Level   int `json:"level,omitempty"`
+	Quality int `json:"quality,omitempty"`
+	Socket  int `json:"socket,omitempty"`
 }
 
 type RankMappingsCache struct {
@@ -91,39 +91,45 @@ func fetchFromUri(uri string, target interface{}) error {
 
 func GetBonuses() (*BonusesCache, error) {
 	if bonus_cache == nil {
-		bonus_cache = &BonusesCache{}
+		bc := BonusesCache{}
 		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, bonuses_cache_fn)
-		err := loadStaticResource(fn, bonus_cache)
+		err := loadStaticResource(fn, &bc)
 		if err != nil {
 			// lets go get it
 			cpclog.Debug(err.Error())
-			fetchErr := fetchFromUri(raidbots_dl_uri, bonus_cache)
+			fetchErr := fetchFromUri(raidbots_dl_uri, &bc)
 			if fetchErr != nil {
 				return nil, fetchErr
 			}
 		}
+		bonus_cache = &bc
 	}
 	return bonus_cache, nil
 }
 
 func GetRankMappings() *RankMappingsCache {
 	if rank_mapping_cache == nil {
+		rm := RankMappingsCache{}
 		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, rank_mappings_cache_fn)
-		err := loadStaticResource(fn, rank_mapping_cache)
+		err := loadStaticResource(fn, &rm)
 		if err != nil {
 			rank_mapping_cache = &RankMappingsCache{}
 		}
+		rank_mapping_cache = &rm
+
 	}
 	return rank_mapping_cache
 }
 
 func GetShoppingRecipeExclusionList() *ShoppingRecipeExclusionList {
 	if shopping_recipe_exclusion_list == nil {
+		sre := ShoppingRecipeExclusionList{}
 		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, shopping_recipe_exclusion_list_fn)
-		err := loadStaticResource(fn, shopping_recipe_exclusion_list)
+		err := loadStaticResource(fn, &sre)
 		if err != nil {
 			shopping_recipe_exclusion_list = &ShoppingRecipeExclusionList{}
 		}
+		shopping_recipe_exclusion_list = &sre
 	}
 	return shopping_recipe_exclusion_list
 }

@@ -167,7 +167,7 @@ func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Au
  * get the item level delta for that bonus id.
  * @param bonus_id The bonus ID to check.
  */
-func getLvlModifierForBonus(bonus_id uint) uint {
+func getLvlModifierForBonus(bonus_id uint) int {
 	raidbots_bonus_lists_ptr, _ := static_sources.GetBonuses()
 	/*
 		if err != nil {
@@ -175,7 +175,7 @@ func getLvlModifierForBonus(bonus_id uint) uint {
 		}
 	*/
 	raidbots_bonus_lists := *raidbots_bonus_lists_ptr
-	if rbl, present := raidbots_bonus_lists[bonus_id]; present {
+	if rbl, present := raidbots_bonus_lists[fmt.Sprint(bonus_id)]; present {
 		/*if rbl.Level != nil {
 			return rbl.Level
 		} else {
@@ -354,7 +354,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	bl_flat_hld := filterArrayToSet(fltn_arr)
 	bl_flat := make([]uint, 0)
 	for _, bonus := range bl_flat_hld {
-		bns, rb_b_pres := raidbots_bonus_lists[bonus]
+		bns, rb_b_pres := raidbots_bonus_lists[fmt.Sprint(bonus)]
 		if rb_b_pres {
 			if bns.Level != 0 {
 				//return truedfdf
@@ -365,7 +365,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	for _, bonus := range bl_flat {
 		mod := getLvlModifierForBonus(bonus)
 		if mod != 0 {
-			new_level := base_ilvl + mod
+			new_level := uint(int(base_ilvl) + mod)
 			bonus_link[new_level] = bonus
 			cpclog.Debug("Bonus level ", bonus, " results in crafted ilvl of ", new_level)
 		}
@@ -441,12 +441,12 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 		if len(price_obj.Bonus_lists) > 0 {
 			//price_obj.bonus_prices = [];
 			for _, bonus := range bl_flat {
-				rbl := raidbots_bonus_lists[bonus]
+				rbl := raidbots_bonus_lists[fmt.Sprint(bonus)]
 				level_uncrafted_ah_cost := struct {
 					Level uint
 					Ah    globalTypes.AHItemPriceObject
 				}{
-					Level: base_ilvl + rbl.Level,
+					Level: uint(int(base_ilvl) + rbl.Level),
 					Ah:    getAHItemPrice(item_id, auction_house, bonus),
 				}
 				price_obj.Bonus_prices = append(price_obj.Bonus_prices, level_uncrafted_ah_cost)

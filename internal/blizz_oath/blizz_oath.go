@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
@@ -57,7 +59,10 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 		cpclog.Debug("Access token expired, fetching fresh.")
 		uri := fmt.Sprint("https://", region, ".", authorization_uri_base)
 
-		req, err := http.NewRequest(http.MethodPost, uri, nil)
+		form := url.Values{}
+		form.Add("grant_type", "client_credentials")
+
+		req, err := http.NewRequest(http.MethodPost, uri, strings.NewReader(form.Encode()))
 		if err != nil {
 			//logger.Fatal(err)
 			//level.Error(logger).Log(err)
@@ -67,10 +72,16 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 		}
 		req.Header.Set("User-Agent", "WorldOfWarcraft_CraftingProfitCalculator-go")
 		req.Header.Set("Connection", "keep-alive")
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+		req.URL.User = url.UserPassword(client_id, client_secret)
+
+		//req.Form.Set("username", client_id)
+		//req.Form.Set("password", client_secret)
 
 		res, getErr := httpClient.Do(req)
 		if getErr != nil {
-			cpclog.Errorf("An error was encountered while retrieving an authorization token: ", getErr.Error())
+			cpclog.Error(getErr)
+			cpclog.Error("an error was encountered while retrieving an authorization token: ", getErr.Error())
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, getErr)
 		}
 
@@ -78,14 +89,13 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 			defer res.Body.Close()
 		}
 
-		/*type returned_item []struct {
-			Id string `json:"id"`
-		}*/
-		var new_token AccessToken
+		new_token := AccessToken{}
 		parseErr := json.NewDecoder(res.Body).Decode(&new_token)
+		//fmt.Print(io.ReadAll(res.Body))
 		if parseErr != nil {
 			//log.Print(io.ReadAll(res.Body))
-			cpclog.Errorf("An error was encountered while retrieving an authorization token: ", parseErr)
+			cpclog.Error(parseErr)
+			cpclog.Error("an error was encountered while parsing an authorization token: ", parseErr.Error())
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, parseErr)
 		}
 		new_token.Fetched = time.Now()

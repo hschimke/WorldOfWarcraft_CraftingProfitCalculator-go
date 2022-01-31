@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -71,7 +72,8 @@ func getAndFill(uri string, region globalTypes.RegionCode, data interface{}, tar
 	if encodeErr != nil {
 		return fmt.Errorf("error with request: %s, err: %s", uri, encodeErr)
 	}
-	req, err := http.NewRequest(http.MethodPost, uri, bytes.NewBuffer(encoded_data))
+
+	req, err := http.NewRequest(http.MethodGet, uri, bytes.NewReader(encoded_data))
 	if err != nil {
 		cpclog.Errorf("error with request: %s, err: %s", uri, err)
 		return fmt.Errorf("error with request: %s, err: %s", uri, err)
@@ -83,7 +85,7 @@ func getAndFill(uri string, region globalTypes.RegionCode, data interface{}, tar
 
 	res, getErr := httpClient.Do(req)
 	if getErr != nil {
-		cpclog.Errorf("An error was encountered while retrieving an authorization token: ", getErr)
+		cpclog.Error("An error was encountered while retrieving a uri(", uri, "): ", getErr)
 		return fmt.Errorf("error fetching uri: %s, err: %s", uri, getErr)
 	}
 
@@ -93,8 +95,8 @@ func getAndFill(uri string, region globalTypes.RegionCode, data interface{}, tar
 
 	parseErr := json.NewDecoder(res.Body).Decode(&target)
 	if parseErr != nil {
-		//log.Print(io.ReadAll(res.Body))
-		cpclog.Errorf("An error was encountered while retrieving an authorization token: ", parseErr)
+		fmt.Println(io.ReadAll(res.Body))
+		cpclog.Error("An error was encountered while parsing response: ", parseErr)
 		return fmt.Errorf("error parsing api response for: %s, err: %s", uri, parseErr)
 	}
 	return nil

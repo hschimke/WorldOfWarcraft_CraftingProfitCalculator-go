@@ -2,6 +2,7 @@ package wow_crafting_profits
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -208,15 +209,30 @@ func filterArrayToSet(array []uint) (result []uint) {
 	return
 }
 
-func flattenArray(aray [][]uint) []uint {
-	//arr.reduce((acc, val) => acc.concat(val), []);
-	r := make([]uint, 0)
-	for _, el := range aray {
-		for _, itm := range el {
-			r = append(r, itm)
+func Flatten(arr interface{}) ([]uint, error) {
+	return doFlatten([]uint{}, arr)
+}
+
+func doFlatten(acc []uint, arr interface{}) ([]uint, error) {
+	var err error
+
+	switch v := arr.(type) {
+	case []uint:
+		acc = append(acc, v...)
+	case uint:
+		acc = append(acc, v)
+	case []interface{}:
+		for i := range v {
+			acc, err = doFlatten(acc, v[i])
+			if err != nil {
+				return nil, errors.New("not int or []int given")
+			}
 		}
+	default:
+		return nil, errors.New("not int given")
 	}
-	return r
+
+	return acc, nil
 }
 
 func arrayContains(array []uint, search uint) (found bool) {
@@ -331,7 +347,11 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	price_obj.Bonus_lists = filterArrayToSetDouble(getItemBonusLists(item_id, auction_house))
 	bonus_link := make(map[uint]uint)
 	//bl_flat := filterArrayToSet(flattenArray(price_obj.bonus_lists)).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));
-	bl_flat_hld := filterArrayToSet(flattenArray(price_obj.Bonus_lists))
+	fltn_arr, err := Flatten(price_obj.Bonus_lists)
+	if err != nil {
+		return globalTypes.ProfitAnalysisObject{}, err
+	}
+	bl_flat_hld := filterArrayToSet(fltn_arr)
 	bl_flat := make([]uint, 0)
 	for _, bonus := range bl_flat_hld {
 		bns, rb_b_pres := raidbots_bonus_lists[bonus]
@@ -835,8 +855,6 @@ func run(region string, server globalTypes.RealmName, professions []globalTypes.
 		Intermediate: intermediate_data,
 		Formatted:    formatted_data,
 	}, nil
-
-	return globalTypes.RunReturn{}, fmt.Errorf("not implemented")
 }
 
 /**

@@ -1,7 +1,6 @@
 package blizzard_api_call
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -62,26 +61,26 @@ func init() {
 	manageBlizzardTimeout()
 }
 
-func getAndFill(uri string, region globalTypes.RegionCode, data interface{}, target BlizzardApi.BlizzardApiReponse) error {
+func getAndFill(uri string, region globalTypes.RegionCode, data map[string]string, target BlizzardApi.BlizzardApiReponse) error {
 	token, tokenErr := blizz_oath.GetAuthorizationToken(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, region)
 	if tokenErr != nil {
 		return tokenErr
 	}
 
-	encoded_data, encodeErr := json.Marshal(data)
-	if encodeErr != nil {
-		return fmt.Errorf("error with request: %s, err: %s", uri, encodeErr)
-	}
-
-	req, err := http.NewRequest(http.MethodGet, uri, bytes.NewReader(encoded_data))
+	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
 		cpclog.Errorf("error with request: %s, err: %s", uri, err)
 		return fmt.Errorf("error with request: %s, err: %s", uri, err)
 	}
 	req.Header.Set("User-Agent", "WorldOfWarcraft_CraftingProfitCalculator-go")
 	req.Header.Set("Connection", "keep-alive")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token.Access_token))
-	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	req.Header.Set("Authorization", fmt.Sprint("Bearer ", token.Access_token))
+
+	queryParams := req.URL.Query()
+	for key, value := range data {
+		queryParams.Set(key, value)
+	}
+	req.URL.RawQuery = queryParams.Encode()
 
 	res, getErr := httpClient.Do(req)
 	if getErr != nil {
@@ -102,7 +101,7 @@ func getAndFill(uri string, region globalTypes.RegionCode, data interface{}, tar
 	return nil
 }
 
-func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data interface{}, uri string, target BlizzardApi.BlizzardApiReponse) (int, error) {
+func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]string, uri string, target BlizzardApi.BlizzardApiReponse) (int, error) {
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {
@@ -127,7 +126,7 @@ func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data interface{}
 	return int(wait_count), nil
 }
 
-func GetBlizzardRawUriResponse(data interface{}, uri string, region globalTypes.RegionCode, target BlizzardApi.BlizzardApiReponse) (int, error) {
+func GetBlizzardRawUriResponse(data map[string]string, uri string, region globalTypes.RegionCode, target BlizzardApi.BlizzardApiReponse) (int, error) {
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {

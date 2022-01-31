@@ -30,7 +30,7 @@ const (
 	CYCLIC_LINK_CACHE                    string = "cyclic_links"
 )
 
-type basicDataPackage struct {
+/*type basicDataPackage struct {
 	Namespace string `json:"namespace,omitempty"`
 	Locale    string `json:"locale,omitempty"`
 }
@@ -48,7 +48,11 @@ type searchPageDataPackage struct {
 	Name      string `json:"name.en_US"`
 	Orderby   string `json:"orderby"`
 	Page      string `json:"_page"`
-}
+}*/
+
+type basicDataPackage map[string]string
+type searchDataPackage map[string]string
+type searchPageDataPackage map[string]string
 
 type skilltier struct {
 	Name string
@@ -68,10 +72,10 @@ func doItemNameSearch(item_name string, region string, results chan BlizzardApi.
 
 	fetchPage := BlizzardApi.ItemSearch{}
 	_, err := blizzard_api_call.GetBlizzardAPIResponse(region, searchDataPackage{
-		getNamespace(static_ns, region),
-		locale_us,
-		item_name,
-		"id:desc",
+		"namespace":  getNamespace(static_ns, region),
+		"locale":     locale_us,
+		"name.en_US": item_name,
+		"orderby":    "id:desc",
 	}, search_api_uri, &fetchPage)
 	//current_page = fetchPage.Page
 	if err != nil && fetchPage.PageCount <= 0 {
@@ -91,11 +95,11 @@ func doItemNameSearch(item_name string, region string, results chan BlizzardApi.
 			cpclog.Debug("Checking page ", cp, " for ", item_name)
 			getPage := BlizzardApi.ItemSearch{}
 			waited, _ := blizzard_api_call.GetBlizzardAPIResponse(region, searchPageDataPackage{
-				getNamespace(static_ns, region),
-				locale_us,
-				item_name,
-				"id:desc",
-				fmt.Sprint(cp),
+				"namespace":  getNamespace(static_ns, region),
+				"locale":     locale_us,
+				"name.en_US": item_name,
+				"orderby":    "id:desc",
+				"_page":      fmt.Sprint(cp),
 			}, search_api_uri, &getPage)
 			_ = waited
 			results <- getPage
@@ -151,12 +155,12 @@ func getAllConnectedRealms(region globalTypes.RegionCode) (BlizzardApi.Connected
 
 	const list_connected_realms_api string = "/data/wow/connected-realm/index"
 	list_connected_realms_form := basicDataPackage{
-		getNamespace(dynamic_ns, region),
-		locale_us,
+		"namespace": getNamespace(dynamic_ns, region),
+		"locale":    locale_us,
 	}
 
 	var realm_index BlizzardApi.ConnectedRealmIndex
-	_, fetchError := blizzard_api_call.GetBlizzardAPIResponse(region, &list_connected_realms_form, list_connected_realms_api, &realm_index)
+	_, fetchError := blizzard_api_call.GetBlizzardAPIResponse(region, list_connected_realms_form, list_connected_realms_api, &realm_index)
 	if fetchError != nil {
 		return BlizzardApi.ConnectedRealmIndex{}, fetchError
 	}
@@ -174,8 +178,8 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 	}
 
 	get_connected_realm_form := basicDataPackage{
-		getNamespace(dynamic_ns, server_region),
-		locale_us,
+		"namespace": getNamespace(dynamic_ns, server_region),
+		"locale":    locale_us,
 	}
 
 	realm_id := globalTypes.ConnectedRealmID(0)

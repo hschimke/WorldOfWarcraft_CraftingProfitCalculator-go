@@ -99,6 +99,9 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, parseErr)
 		}
 		new_token.Fetched = time.Now()
+		if new_token.Expires_in == 0 {
+			new_token.Expires_in = uint64(time.Duration(time.Hour * 1).Milliseconds())
+		}
 		token_store[region] = &new_token
 	}
 	return_value := token_store[region]

@@ -30,33 +30,13 @@ const (
 	CYCLIC_LINK_CACHE                    string = "cyclic_links"
 )
 
-/*type basicDataPackage struct {
-	Namespace string `json:"namespace,omitempty"`
-	Locale    string `json:"locale,omitempty"`
-}
-
-type searchDataPackage struct {
-	Namespace string `json:"namespace"`
-	Locale    string `json:"locale"`
-	Name      string `json:"name.en_US"`
-	Orderby   string `json:"orderby"`
-}
-
-type searchPageDataPackage struct {
-	Namespace string `json:"namespace"`
-	Locale    string `json:"locale"`
-	Name      string `json:"name.en_US"`
-	Orderby   string `json:"orderby"`
-	Page      string `json:"_page"`
-}*/
-
 type basicDataPackage map[string]string
 type searchDataPackage map[string]string
 type searchPageDataPackage map[string]string
 
 type skilltier struct {
-	Name string
-	Id   uint
+	Name string `json:"name,omitempty"`
+	Id   uint   `json:"id,omitempty"`
 }
 
 type SkillTierCyclicLinksBuild [][]struct {

@@ -205,14 +205,14 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 				break
 			}
 		}
-		if found_realm == true {
+		if found_realm {
 			realm_id = connected_realm_detail.Id
 			break
 		}
 	}
 
 	redis_cache_provider.CacheSet(CONNECTED_REALM_ID_CACHE, connected_realm_key, realm_id, redis_cache_provider.GetStaticTimeWithShift())
-	cpclog.Infof("Found Connected Realm ID: %s for %s %s", realm_id, server_region, server_name)
+	cpclog.Infof("Found Connected Realm ID: %d for %s %s", realm_id, server_region, server_name)
 
 	// Return that connected realm ID
 	return realm_id, nil
@@ -220,7 +220,7 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 
 func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalTypes.CharacterProfession, region globalTypes.RegionCode) (globalTypes.CraftingStatus, error) {
 	// Check if we've already run this check, and if so return the cached version, otherwise keep on
-	key := fmt.Sprintf("%s::%s::%s", region, item_id, character_professions)
+	key := fmt.Sprintf("%s::%d::%v", region, item_id, character_professions)
 
 	if found, err := redis_cache_provider.CacheCheck(CRAFTABLE_BY_PROFESSION_SET_CACHE, key); err == nil && found {
 		item := globalTypes.CraftingStatus{}
@@ -296,7 +296,7 @@ func getProfessionId(profession_list BlizzardApi.ProfessionsIndex, profession_na
 }
 
 func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item) (globalTypes.CraftingStatus, error) {
-	cache_key := fmt.Sprintf("%s:%s:%s", region, prof, item_id)
+	cache_key := fmt.Sprintf("%s:%s:%d", region, prof, item_id)
 	if found, err := redis_cache_provider.CacheCheck(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key); err == nil && found {
 		item := globalTypes.CraftingStatus{}
 		fndErr := redis_cache_provider.CacheGet(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key, &item)
@@ -506,7 +506,7 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 
 	cpclog.Debug("Scanned ", counter, " recipes in ", profession_counter, " professions")
 
-	var link_lookup globalTypes.SkillTierCyclicLinks
+	link_lookup := make(globalTypes.SkillTierCyclicLinks)
 
 	for _, link := range links {
 		item_1 := link[0]
@@ -588,7 +588,7 @@ func uint_slice_has(arr []uint, value uint) (found bool) {
 }
 
 func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode) SkillTierCyclicLinksBuild {
-	cache_key := fmt.Sprintf("%s::%s::%s", region, skill_tier.Name, profession.Id)
+	cache_key := fmt.Sprintf("%s::%s::%d", region, skill_tier.Name, profession.Id)
 
 	if found, err := redis_cache_provider.CacheCheck(CYCLIC_LINK_CACHE, cache_key); err == nil && found {
 		var item SkillTierCyclicLinksBuild

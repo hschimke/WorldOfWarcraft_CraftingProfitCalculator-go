@@ -19,7 +19,7 @@ func GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (
 		return item, fndErr
 	}
 
-	var profession_item_detail_uri string = fmt.Sprintf("/data/wow/item/%s", item_id)
+	var profession_item_detail_uri string = fmt.Sprintf("/data/wow/item/%d", item_id)
 	//categories[array].recipes[array].name categories[array].recipes[array].id
 	result := BlizzardApi.Item{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
@@ -58,7 +58,7 @@ func GetBlizProfessionsList(region globalTypes.RegionCode) (BlizzardApi.Professi
 }
 
 func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) (BlizzardApi.Profession, error) {
-	key := fmt.Sprintf("%s::%s", region, profession_id)
+	key := fmt.Sprintf("%s::%d", region, profession_id)
 
 	if found, err := redis_cache_provider.CacheCheck(PROFESSION_DETAIL_CACHE, key); err == nil && found {
 		item := BlizzardApi.Profession{}
@@ -66,7 +66,7 @@ func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) 
 		return item, fndErr
 	}
 
-	profession_detail_uri := fmt.Sprintf("/data/wow/profession/%s", profession_id)
+	profession_detail_uri := fmt.Sprintf("/data/wow/profession/%d", profession_id)
 	result := BlizzardApi.Profession{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
 		getNamespace(static_ns, region),
@@ -80,7 +80,7 @@ func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) 
 }
 
 func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID, region globalTypes.RegionCode) (BlizzardApi.ConnectedRealm, error) {
-	key := fmt.Sprintf("%s::%s", region, connected_realm_id)
+	key := fmt.Sprintf("%s::%d", region, connected_realm_id)
 
 	if found, err := redis_cache_provider.CacheCheck(COMPOSITE_REALM_NAME_CACHE, key); err == nil && found {
 		item := BlizzardApi.ConnectedRealm{}
@@ -88,7 +88,7 @@ func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID
 		return item, fndErr
 	}
 
-	connected_realm_detail_uri := fmt.Sprintf("/data/wow/connected-realm/%s", connected_realm_id)
+	connected_realm_detail_uri := fmt.Sprintf("/data/wow/connected-realm/%d", connected_realm_id)
 	result := BlizzardApi.ConnectedRealm{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
 		getNamespace(dynamic_ns, region),
@@ -102,7 +102,7 @@ func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID
 }
 
 func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region globalTypes.RegionCode) (BlizzardApi.ProfessionSkillTier, error) {
-	key := fmt.Sprintf("%s::%s::%s", region, profession_id, skillTier_id)
+	key := fmt.Sprintf("%s::%d::%d", region, profession_id, skillTier_id)
 
 	if found, err := redis_cache_provider.CacheCheck(PROFESSION_SKILL_TIER_DETAILS_CACHE, key); err == nil && found {
 		item := BlizzardApi.ProfessionSkillTier{}
@@ -110,7 +110,7 @@ func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region global
 		return item, fndErr
 	}
 
-	profession_skill_tier_detail_uri := fmt.Sprintf("/data/wow/profession/%s/skill-tier/%s", profession_id, skillTier_id)
+	profession_skill_tier_detail_uri := fmt.Sprintf("/data/wow/profession/%d/skill-tier/%d", profession_id, skillTier_id)
 	result := BlizzardApi.ProfessionSkillTier{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
 		getNamespace(static_ns, region),
@@ -124,7 +124,7 @@ func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region global
 }
 
 func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (BlizzardApi.Recipe, error) {
-	key := fmt.Sprintf("%s::%s", region, region, recipe_id)
+	key := fmt.Sprintf("%s::%d", region, recipe_id)
 
 	if found, err := redis_cache_provider.CacheCheck(PROFESSION_RECIPE_DETAIL_CACHE, key); err == nil && found {
 		item := BlizzardApi.Recipe{}
@@ -132,7 +132,7 @@ func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (Blizzar
 		return item, fndErr
 	}
 
-	profession_recipe_uri := fmt.Sprintf("/data/wow/recipe/%s", recipe_id)
+	profession_recipe_uri := fmt.Sprintf("/data/wow/recipe/%d", recipe_id)
 	result := BlizzardApi.Recipe{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
 		getNamespace(static_ns, region),
@@ -146,7 +146,7 @@ func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (Blizzar
 }
 
 func GetAuctionHouse(server_id globalTypes.ConnectedRealmID, server_region globalTypes.RegionCode) (BlizzardApi.Auctions, error) {
-	key := fmt.Sprintf("%s", server_id)
+	key := fmt.Sprint(server_id)
 
 	if found, err := redis_cache_provider.CacheCheck(AUCTION_DATA_CACHE, key); err == nil && found {
 		item := BlizzardApi.Auctions{}
@@ -154,7 +154,7 @@ func GetAuctionHouse(server_id globalTypes.ConnectedRealmID, server_region globa
 		return item, fndErr
 	}
 
-	auction_house_fetch_uri := fmt.Sprintf("/data/wow/connected-realm/%s/auctions", server_id)
+	auction_house_fetch_uri := fmt.Sprintf("/data/wow/connected-realm/%d/auctions", server_id)
 	result := BlizzardApi.Auctions{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(server_region, basicDataPackage{
 		getNamespace(dynamic_ns, server_region),

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_call"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/redis_cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/redis_cache_provider"
 )
 
 const (

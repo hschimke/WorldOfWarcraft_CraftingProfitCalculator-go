@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_call"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/redis_cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/redis_cache_provider"
 )
 
 func GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (BlizzardApi.Item, error) {

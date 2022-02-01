@@ -346,7 +346,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	//  price_obj.bonus_lists = Array.from(new Set(await getItemBonusLists(item_id, auction_house)));
 	price_obj.Bonus_lists = filterArrayToSetDouble(getItemBonusLists(item_id, auction_house))
 	bonus_link := make(map[uint]uint)
-	//bl_flat := filterArrayToSet(flattenArray(price_obj.bonus_lists)).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));
+	//bl_flat := filterArrayToSet(flattenArray(price_obj.bonus_lists)).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));)
 	fltn_arr, err := Flatten(price_obj.Bonus_lists)
 	if err != nil {
 		return globalTypes.ProfitAnalysisObject{}, err

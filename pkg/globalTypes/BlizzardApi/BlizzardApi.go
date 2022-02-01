@@ -16,7 +16,7 @@ type ItemSearch struct {
 type ConnectedRealmIndex struct {
 	Connected_realms []struct {
 		Href string `json:"href,omitempty"`
-	} `json:"connected___realms,omitempty"`
+	} `json:"connected_realms,omitempty"`
 }
 
 type ConnectedRealm struct {
@@ -30,8 +30,8 @@ type Item struct {
 	Id                globalTypes.ItemID   `json:"id,omitempty"`
 	Name              globalTypes.ItemName `json:"name,omitempty"`
 	Description       string               `json:"description,omitempty"`
-	Purchase_price    uint                 `json:"purchase___price,omitempty"`
-	Purchase_quantity uint                 `json:"purchase___quantity,omitempty"`
+	Purchase_price    uint                 `json:"purchase_price,omitempty"`
+	Purchase_quantity uint                 `json:"purchase_quantity,omitempty"`
 	Level             uint                 `json:"level,omitempty"`
 }
 
@@ -46,7 +46,7 @@ type Profession struct {
 	Skill_tiers []struct {
 		Name string `json:"name,omitempty"`
 		Id   uint   `json:"id,omitempty"`
-	} `json:"skill___tiers,omitempty"`
+	} `json:"skill_tiers,omitempty"`
 	Name string `json:"name,omitempty"`
 	Id   uint   `json:"id,omitempty"`
 }
@@ -68,13 +68,13 @@ type Recipe struct {
 	Name                  string `json:"name,omitempty"`
 	Alliance_crafted_item *struct {
 		Id uint `json:"id,omitempty"`
-	} `json:"alliance___crafted___item,omitempty"`
+	} `json:"alliance_crafted_item,omitempty"`
 	Horde_crafted_item *struct {
 		Id uint `json:"id,omitempty"`
-	} `json:"horde___crafted___item,omitempty"`
+	} `json:"horde_crafted_item,omitempty"`
 	Crafted_item *struct {
 		Id uint `json:"id,omitempty"`
-	} `json:"crafted___item,omitempty"`
+	} `json:"crafted_item,omitempty"`
 	Reagents []struct {
 		Reagent struct {
 			Id uint `json:"id,omitempty"`
@@ -82,21 +82,21 @@ type Recipe struct {
 		Quantity uint `json:"quantity,omitempty"`
 	} `json:"reagents,omitempty"`
 	Crafted_quantity struct {
-		Minimum uint `json:"minimum,omitempty"`
-		Maximum uint `json:"maximum,omitempty"`
-		Value   uint `json:"value,omitempty"`
-	} `json:"crafted___quantity,omitempty"`
+		Minimum uint    `json:"minimum,omitempty"`
+		Maximum uint    `json:"maximum,omitempty"`
+		Value   float64 `json:"value,omitempty"`
+	} `json:"crafted_quantity,omitempty"`
 }
 
 type Auctions struct {
 	Auctions []struct {
 		Item struct {
 			Id          globalTypes.ItemID `json:"id,omitempty"`
-			Bonus_lists []uint             `json:"bonus___lists,omitempty"`
+			Bonus_lists []uint             `json:"bonus_lists,omitempty"`
 		} `json:"item,omitempty"`
 		Quantity   uint `json:"quantity,omitempty"`
 		Buyout     uint `json:"buyout,omitempty"`
-		Unit_price uint `json:"unit___price,omitempty"`
+		Unit_price uint `json:"unit_price,omitempty"`
 	} `json:"auctions,omitempty"`
 }
 

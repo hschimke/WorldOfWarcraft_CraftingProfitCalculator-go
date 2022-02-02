@@ -2,6 +2,7 @@ package text_output_helpers
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
@@ -11,12 +12,12 @@ import (
  * @param {!number} price_in The blizzard provided cost number.
  * @returns {string} The formatted Gold,Silver,Copper value as seen in game.
  */
-func GoldFormatter(price_in uint64) string {
+func GoldFormatter(price_in float64) string {
 	price := price_in
-	copper := price % 100
-	silver := ((price % 10000) - copper) / 100
-	gold := (price - (price % 10000)) / 10000
-	return fmt.Sprintf("${gold.toLocaleString()}g ${silver.toLocaleString()}s ${copper.toLocaleString()}c", gold, silver, copper)
+	copper := uint(price) % 100
+	silver := ((uint(price) % 10000) - copper) / 100
+	gold := (uint(price) - (uint(price) % 10000)) / 10000
+	return fmt.Sprintf("%dg %ds %dc", gold, silver, copper)
 }
 
 /**
@@ -36,8 +37,7 @@ func indentAdder(level uint) string {
  * @param {!object} output_data The object created by generateOutputFormat.
  * @param {!number} indent The number of spaces the current level should be indented.
  */
-func TextFriendlyOutputFormat(output_data globalTypes.OutputFormatObject, indent uint) string {
-	return ""
+func TextFriendlyOutputFormat(output_data *globalTypes.OutputFormatObject, indent uint) string {
 
 	/*
 	 * Output format:
@@ -51,61 +51,136 @@ func TextFriendlyOutputFormat(output_data globalTypes.OutputFormatObject, indent
 	 *   Average Component Crafting Cost
 	 */
 
-	/*
-	   let return_string = '';
+	var ob strings.Builder
 
-	   //logger.debug('Building Formatted Price List');
+	//logger.debug('Building Formatted Price List');
 
-	   return_string += indentAdder(indent) + `${output_data.name} (${output_data.id}) Requires ${output_data.required}\n`;
-	   if ((output_data.ah !== undefined) && (output_data.ah.sales > 0)) {
-	       return_string += indentAdder(indent + 1) + `AH ${output_data.ah.sales}: ${goldFormatter(output_data.ah.high)}/${goldFormatter(output_data.ah.low)}/${goldFormatter(output_data.ah.average)}\n`;
-	   }
-	   if (output_data.vendor > 0) {
-	       return_string += indentAdder(indent + 1) + `Vendor ${goldFormatter(output_data.vendor)}\n`;
-	   }
-	   if (output_data.recipes !== undefined) {
-	       for (let recipe_option of output_data.recipes) {
-	           return_string += indentAdder(indent + 1) + `${recipe_option.name} - ${recipe_option.rank} - (${recipe_option.id}) : ${goldFormatter(recipe_option.high)}/${goldFormatter(recipe_option.low)}/${goldFormatter(recipe_option.average)}\n`;
-	           if ((recipe_option.ah !== undefined) && (recipe_option.ah.sales > 0)) {
-	               return_string += indentAdder(indent + 2) + `AH ${recipe_option.ah.sales}: ${goldFormatter(recipe_option.ah.high)}/${goldFormatter(recipe_option.ah.low)}/${goldFormatter(recipe_option.ah.average)}\n`;
-	           }
-	           return_string += '\n';
-	           if (recipe_option.parts !== undefined) {
-	               for (let opt of recipe_option.parts) {
-	                   return_string += textFriendlyOutputFormat(opt, indent + 2)
-	                   return_string += '\n'
-	               }
-	           }
-	       }
-	   }
+	ob.WriteString(indentAdder(indent))
+	ob.WriteString(output_data.Name)
+	ob.WriteString(" (")
+	ob.WriteString(fmt.Sprint(output_data.Id))
+	ob.WriteString(") Requires ")
+	ob.WriteString(fmt.Sprint(output_data.Required))
+	ob.WriteString("\n")
 
-	   if (output_data.bonus_prices !== undefined) {
-	       for (const bonus_price of output_data.bonus_prices) {
-	           return_string += indentAdder(indent + 2) + `${output_data.name} (${output_data.id}) iLvl ${bonus_price.level}\n`;
-	           return_string += indentAdder(indent + 3) + `AH ${bonus_price.ah.sales}: ${goldFormatter(bonus_price.ah.high)}/${goldFormatter(bonus_price.ah.low)}/${goldFormatter(bonus_price.ah.average)}\n`;
-	       }
-	   }
+	if output_data.Ah.Sales > 0 {
+		ob.WriteString(indentAdder(indent + 1))
+		ob.WriteString("AH ")
+		ob.WriteString(fmt.Sprint(output_data.Ah.Sales))
+		ob.WriteString(": ")
+		ob.WriteString(GoldFormatter(output_data.Ah.High))
+		ob.WriteString("/")
+		ob.WriteString(GoldFormatter(output_data.Ah.Low))
+		ob.WriteString("/")
+		ob.WriteString(GoldFormatter(output_data.Ah.Average))
+		ob.WriteString("\n")
+	}
+	if output_data.Vendor > 0 {
+		ob.WriteString(indentAdder(indent + 1))
+		ob.WriteString("Vendor ")
+		ob.WriteString(GoldFormatter(output_data.Vendor))
+		ob.WriteString("\n")
+	}
+	if len(output_data.Recipes) > 0 {
+		for _, recipe_option := range output_data.Recipes {
+			ob.WriteString(indentAdder(indent + 1))
+			ob.WriteString(recipe_option.Name)
+			ob.WriteString(" - ")
+			ob.WriteString(fmt.Sprint(recipe_option.Rank))
+			ob.WriteString(" - (")
+			ob.WriteString(fmt.Sprint(recipe_option.Id))
+			ob.WriteString(") : ")
+			ob.WriteString(GoldFormatter(recipe_option.High))
+			ob.WriteString("/")
+			ob.WriteString(GoldFormatter(recipe_option.Low))
+			ob.WriteString("/")
+			ob.WriteString(GoldFormatter(recipe_option.Average))
+			ob.WriteString("\n")
+			if recipe_option.Ah.Sales > 0 {
+				ob.WriteString(indentAdder(indent + 2))
+				ob.WriteString("AH ")
+				ob.WriteString(fmt.Sprint(recipe_option.Ah.Sales))
+				ob.WriteString(": ")
+				ob.WriteString(GoldFormatter(recipe_option.Ah.High))
+				ob.WriteString("/")
+				ob.WriteString(GoldFormatter(recipe_option.Ah.Low))
+				ob.WriteString("/")
+				ob.WriteString(GoldFormatter(recipe_option.Ah.Average))
+				ob.WriteString("\n")
+			}
+			ob.WriteString("\n")
+			if len(recipe_option.Parts) > 0 {
+				for _, opt := range recipe_option.Parts {
+					ob.WriteString(TextFriendlyOutputFormat(&opt, indent+2))
+					ob.WriteString("\n")
+				}
+			}
+		}
+	}
 
-	   //logger.debug('Building formatted shopping list');
-	   // Add lists if it's appropriate
-	   if ('shopping_lists' in output_data && Object.keys(output_data.shopping_lists).length > 0) {
-	       return_string += indentAdder(indent) + `Shopping List For: ${output_data.name}\n`;
-	       for (let list of Object.keys(output_data.shopping_lists)) {
-	           return_string += indentAdder(indent + 1) + `List for rank ${list}\n`;
-	           for (let li of output_data.shopping_lists[list]) {
-	               return_string += indentAdder(indent + 2) + `[${li.quantity.toLocaleString().padStart(8, ' ')}] -- ${li.name} (${li.id})\n`;
-	               if (li.cost.vendor !== undefined) {
-	                   return_string += indentAdder(indent + 10);
-	                   return_string += `vendor: ${goldFormatter(li.cost.vendor)}\n`;
-	               }
-	               if (li.cost.ah !== undefined) {
-	                   return_string += indentAdder(indent + 10);
-	                   return_string += `ah: ${goldFormatter(li.cost.ah.high)}/${goldFormatter(li.cost.ah.low)}/${goldFormatter(li.cost.ah.average)}\n`;
-	               }
-	           }
-	       }
-	   }
+	if len(output_data.Bonus_prices) > 0 {
+		for _, bonus_price := range output_data.Bonus_prices {
+			ob.WriteString(indentAdder(indent + 2))
+			ob.WriteString(output_data.Name)
+			ob.WriteString("(")
+			ob.WriteString(fmt.Sprint(output_data.Id))
+			ob.WriteString(") iLvl ")
+			ob.WriteString(fmt.Sprint(bonus_price.Level))
+			ob.WriteString("\n")
 
-	   return return_string;
-	*/
+			ob.WriteString(indentAdder(indent + 3))
+			ob.WriteString("AH ")
+			ob.WriteString(fmt.Sprint(bonus_price.Ah.Sales))
+			ob.WriteString(": ")
+			ob.WriteString(GoldFormatter(bonus_price.Ah.High))
+			ob.WriteString("/")
+			ob.WriteString(GoldFormatter(bonus_price.Ah.Low))
+			ob.WriteString("/")
+			ob.WriteString(GoldFormatter(bonus_price.Ah.Average))
+			ob.WriteString("\n")
+		}
+	}
+
+	//logger.debug('Building formatted shopping list');
+	// Add lists if it's appropriate
+	if len(output_data.Shopping_lists) > 0 {
+		ob.WriteString(indentAdder(indent))
+		ob.WriteString("Shopping List For: ")
+		ob.WriteString(output_data.Name)
+		ob.WriteString("\n")
+		for rank, list := range output_data.Shopping_lists {
+			ob.WriteString(indentAdder(indent + 1))
+			ob.WriteString("List for rank ")
+			ob.WriteString(fmt.Sprint(rank))
+			ob.WriteString("\n")
+			for _, li := range list {
+				ob.WriteString(indentAdder(indent + 2))
+				ob.WriteString("[")
+				ob.WriteString(fmt.Sprintf("%8d", li.Quantity))
+				ob.WriteString("] -- ")
+				ob.WriteString(li.Name)
+				ob.WriteString(" (")
+				ob.WriteString(fmt.Sprint(li.Id))
+				ob.WriteString(")\n")
+				if li.Cost.Vendor != 0 {
+					ob.WriteString(indentAdder(indent + 10))
+					ob.WriteString("vendor: ")
+					ob.WriteString(GoldFormatter(li.Cost.Vendor))
+					ob.WriteString("\n")
+				}
+				if li.Cost.Ah.Sales != 0 {
+					ob.WriteString(indentAdder(indent + 10))
+					ob.WriteString("ah: ")
+					ob.WriteString(GoldFormatter(li.Cost.Ah.High))
+					ob.WriteString("/")
+					ob.WriteString(GoldFormatter(li.Cost.Ah.Low))
+					ob.WriteString("/")
+					ob.WriteString(GoldFormatter(li.Cost.Ah.Average))
+					ob.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	return ob.String()
 }

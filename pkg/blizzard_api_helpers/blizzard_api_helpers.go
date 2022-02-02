@@ -217,7 +217,7 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 	if item_detail.Description != "" {
 		if strings.Contains(item_detail.Description, "vendor") {
 			cpclog.Debug("Skipping vendor recipe")
-			cache_provider.CacheSet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, recipe_options, cache_provider.GetComputedTimeWithShift())
+			cache_provider.CacheSet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, &recipe_options, cache_provider.GetComputedTimeWithShift())
 			return recipe_options, nil
 		}
 	}
@@ -249,7 +249,7 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 		recipe_options.Craftable = recipe_options.Craftable || profession_crafting_check.Craftable
 	}
 
-	cache_provider.CacheSet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, recipe_options, cache_provider.GetComputedTimeWithShift())
+	cache_provider.CacheSet(CRAFTABLE_BY_PROFESSION_SET_CACHE, key, &recipe_options, cache_provider.GetComputedTimeWithShift())
 	//{craftable: found_craftable, recipe_id: found_recipe_id, crafting_profession: found_profession};
 	return recipe_options, nil
 }
@@ -306,7 +306,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 							}
 						}
 
-						if !crafty && strings.Contains(skill_tier.Name, "Enchanting") && (strings.Contains(cat.Name, "Enchantments") || strings.Contains(cat.Name, "Echantments")) {
+						if !crafty && (strings.Contains(skill_tier.Name, "Enchanting") && (strings.Contains(cat.Name, "Enchantments") || strings.Contains(cat.Name, "Echantments"))) {
 							cpclog.Sillyf("Checking if uncraftable item %s is craftable with a synthetic item-recipe connection.", item_detail.Id)
 							slot := getSlotName(&cat)
 							synthetic_item_name := fmt.Sprintf("Enchant %s - %s", slot, rec.Name)
@@ -325,7 +325,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 						}
 
 						if crafty {
-							cpclog.Infof("Found recipe (%s): %s for (%s) %s", recipe.Id, recipe.Name, item_detail.Id, item_detail.Name)
+							cpclog.Infof("Found recipe (%d): %s for (%d) %s", recipe.Id, recipe.Name, item_detail.Id, item_detail.Name)
 
 							profession_recipe_options.Recipes = append(profession_recipe_options.Recipes, struct {
 								Recipe_id           uint
@@ -339,7 +339,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 							profession_recipe_options.Craftable = true
 						}
 					} else {
-						cpclog.Sillyf("Skipping Recipe: (%s) \"%s\"", recipe.Id, recipe.Name)
+						cpclog.Sillyf("Skipping Recipe: (%d) \"%s\"", recipe.Id, recipe.Name)
 					}
 				}
 			}

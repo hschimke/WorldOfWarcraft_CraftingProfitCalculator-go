@@ -17,7 +17,8 @@ func main() {
 
 	fRegion := flag.String("region", "us", "Region")
 	fServer := flag.String("server", "Hyjal", "Server")
-	fProfession := flag.String("profession", "[\"Jewelcrafting\", \"Tailoring\", \"Alchemy\", \"Herbalism\", \"Inscription\", \"Enchanting\", \"Blacksmithing\", \"Mining\", \"Engineering\", \"Leatherworking\", \"Skinning\", \"Cooking\"]", "Profession")
+	//fProfession := flag.String("profession", "[\"Jewelcrafting\", \"Tailoring\", \"Alchemy\", \"Herbalism\", \"Inscription\", \"Enchanting\", \"Blacksmithing\", \"Mining\", \"Engineering\", \"Leatherworking\", \"Skinning\", \"Cooking\"]", "Profession")
+	fProfession := flag.String("profession", "[\"Tailoring\"]", "Profession")
 	//fItem := flag.String("item", "171276", "Item")
 	fItem := flag.String("item", "Grim-Veiled Bracers", "Item")
 	fCount := flag.Uint("count", 1, "How many of the main item to build")

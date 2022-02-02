@@ -267,13 +267,14 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	if item.ItemId != 0 {
 		item_id = item.ItemId
 	} else {
-		item_id, err := blizzard_api_helpers.GetItemId(region, item.ItemName)
-		if (item_id <= 0) || err != nil {
+		fnd_id, err := blizzard_api_helpers.GetItemId(region, item.ItemName)
+		if (fnd_id <= 0) || err != nil {
 			cpclog.Error("No itemId could be found for ", item)
 			return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("no itemId could be found for %v -> %v", item, err)
 			//throw (new Error(`No itemId could be found for ${item}`));
 		}
-		cpclog.Infof("Found %v for %v", item_id, item)
+		cpclog.Infof("Found %v for %v", fnd_id, item)
+		item_id = fnd_id
 	}
 
 	raidbots_bonus_lists_ptr, err := static_sources.GetBonuses()
@@ -678,7 +679,7 @@ func getShoppingListRanks(intermediate_data globalTypes.OutputFormatObject) []ui
  * @param {!RunConfiguration} on_hand A provided inventory to get existing items from.
  */
 func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_hand *globalTypes.RunConfiguration) globalTypes.OutputFormatShoppingList {
-	var shopping_lists globalTypes.OutputFormatShoppingList
+	shopping_lists := make(globalTypes.OutputFormatShoppingList)
 	for _, rank := range getShoppingListRanks(intermediate_data) {
 		cpclog.Debug("Resetting inventory for rank shopping list.")
 		on_hand.ResetInventoryAdjustments()
@@ -852,7 +853,7 @@ func run(region string, server globalTypes.RealmName, professions []globalTypes.
 	}
 	intermediate_data := generateOutputFormat(price_data, encoded_region)
 	intermediate_data.Shopping_lists = constructShoppingList(intermediate_data, json_config)
-	formatted_data := text_output_helpers.TextFriendlyOutputFormat(intermediate_data, 0)
+	formatted_data := text_output_helpers.TextFriendlyOutputFormat(&intermediate_data, 0)
 
 	return globalTypes.RunReturn{
 		Price:        price_data,
@@ -905,7 +906,7 @@ func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data g
 		}
 		cpclog.Info("Raw output saved")
 	}
-	return fmt.Errorf("not implemented")
+	return nil
 }
 
 /**

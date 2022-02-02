@@ -13,7 +13,7 @@ import (
 
 func main() {
 
-	cpclog.LogLevel = cpclog.GetLevel("debug")
+	cpclog.LogLevel = cpclog.GetLevel("silly")
 
 	fRegion := flag.String("region", "us", "Region")
 	fServer := flag.String("server", "Hyjal", "Server")

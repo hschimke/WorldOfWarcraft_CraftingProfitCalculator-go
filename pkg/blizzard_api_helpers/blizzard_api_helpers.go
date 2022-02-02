@@ -324,10 +324,8 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 						cpclog.Sillyf("Check recipe %s", recipe.Name)
 						if !(strings.Contains(recipe.Name, "Prospect") || strings.Contains(recipe.Name, "Mill")) {
 							crafty := false
-							ids, err := getRecipeCraftedItemID(recipe)
-							if err != nil {
-								return
-							}
+							ids := getRecipeCraftedItemID(recipe)
+
 							for _, id := range ids {
 								if id == item_id {
 									crafty = true
@@ -401,8 +399,8 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 
 }
 
-func getRecipeCraftedItemID(recipe BlizzardApi.Recipe) ([]globalTypes.ItemID, error) {
-	item_ids := make(map[uint]bool)
+func getRecipeCraftedItemID(recipe BlizzardApi.Recipe) []globalTypes.ItemID {
+	item_ids := make(map[globalTypes.ItemID]bool)
 
 	found := false
 	if recipe.Horde_crafted_item != nil {
@@ -418,15 +416,15 @@ func getRecipeCraftedItemID(recipe BlizzardApi.Recipe) ([]globalTypes.ItemID, er
 		found = true
 	}
 	if !found {
-		return nil, fmt.Errorf("could not find crafted name")
+		return make([]globalTypes.ItemID, 0)
 	}
 
-	return_ids := make([]uint, 0)
+	return_ids := make([]globalTypes.ItemID, 0)
 	for key, _ := range item_ids {
 		return_ids = append(return_ids, key)
 	}
 
-	return return_ids, nil
+	return return_ids
 }
 
 func getSlotName(category *BlizzardApi.Category) (raw_slot_name string) {
@@ -553,10 +551,16 @@ type uint_set struct {
 }
 
 func (s *uint_set) Has(check uint) bool {
+	if s.internal_map == nil {
+		s.internal_map = make(map[uint]bool)
+	}
 	_, present := s.internal_map[check]
 	return present
 }
 func (s *uint_set) Add(value uint) {
+	if s.internal_map == nil {
+		s.internal_map = make(map[uint]bool)
+	}
 	s.internal_map[value] = true
 }
 
@@ -606,19 +610,15 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 									return SkillTierCyclicLinksBuild{}
 								}
 								if recheck_recipe.Reagents != nil && len(recheck_recipe.Reagents) == 1 && !checked_set.Has(recheck_recipe.Id) {
-									r_ids, err := getRecipeCraftedItemID(recipe)
-									if err != nil {
-										return SkillTierCyclicLinksBuild{}
-									}
-									rc_ids, err := getRecipeCraftedItemID(recheck_recipe)
-									if err != nil {
-										return SkillTierCyclicLinksBuild{}
-									}
+									r_ids := getRecipeCraftedItemID(recipe)
+
+									rc_ids := getRecipeCraftedItemID(recheck_recipe)
+
 									if uint_slice_has(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
 										if uint_slice_has(rc_ids, recipe.Reagents[0].Reagent.Id) {
 											cpclog.Debugf("Found cyclic link for %s (%s) and %s (%s)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
-											p1, _ := getRecipeCraftedItemID(recipe)
-											p2, _ := getRecipeCraftedItemID(recheck_recipe)
+											p1 := getRecipeCraftedItemID(recipe)
+											p2 := getRecipeCraftedItemID(recheck_recipe)
 											found_links = append(found_links, []struct {
 												Id       []uint
 												Quantity uint

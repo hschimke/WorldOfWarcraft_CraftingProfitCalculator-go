@@ -40,6 +40,7 @@ func CacheSet(namespace string, key string, data interface{}, expiration_period 
 	return nil
 }
 func CacheCheck(namespace string, key string) (bool, error) {
+	return false, nil
 	fnd, err := redisClient.Exists(ctx, getRedisKey(namespace, key)).Result()
 	if err != nil {
 		return false, err

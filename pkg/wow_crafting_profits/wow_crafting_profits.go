@@ -2,7 +2,6 @@ package wow_crafting_profits
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -209,7 +208,15 @@ func filterArrayToSet(array []uint) (result []uint) {
 	return
 }
 
-func Flatten(arr interface{}) ([]uint, error) {
+func flattenArray(array [][]uint) (return_array []uint) {
+	return_array = make([]uint, 0)
+	for _, sub_array := range array {
+		return_array = append(return_array, sub_array...)
+	}
+	return
+}
+
+/*func Flatten(arr interface{}) ([]uint, error) {
 	return doFlatten([]uint{}, arr)
 }
 
@@ -233,7 +240,7 @@ func doFlatten(acc []uint, arr interface{}) ([]uint, error) {
 	}
 
 	return acc, nil
-}
+}*/
 
 func arrayContains(array []uint, search uint) (found bool) {
 	found = false
@@ -347,10 +354,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	price_obj.Bonus_lists = filterArrayToSetDouble(getItemBonusLists(item_id, auction_house))
 	bonus_link := make(map[uint]uint)
 	//bl_flat := filterArrayToSet(flattenArray(price_obj.bonus_lists)).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));)
-	fltn_arr, err := Flatten(price_obj.Bonus_lists)
-	if err != nil {
-		return globalTypes.ProfitAnalysisObject{}, err
-	}
+	fltn_arr := flattenArray(price_obj.Bonus_lists) //Flatten(price_obj.Bonus_lists)
 	bl_flat_hld := filterArrayToSet(fltn_arr)
 	bl_flat := make([]uint, 0)
 	for _, bonus := range bl_flat_hld {

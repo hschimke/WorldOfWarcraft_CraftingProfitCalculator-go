@@ -19,14 +19,14 @@ type AccessToken struct {
 	Fetched      time.Time `json:"-"`
 }
 
-func (at *AccessToken) CheckExpired() bool {
-	var expired bool = true
+func (at *AccessToken) CheckExpired() (expired bool) {
+	expired = true
 	current_time := time.Now()
-	expire_time := at.Fetched.Add(time.Duration(at.Expires_in) * time.Millisecond)
+	expire_time := at.Fetched.Add(time.Duration(at.Expires_in))
 	if current_time.Before(expire_time) {
 		expired = false
 	}
-	return expired
+	return
 }
 
 const (
@@ -100,7 +100,9 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 		}
 		new_token.Fetched = time.Now()
 		if new_token.Expires_in == 0 {
-			new_token.Expires_in = uint64(time.Duration(time.Hour * 1).Milliseconds())
+			new_token.Expires_in = uint64(time.Hour)
+		} else {
+			new_token.Expires_in = uint64(time.Duration(time.Second * time.Duration(new_token.Expires_in)))
 		}
 		token_store[region] = &new_token
 	}

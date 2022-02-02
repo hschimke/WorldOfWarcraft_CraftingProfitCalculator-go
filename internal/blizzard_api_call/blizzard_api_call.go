@@ -25,22 +25,23 @@ var (
 	in_use                uint = 0
 	//	run                   bool = false
 	httpClient *http.Client
-	clearTicks time.Ticker
+	clearTicks *time.Ticker
 	stopClear  chan bool
 )
 
 // Maybe redo with: https://go.dev/tour/concurrency/5
 func blizzardApiFlowManager(stopper chan bool) {
+	cpclog.Info("Starting API Flow Manager")
 	for {
-
 		select {
 		case <-clearTicks.C:
+			cpclog.Silly("Reset window ", allowed_during_period, " ")
 			allowed_during_period = 0 + in_use
 		case <-stopper:
+			cpclog.Info("Stopping API Flow Manager")
 			clearTicks.Stop()
 			return
 		}
-
 	}
 }
 
@@ -48,17 +49,16 @@ func ShutdownApiManager() {
 	stopClear <- true
 }
 
-func manageBlizzardTimeout() {
-	go blizzardApiFlowManager(stopClear)
-}
-
 func init() {
 	httpClient = &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			ForceAttemptHTTP2: true,
+		},
 	}
-	time.NewTicker(time.Duration(time.Second * period_reset_window))
+	clearTicks = time.NewTicker(time.Duration(time.Second * period_reset_window))
 	stopClear = make(chan bool)
-	manageBlizzardTimeout()
+	go blizzardApiFlowManager(stopClear)
 }
 
 func getAndFill(uri string, region globalTypes.RegionCode, data map[string]string, target BlizzardApi.BlizzardApiReponse) error {

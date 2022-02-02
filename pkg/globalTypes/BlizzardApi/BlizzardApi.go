@@ -82,8 +82,8 @@ type Recipe struct {
 		Quantity uint `json:"quantity,omitempty"`
 	} `json:"reagents,omitempty"`
 	Crafted_quantity struct {
-		Minimum uint    `json:"minimum,omitempty"`
-		Maximum uint    `json:"maximum,omitempty"`
+		Minimum float64 `json:"minimum,omitempty"`
+		Maximum float64 `json:"maximum,omitempty"`
 		Value   float64 `json:"value,omitempty"`
 	} `json:"crafted_quantity,omitempty"`
 }

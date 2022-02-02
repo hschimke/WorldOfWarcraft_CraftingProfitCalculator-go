@@ -3,9 +3,12 @@ package BlizzardApi
 import "github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 
 type ItemSearch struct {
-	PageCount uint `json:"page_count,omitempty"`
-	Page      uint `json:"page,omitempty"`
-	Results   []struct {
+	PageCount         uint `json:"pageCount,omitempty"`
+	Page              uint `json:"page,omitempty"`
+	PageSize          uint `json:"pageSize,omitempty"`
+	MaxPageSize       uint `json:"maxPageSize,omitempty"`
+	ResultCountCapped bool `json:"resultCountCapped,omitempty"`
+	Results           []struct {
 		Data struct {
 			Name map[string]string  `json:"name,omitempty"`
 			Id   globalTypes.ItemID `json:"id,omitempty"`

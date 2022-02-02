@@ -13,12 +13,13 @@ import (
 
 func main() {
 
-	cpclog.LogLevel = cpclog.GetLevel("silly")
+	cpclog.LogLevel = cpclog.GetLevel("debug")
 
 	fRegion := flag.String("region", "us", "Region")
 	fServer := flag.String("server", "Hyjal", "Server")
 	fProfession := flag.String("profession", "[\"Jewelcrafting\", \"Tailoring\", \"Alchemy\", \"Herbalism\", \"Inscription\", \"Enchanting\", \"Blacksmithing\", \"Mining\", \"Engineering\", \"Leatherworking\", \"Skinning\", \"Cooking\"]", "Profession")
-	fItem := flag.String("item", "171276", "Item")
+	//fItem := flag.String("item", "171276", "Item")
+	fItem := flag.String("item", "Grim-Veiled Bracers", "Item")
 	fCount := flag.Uint("count", 1, "How many of the main item to build")
 	fJsonData := flag.String("json_data", "", "JSON configuration data")
 	fUseJsonFlag := flag.Bool("json", false, "Use JSON to configure region, realm, and professions")

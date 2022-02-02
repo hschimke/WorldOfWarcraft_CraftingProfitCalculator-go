@@ -44,55 +44,6 @@ type SkillTierCyclicLinksBuild [][]struct {
 	Quantity uint
 }
 
-func doItemNameSearch(item_name string, region string, results chan BlizzardApi.ItemSearch, found chan bool) {
-	//current_page := uint(0)
-	page_count := uint(0)
-	const search_api_uri = "/data/wow/search/item"
-	defer close(results)
-
-	fetchPage := BlizzardApi.ItemSearch{}
-	_, err := blizzard_api_call.GetBlizzardAPIResponse(region, searchDataPackage{
-		"namespace":  getNamespace(static_ns, region),
-		"locale":     locale_us,
-		"name.en_US": item_name,
-		"orderby":    "id:desc",
-	}, search_api_uri, &fetchPage)
-	//current_page = fetchPage.Page
-	if err != nil && fetchPage.PageCount <= 0 {
-		//return fetchPage, 0, 0, fmt.Errorf("no results for %s", item_name)
-		close(results)
-	}
-	page_count = fetchPage.PageCount
-	//return fetchPage, fetchPage.Page, fetchPage.PageCount, err
-
-	cpclog.Debug("Found ", page_count, " pages for item search ", item_name)
-	if page_count > 0 {
-		results <- fetchPage
-		for cp := fetchPage.Page; cp <= page_count; cp++ {
-			if <-found {
-				return
-			}
-			cpclog.Debug("Checking page ", cp, " for ", item_name)
-			getPage := BlizzardApi.ItemSearch{}
-			waited, _ := blizzard_api_call.GetBlizzardAPIResponse(region, searchPageDataPackage{
-				"namespace":  getNamespace(static_ns, region),
-				"locale":     locale_us,
-				"name.en_US": item_name,
-				"orderby":    "id:desc",
-				"_page":      fmt.Sprint(cp),
-			}, search_api_uri, &getPage)
-			_ = waited
-			results <- getPage
-		}
-	} else {
-		// We didn't get any results, that's an error
-		//await cacheSet(ITEM_SEARCH_CACHE, item_name, -1);
-		cpclog.Error("No items match search ", item_name)
-		//throw (new Error('No Results'));
-		return
-	}
-}
-
 func checkPageSearchResults(page BlizzardApi.ItemSearch, item_name globalTypes.ItemName) (found_item_id globalTypes.ItemID) {
 	found_item_id = 0
 	for _, result := range page.Results {
@@ -112,18 +63,56 @@ func GetItemId(region globalTypes.RegionCode, item_name globalTypes.ItemName) (g
 
 	item_id := uint(0)
 
-	page_counter := 0
-	page_results := make(chan BlizzardApi.ItemSearch)
-	found_control := make(chan bool)
-	go doItemNameSearch(item_name, region, page_results, found_control)
-	for page := range page_results {
-		page_counter++
-		page_item_id := checkPageSearchResults(page, item_name)
-		if page_item_id != 0 {
+	//current_page := uint(0)
+	page_count := uint(0)
+	const search_api_uri = "/data/wow/search/item"
+
+	fetchPage := BlizzardApi.ItemSearch{}
+	_, err := blizzard_api_call.GetBlizzardAPIResponse(region, searchDataPackage{
+		"namespace":  getNamespace(static_ns, region),
+		"locale":     locale_us,
+		"name.en_US": item_name,
+		"orderby":    "id:desc",
+	}, search_api_uri, &fetchPage)
+	//current_page = fetchPage.Page
+	if err != nil && fetchPage.PageCount <= 0 {
+		return 0, fmt.Errorf("no results for %s", item_name)
+	}
+	page_count = fetchPage.PageCount
+	//return fetchPage, fetchPage.Page, fetchPage.PageCount, err
+
+	cpclog.Debug("Found ", page_count, " pages for item search ", item_name)
+	if page_count > 0 {
+		page_item_id := checkPageSearchResults(fetchPage, item_name)
+		if page_item_id > 0 {
 			item_id = page_item_id
-			found_control <- true
+		} else {
+			for cp := fetchPage.Page; cp <= page_count; cp++ {
+				cpclog.Debug("Checking page ", cp, " for ", item_name)
+				getPage := BlizzardApi.ItemSearch{}
+				_, err := blizzard_api_call.GetBlizzardAPIResponse(region, searchPageDataPackage{
+					"namespace":  getNamespace(static_ns, region),
+					"locale":     locale_us,
+					"name.en_US": item_name,
+					"orderby":    "id:desc",
+					"_page":      fmt.Sprint(cp),
+				}, search_api_uri, &getPage)
+				if err != nil {
+					return 0, err
+				}
+				page_item_id := checkPageSearchResults(getPage, item_name)
+				if page_item_id > 0 {
+					item_id = page_item_id
+					break
+				}
+			}
 		}
-		found_control <- false
+	} else {
+		// We didn't get any results, that's an error
+		//await cacheSet(ITEM_SEARCH_CACHE, item_name, -1);
+		cpclog.Error("No items match search ", item_name)
+		return 0, fmt.Errorf("No items match search ", item_name)
+		//throw (new Error('No Results'));
 	}
 
 	cache_provider.CacheSet(ITEM_SEARCH_CACHE, item_name, item_id, cache_provider.GetStaticTimeWithShift())
@@ -279,6 +268,88 @@ func getProfessionId(profession_list BlizzardApi.ProfessionsIndex, profession_na
 	return id, nil
 }
 
+func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.RegionCode, item_id uint, check_profession_id uint, prof string, item_detail BlizzardApi.Item, profession_recipe_options *globalTypes.CraftingStatus) {
+	check_scan_tier := strings.Contains(skill_tier.Name, "Shadowlands")
+	if !exclude_before_shadowlands {
+		check_scan_tier = true
+	}
+	if check_scan_tier {
+		cpclog.Debugf("Checking: %s for: %s", skill_tier.Name, item_id)
+		// Get a list of all recipes each level can do
+		skill_tier_detail, err := GetBlizSkillTierDetail(check_profession_id, skill_tier.Id, region)
+		if err != nil {
+			return
+		}
+
+		checked_categories := 0
+		recipes_checked := 0
+
+		if skill_tier_detail.Categories != nil {
+			categories := skill_tier_detail.Categories
+
+			checked_categories += len(categories)
+			for _, cat := range categories {
+				for _, rec := range cat.Recipes {
+					recipe, err := GetBlizRecipeDetail(rec.Id, region)
+					if err != nil {
+						return
+					}
+					recipes_checked++
+					cpclog.Sillyf("Check recipe %s", recipe.Name)
+					if !(strings.Contains(recipe.Name, "Prospect") || strings.Contains(recipe.Name, "Mill")) {
+						crafty := false
+						ids := getRecipeCraftedItemID(recipe)
+
+						for _, id := range ids {
+							if id == item_id {
+								crafty = true
+							}
+						}
+
+						if !crafty && strings.Contains(skill_tier.Name, "Enchanting") && (strings.Contains(cat.Name, "Enchantments") || strings.Contains(cat.Name, "Echantments")) {
+							cpclog.Sillyf("Checking if uncraftable item %s is craftable with a synthetic item-recipe connection.", item_detail.Id)
+							slot := getSlotName(&cat)
+							synthetic_item_name := fmt.Sprintf("Enchant %s - %s", slot, rec.Name)
+							cpclog.Sillyf("Generated synthetic item name ", synthetic_item_name)
+							synthetic_item_id, err := GetItemId(region, synthetic_item_name)
+							if err != nil {
+								return
+							}
+							cpclog.Sillyf("Synthetic item %s has id %s", synthetic_item_name, synthetic_item_id)
+							if synthetic_item_id != 0 && synthetic_item_id == item_id {
+								crafty = true
+								cpclog.Sillyf("Synthetic item %s match for %s.", synthetic_item_name, item_detail.Name)
+							}
+						} else {
+							cpclog.Sillyf("Skipping synthetic for %s (%s) %s (%s) %s (%s) %s", crafty, !crafty, skill_tier.Name, strings.Contains(skill_tier.Name, "Enchanting"), cat.Name, strings.Contains(cat.Name, "Enchantments"), rec.Name)
+						}
+
+						if crafty {
+							cpclog.Infof("Found recipe (%s): %s for (%s) %s", recipe.Id, recipe.Name, item_detail.Id, item_detail.Name)
+
+							profession_recipe_options.Recipes = append(profession_recipe_options.Recipes, struct {
+								Recipe_id           uint
+								Crafting_profession string
+							}{
+								recipe.Id,
+								prof,
+							})
+
+							profession_recipe_options.Recipe_ids = append(profession_recipe_options.Recipe_ids, recipe.Id)
+							profession_recipe_options.Craftable = true
+						}
+					} else {
+						cpclog.Sillyf("Skipping Recipe: (%s) \"%s\"", recipe.Id, recipe.Name)
+					}
+				}
+			}
+		} else {
+			cpclog.Debugf("Skill tier %s has no categories.", skill_tier.Name)
+		}
+		cpclog.Debug("Checked ", recipes_checked, " recipes in ", checked_categories, " categories for ", item_id, " in ", skill_tier.Name)
+	}
+}
+
 func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item) (globalTypes.CraftingStatus, error) {
 	cache_key := fmt.Sprintf("%s:%s:%d", region, prof, item_id)
 	if found, err := cache_provider.CacheCheck(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key); err == nil && found {
@@ -294,88 +365,6 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 		return globalTypes.CraftingStatus{}, err
 	}
 
-	checkProfessionTierCrafting := func(skill_tier skilltier, region globalTypes.RegionCode) {
-		check_scan_tier := strings.Contains(skill_tier.Name, "Shadowlands")
-		if !exclude_before_shadowlands {
-			check_scan_tier = true
-		}
-		if check_scan_tier {
-			cpclog.Debugf("Checking: %s for: %s", skill_tier.Name, item_id)
-			// Get a list of all recipes each level can do
-			skill_tier_detail, err := GetBlizSkillTierDetail(check_profession_id, skill_tier.Id, region)
-			if err != nil {
-				return
-			}
-
-			checked_categories := 0
-			recipes_checked := 0
-
-			if skill_tier_detail.Categories != nil {
-				categories := skill_tier_detail.Categories
-
-				checked_categories += len(categories)
-				for _, cat := range categories {
-					for _, rec := range cat.Recipes {
-						recipe, err := GetBlizRecipeDetail(rec.Id, region)
-						if err != nil {
-							return
-						}
-						recipes_checked++
-						cpclog.Sillyf("Check recipe %s", recipe.Name)
-						if !(strings.Contains(recipe.Name, "Prospect") || strings.Contains(recipe.Name, "Mill")) {
-							crafty := false
-							ids := getRecipeCraftedItemID(recipe)
-
-							for _, id := range ids {
-								if id == item_id {
-									crafty = true
-								}
-							}
-
-							if !crafty && strings.Contains(skill_tier.Name, "Enchanting") && (strings.Contains(cat.Name, "Enchantments") || strings.Contains(cat.Name, "Echantments")) {
-								cpclog.Sillyf("Checking if uncraftable item %s is craftable with a synthetic item-recipe connection.", item_detail.Id)
-								slot := getSlotName(&cat)
-								synthetic_item_name := fmt.Sprintf("Enchant %s - %s", slot, rec.Name)
-								cpclog.Sillyf("Generated synthetic item name ", synthetic_item_name)
-								synthetic_item_id, err := GetItemId(region, synthetic_item_name)
-								if err != nil {
-									return
-								}
-								cpclog.Sillyf("Synthetic item %s has id %s", synthetic_item_name, synthetic_item_id)
-								if synthetic_item_id == item_id {
-									crafty = true
-									cpclog.Sillyf("Synthetic item %s match for %s.", synthetic_item_name, item_detail.Name)
-								}
-							} else {
-								cpclog.Sillyf("Skipping synthetic for %s (%s) %s (%s) %s (%s) %s", crafty, !crafty, skill_tier.Name, strings.Contains(skill_tier.Name, "Enchanting"), cat.Name, strings.Contains(cat.Name, "Enchantments"), rec.Name)
-							}
-
-							if crafty {
-								cpclog.Infof("Found recipe (%s): %s for (%s) %s", recipe.Id, recipe.Name, item_detail.Id, item_detail.Name)
-
-								profession_recipe_options.Recipes = append(profession_recipe_options.Recipes, struct {
-									Recipe_id           uint
-									Crafting_profession string
-								}{
-									recipe.Id,
-									prof,
-								})
-
-								profession_recipe_options.Recipe_ids = append(profession_recipe_options.Recipe_ids, recipe.Id)
-								profession_recipe_options.Craftable = true
-							}
-						} else {
-							cpclog.Sillyf("Skipping Recipe: (%s) \"%s\"", recipe.Id, recipe.Name)
-						}
-					}
-				}
-			} else {
-				cpclog.Debugf("Skill tier %s has no categories.", skill_tier.Name)
-			}
-			cpclog.Debug("Checked ", recipes_checked, " recipes in ", checked_categories, " categories for ", item_id, " in ", skill_tier.Name)
-		}
-	}
-
 	// Get a list of the crafting levels for the professions
 	profession_detail, err := GetBlizProfessionDetail(check_profession_id, region)
 	if err != nil {
@@ -387,7 +376,7 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 
 	// checkProfessionTierCrafting on each crafting level, concurrently.
 	for _, tier := range crafting_levels {
-		checkProfessionTierCrafting(tier, region)
+		checkProfessionTierCrafting(tier, region, item_id, check_profession_id, prof, item_detail, &profession_recipe_options)
 	}
 	//await Promise.all(crafting_levels.map((tier) => {
 	//    return checkProfessionTierCrafting(tier, region);

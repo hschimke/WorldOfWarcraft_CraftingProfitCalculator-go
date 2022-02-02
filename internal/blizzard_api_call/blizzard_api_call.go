@@ -18,6 +18,7 @@ const (
 	allowed_connections_per_period = 100
 	period_reset_window            = 5
 	base_uri                       = "api.blizzard.com"
+	max_retries                    = 5
 )
 
 var (
@@ -53,7 +54,8 @@ func init() {
 	httpClient = &http.Client{
 		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
-			ForceAttemptHTTP2: true,
+			ForceAttemptHTTP2:  true,
+			DisableCompression: false,
 		},
 	}
 	clearTicks = time.NewTicker(time.Duration(time.Second * period_reset_window))
@@ -82,7 +84,22 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 	}
 	req.URL.RawQuery = queryParams.Encode()
 
-	res, getErr := httpClient.Do(req)
+	var (
+		res    *http.Response
+		getErr error
+	)
+
+	for attempt := 0; attempt < max_retries; attempt++ {
+		res, getErr = httpClient.Do(req)
+		if getErr != nil {
+			//cpclog.Error("An error was encountered while retrieving a uri(", uri, "): ", getErr)
+			//return fmt.Errorf("error fetching uri: %s, err: %s", uri, getErr)
+			time.Sleep(time.Second)
+		} else {
+			break
+		}
+	}
+
 	if getErr != nil {
 		cpclog.Error("An error was encountered while retrieving a uri(", uri, "): ", getErr)
 		return fmt.Errorf("error fetching uri: %s, err: %s", uri, getErr)

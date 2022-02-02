@@ -891,6 +891,7 @@ func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data g
 	if err != nil {
 		return err
 	}
+	defer forFile.Sync()
 	defer forFile.Close()
 	forFile.WriteString(formatted_data)
 	cpclog.Info("Formatted output saved")

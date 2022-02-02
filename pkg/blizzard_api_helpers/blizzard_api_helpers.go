@@ -73,6 +73,7 @@ func GetItemId(region globalTypes.RegionCode, item_name globalTypes.ItemName) (g
 		"locale":     locale_us,
 		"name.en_US": item_name,
 		"orderby":    "id:desc",
+		"_pageSize":  "1000",
 	}, search_api_uri, &fetchPage)
 	//current_page = fetchPage.Page
 	if err != nil && fetchPage.PageCount <= 0 {
@@ -88,13 +89,14 @@ func GetItemId(region globalTypes.RegionCode, item_name globalTypes.ItemName) (g
 			item_id = page_item_id
 		} else {
 			for cp := fetchPage.Page; cp <= page_count; cp++ {
-				cpclog.Debug("Checking page ", cp, " for ", item_name)
+				cpclog.Silly("Checking page ", cp, " for ", item_name)
 				getPage := BlizzardApi.ItemSearch{}
 				_, err := blizzard_api_call.GetBlizzardAPIResponse(region, searchPageDataPackage{
 					"namespace":  getNamespace(static_ns, region),
 					"locale":     locale_us,
 					"name.en_US": item_name,
 					"orderby":    "id:desc",
+					"_pageSize":  "1000",
 					"_page":      fmt.Sprint(cp),
 				}, search_api_uri, &getPage)
 				if err != nil {
@@ -103,6 +105,7 @@ func GetItemId(region globalTypes.RegionCode, item_name globalTypes.ItemName) (g
 				page_item_id := checkPageSearchResults(getPage, item_name)
 				if page_item_id > 0 {
 					item_id = page_item_id
+					cpclog.Debug("Found ", item_id, " for ", item_name, " on page ", cp, " of ", page_count)
 					break
 				}
 			}

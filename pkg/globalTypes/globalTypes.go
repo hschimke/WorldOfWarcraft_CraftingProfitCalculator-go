@@ -6,6 +6,7 @@ type ItemName = string
 type ConnectedRealmID = uint
 type RealmName = string
 type CharacterProfession = string
+type ConnectedRealmName = string
 
 type CraftingStatus struct {
 	Recipe_ids []uint
@@ -118,4 +119,9 @@ type RunReturn struct {
 type ItemSoftIdentity struct {
 	ItemName string
 	ItemId   uint
+}
+
+type ConnectedRealmSoftIentity struct {
+	Id   ConnectedRealmID
+	Name ConnectedRealmName
 }

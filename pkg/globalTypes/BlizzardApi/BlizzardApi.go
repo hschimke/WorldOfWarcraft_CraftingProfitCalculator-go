@@ -91,16 +91,18 @@ type Recipe struct {
 	} `json:"crafted_quantity,omitempty"`
 }
 
+type Auction struct {
+	Item struct {
+		Id          globalTypes.ItemID `json:"id,omitempty"`
+		Bonus_lists []uint             `json:"bonus_lists,omitempty"`
+	} `json:"item,omitempty"`
+	Quantity   uint `json:"quantity,omitempty"`
+	Buyout     uint `json:"buyout,omitempty"`
+	Unit_price uint `json:"unit_price,omitempty"`
+}
+
 type Auctions struct {
-	Auctions []struct {
-		Item struct {
-			Id          globalTypes.ItemID `json:"id,omitempty"`
-			Bonus_lists []uint             `json:"bonus_lists,omitempty"`
-		} `json:"item,omitempty"`
-		Quantity   uint `json:"quantity,omitempty"`
-		Buyout     uint `json:"buyout,omitempty"`
-		Unit_price uint `json:"unit_price,omitempty"`
-	} `json:"auctions,omitempty"`
+	Auctions []Auction `json:"auctions,omitempty"`
 }
 
 type BlizzardApiReponse interface{}

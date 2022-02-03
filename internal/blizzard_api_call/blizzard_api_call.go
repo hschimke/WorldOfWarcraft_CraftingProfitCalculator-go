@@ -18,7 +18,8 @@ const (
 	allowed_connections_per_period = 100
 	period_reset_window            = 5
 	base_uri                       = "api.blizzard.com"
-	max_retries                    = 5
+	max_retries                    = 10
+	sleep_seconds_between_tries    = 2
 )
 
 var (
@@ -92,9 +93,8 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 	for attempt := 0; attempt < max_retries; attempt++ {
 		res, getErr = httpClient.Do(req)
 		if getErr != nil {
-			//cpclog.Error("An error was encountered while retrieving a uri(", uri, "): ", getErr)
-			//return fmt.Errorf("error fetching uri: %s, err: %s", uri, getErr)
-			time.Sleep(time.Second)
+			cpclog.Errorf("Failure fetching uri, will retry %d more times", max_retries-attempt)
+			time.Sleep(time.Second * sleep_seconds_between_tries)
 		} else {
 			break
 		}

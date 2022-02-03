@@ -30,9 +30,9 @@ func NewRunConfig(raw_configuration_data *AddonData, item ItemSoftIdentity, coun
 		for _, item := range raw_configuration_data.Inventory {
 			new_conf.internal_inventory[item.Id] = item.Quantity
 		}
-		for _, prof := range raw_configuration_data.Professions {
-			new_conf.Professions = append(new_conf.Professions, prof)
-		}
+
+		new_conf.Professions = append(new_conf.Professions, raw_configuration_data.Professions...)
+
 		new_conf.Realm_name = raw_configuration_data.Realm.Realm_name
 		new_conf.Realm_region = raw_configuration_data.Realm.Region_name
 	}

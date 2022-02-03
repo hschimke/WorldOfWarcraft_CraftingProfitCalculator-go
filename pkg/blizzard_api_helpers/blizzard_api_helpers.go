@@ -114,7 +114,7 @@ func GetItemId(region globalTypes.RegionCode, item_name globalTypes.ItemName) (g
 		// We didn't get any results, that's an error
 		//await cacheSet(ITEM_SEARCH_CACHE, item_name, -1);
 		cpclog.Error("No items match search ", item_name)
-		return 0, fmt.Errorf("No items match search ", item_name)
+		return 0, fmt.Errorf("no items match search %s", item_name)
 		//throw (new Error('No Results'));
 	}
 
@@ -412,7 +412,7 @@ func getRecipeCraftedItemID(recipe BlizzardApi.Recipe) []globalTypes.ItemID {
 	}
 
 	return_ids := make([]globalTypes.ItemID, 0)
-	for key, _ := range item_ids {
+	for key := range item_ids {
 		return_ids = append(return_ids, key)
 	}
 

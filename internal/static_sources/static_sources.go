@@ -73,7 +73,7 @@ func fetchFromUri(uri string, target interface{}) error {
 	res, getErr := httpClient.Do(req)
 	if getErr != nil {
 		//level.Error(logger).Log("An error was encountered while retrieving an authorization token: ", getErr)
-		return fmt.Errorf("error fetching uri: %s, err: %s", uri, getErr)
+		return fmt.Errorf("error fetching uri: %s, err: %v", uri, getErr)
 	}
 
 	if res.Body != nil {
@@ -84,7 +84,7 @@ func fetchFromUri(uri string, target interface{}) error {
 	if parseErr != nil {
 		//log.Print(io.ReadAll(res.Body))
 		//level.Error(logger).Log("An error was encountered while retrieving an authorization token: ", parseErr)
-		return fmt.Errorf("error parsing api response for: %s, err: %s", uri, parseErr)
+		return fmt.Errorf("error parsing api response for: %s, err: %v", uri, parseErr)
 	}
 	return nil
 }
@@ -133,9 +133,3 @@ func GetShoppingRecipeExclusionList() *ShoppingRecipeExclusionList {
 	}
 	return shopping_recipe_exclusion_list
 }
-
-/*
-let bonuses_cache: BonusesCache;
-let rank_mappings_cache: RankMappingsCache;
-let shopping_recipe_exclusion_list: ShoppingRecipeExclusionList;
-*/

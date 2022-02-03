@@ -10,8 +10,10 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 )
 
-var redisClient *redis.Client
-var ctx context.Context
+var (
+	redisClient *redis.Client
+	ctx         context.Context
+)
 
 func getRedisKey(namespace string, key string) string {
 	return fmt.Sprint(namespace, ":->", key)

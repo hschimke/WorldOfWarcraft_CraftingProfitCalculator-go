@@ -64,19 +64,13 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 
 		req, err := http.NewRequest(http.MethodPost, uri, strings.NewReader(form.Encode()))
 		if err != nil {
-			//logger.Fatal(err)
-			//level.Error(logger).Log(err)
 			cpclog.Errorf("error getting access token for region: %s, err: %s", region, err)
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, err)
-			//panic(err)
 		}
 		req.Header.Set("User-Agent", "WorldOfWarcraft_CraftingProfitCalculator-go")
 		req.Header.Set("Connection", "keep-alive")
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		req.URL.User = url.UserPassword(client_id, client_secret)
-
-		//req.Form.Set("username", client_id)
-		//req.Form.Set("password", client_secret)
 
 		res, getErr := httpClient.Do(req)
 		if getErr != nil {
@@ -91,9 +85,7 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 
 		new_token := AccessToken{}
 		parseErr := json.NewDecoder(res.Body).Decode(&new_token)
-		//fmt.Print(io.ReadAll(res.Body))
 		if parseErr != nil {
-			//log.Print(io.ReadAll(res.Body))
 			cpclog.Error(parseErr)
 			cpclog.Error("an error was encountered while parsing an authorization token: ", parseErr.Error())
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, parseErr)

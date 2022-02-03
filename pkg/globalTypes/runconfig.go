@@ -2,26 +2,26 @@ package globalTypes
 
 type AddonData struct {
 	Inventory []struct {
-		Id       ItemID
-		Quantity uint
-	}
-	Professions []CharacterProfession
+		Id       ItemID `json:"id,omitempty"`
+		Quantity uint   `json:"quantity,omitempty"`
+	} `json:"inventory,omitempty"`
+	Professions []CharacterProfession `json:"professions,omitempty"`
 	Realm       struct {
-		Region_id   uint
-		Region_name string
-		Realm_id    ConnectedRealmID
-		Realm_name  RealmName
-	}
+		Region_id   uint             `json:"region_id,omitempty"`
+		Region_name string           `json:"region_name,omitempty"`
+		Realm_id    ConnectedRealmID `json:"realm_id,omitempty"`
+		Realm_name  RealmName        `json:"realm_name,omitempty"`
+	} `json:"realm,omitempty"`
 }
 
 type RunConfiguration struct {
-	internal_inventory map[ItemID]uint
-	inventory_overlay  map[ItemID]int
-	Professions        []CharacterProfession
-	Realm_name         RealmName
-	Realm_region       RegionCode
-	Item               ItemSoftIdentity
-	Item_count         uint
+	internal_inventory map[ItemID]uint       `json:"internal_inventory,omitempty"`
+	inventory_overlay  map[ItemID]int        `json:"inventory_overlay,omitempty"`
+	Professions        []CharacterProfession `json:"professions,omitempty"`
+	Realm_name         RealmName             `json:"realm_name,omitempty"`
+	Realm_region       RegionCode            `json:"realm_region,omitempty"`
+	Item               ItemSoftIdentity      `json:"item,omitempty"`
+	Item_count         uint                  `json:"item_count,omitempty"`
 }
 
 func NewRunConfig(raw_configuration_data *AddonData, item ItemSoftIdentity, count uint) (new_conf *RunConfiguration) {

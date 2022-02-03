@@ -23,52 +23,58 @@ type SkillTierCyclicLinks map[uint][]struct {
 }
 
 type OutputFormatPrice struct {
-	Sales   uint
-	High    float64
-	Low     float64
-	Average float64
+	Sales   uint    `json:"sales,omitempty"`
+	High    float64 `json:"high,omitempty"`
+	Low     float64 `json:"low,omitempty"`
+	Average float64 `json:"average,omitempty"`
+}
+
+type ShoppingListCost struct {
+	Vendor float64           `json:"vendor,omitempty"`
+	Ah     OutputFormatPrice `json:"ah,omitempty"`
 }
 
 type ShoppingList struct {
-	Quantity float64
-	Id       ItemID
-	Name     ItemName
-	Cost     struct {
-		Vendor float64
-		Ah     OutputFormatPrice
-	}
+	Quantity float64          `json:"quantity,omitempty"`
+	Id       ItemID           `json:"id,omitempty"`
+	Name     ItemName         `json:"name,omitempty"`
+	Cost     ShoppingListCost `json:"cost,omitempty"`
 }
 
 type OutputFormatShoppingList = map[uint][]ShoppingList
 
 type OutpoutFormatRecipeOutput struct {
-	Min   int
-	Max   int
-	Value int
+	Min   int `json:"min,omitempty"`
+	Max   int `json:"max,omitempty"`
+	Value int `json:"value,omitempty"`
+}
+
+type OutputFormatRecipe struct {
+	Name    string                    `json:"name,omitempty"`
+	Rank    uint                      `json:"rank,omitempty"`
+	Id      uint                      `json:"id,omitempty"`
+	Output  OutpoutFormatRecipeOutput `json:"output,omitempty"`
+	Ah      OutputFormatPrice         `json:"ah,omitempty"`
+	High    float64                   `json:"high,omitempty"`
+	Low     float64                   `json:"low,omitempty"`
+	Average float64                   `json:"average,omitempty"`
+	Parts   []OutputFormatObject      `json:"parts,omitempty"`
+}
+
+type OutputFormatBonusPrices struct {
+	Level uint              `json:"level,omitempty"`
+	Ah    OutputFormatPrice `json:"ah,omitempty"`
 }
 
 type OutputFormatObject struct {
-	Name     string
-	Id       uint
-	Required float64
-	Recipes  []struct {
-		Name    string
-		Rank    uint
-		Id      uint
-		Output  OutpoutFormatRecipeOutput
-		Ah      OutputFormatPrice
-		High    float64
-		Low     float64
-		Average float64
-		Parts   []OutputFormatObject
-	}
-	Ah           OutputFormatPrice
-	Vendor       float64
-	Bonus_prices []struct {
-		Level uint
-		Ah    OutputFormatPrice
-	}
-	Shopping_lists OutputFormatShoppingList
+	Name           string                    `json:"name,omitempty"`
+	Id             uint                      `json:"id,omitempty"`
+	Required       float64                   `json:"required,omitempty"`
+	Recipes        []OutputFormatRecipe      `json:"recipes,omitempty"`
+	Ah             OutputFormatPrice         `json:"ah,omitempty"`
+	Vendor         float64                   `json:"vendor,omitempty"`
+	Bonus_prices   []OutputFormatBonusPrices `json:"bonus_prices,omitempty"`
+	Shopping_lists OutputFormatShoppingList  `json:"shopping_lists,omitempty"`
 }
 
 type AHItemPriceObject struct {

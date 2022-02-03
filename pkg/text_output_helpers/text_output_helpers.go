@@ -156,7 +156,7 @@ func TextFriendlyOutputFormat(output_data *globalTypes.OutputFormatObject, inden
 			for _, li := range list {
 				ob.WriteString(indentAdder(indent + 2))
 				ob.WriteString("[")
-				ob.WriteString(fmt.Sprintf("%8d", li.Quantity))
+				ob.WriteString(fmt.Sprintf("%8.0f", li.Quantity))
 				ob.WriteString("] -- ")
 				ob.WriteString(li.Name)
 				ob.WriteString(" (")

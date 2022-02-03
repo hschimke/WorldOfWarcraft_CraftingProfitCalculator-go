@@ -17,10 +17,11 @@ func main() {
 
 	fRegion := flag.String("region", "us", "Region")
 	fServer := flag.String("server", "Hyjal", "Server")
-	//fProfession := flag.String("profession", "[\"Jewelcrafting\", \"Tailoring\", \"Alchemy\", \"Herbalism\", \"Inscription\", \"Enchanting\", \"Blacksmithing\", \"Mining\", \"Engineering\", \"Leatherworking\", \"Skinning\", \"Cooking\"]", "Profession")
-	fProfession := flag.String("profession", "[\"Tailoring\", \"Enchanting\"]", "Profession")
+	fProfession := flag.String("profession", "[\"Jewelcrafting\", \"Tailoring\", \"Alchemy\", \"Herbalism\", \"Inscription\", \"Enchanting\", \"Blacksmithing\", \"Mining\", \"Engineering\", \"Leatherworking\", \"Skinning\", \"Cooking\"]", "Profession")
+	//fProfession := flag.String("profession", "[\"Tailoring\", \"Enchanting\"]", "Profession")
 	//fItem := flag.String("item", "171276", "Item")
 	fItem := flag.String("item", "Grim-Veiled Bracers", "Item")
+	//fItem := flag.String("item", "spectral flask of power", "Item")
 	fCount := flag.Uint("count", 1, "How many of the main item to build")
 	fJsonData := flag.String("json_data", "", "JSON configuration data")
 	fUseJsonFlag := flag.Bool("json", false, "Use JSON to configure region, realm, and professions")
@@ -35,8 +36,8 @@ func main() {
 
 	if !(*fUseJsonFlag) {
 		character_config_json.Inventory = make([]struct {
-			Id       uint
-			Quantity uint
+			Id       uint "json:\"id,omitempty\""
+			Quantity uint "json:\"quantity,omitempty\""
 		}, 0)
 		err := json.Unmarshal([]byte(*fProfession), &(character_config_json.Professions))
 		if err != nil {

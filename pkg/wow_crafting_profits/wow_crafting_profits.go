@@ -1,6 +1,7 @@
 package wow_crafting_profits
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -216,32 +217,6 @@ func flattenArray(array [][]uint) (return_array []uint) {
 	return
 }
 
-/*func Flatten(arr interface{}) ([]uint, error) {
-	return doFlatten([]uint{}, arr)
-}
-
-func doFlatten(acc []uint, arr interface{}) ([]uint, error) {
-	var err error
-
-	switch v := arr.(type) {
-	case []uint:
-		acc = append(acc, v...)
-	case uint:
-		acc = append(acc, v)
-	case []interface{}:
-		for i := range v {
-			acc, err = doFlatten(acc, v[i])
-			if err != nil {
-				return nil, errors.New("not int or []int given")
-			}
-		}
-	default:
-		return nil, errors.New("not int given")
-	}
-
-	return acc, nil
-}*/
-
 func arrayContains(array []uint, search uint) (found bool) {
 	found = false
 	for _, item := range array {
@@ -399,7 +374,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 			for _, reagent := range item_bom.Reagents {
 				if _, fnd := craftable_item_swaps[reagent.Reagent.Id]; fnd {
 					cpclog.Error("Cycles are not fully implemented.", craftable_item_swaps[reagent.Reagent.Id])
-					return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("cycles are not supported.")
+					return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("cycles are not supported")
 				}
 				itm := globalTypes.ItemSoftIdentity{
 					ItemId: reagent.Reagent.Id,
@@ -413,7 +388,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 			rank_level := uint(0)
 			var rank_AH globalTypes.AHItemPriceObject
 			if len(recipe_id_list) > 1 {
-				var rank_level uint
+				//var rank_level uint
 				if arrayContains(recipe_id_list, recipe.Recipe_id) {
 					for loc, el := range recipe_id_list {
 						if el == recipe.Recipe_id {
@@ -427,10 +402,10 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 				}
 				//	               rank_level = recipe_id_list.indexOf(recipe.recipe_id) > -1 ? rankings.available_levels[rankings.rank_mapping[recipe_id_list.indexOf(recipe.recipe_id)]] : 0;
 				if bonus_link[rank_level] != 0 {
-					cpclog.Debugf(`Looking for AH price for %s for level %s using bonus is %s`, item_id, rank_level, bonus_link[rank_level])
+					cpclog.Debugf(`Looking for AH price for %d for level %d using bonus is %d`, item_id, rank_level, bonus_link[rank_level])
 					rank_AH = getAHItemPrice(item_id, auction_house, bonus_link[rank_level])
 				} else {
-					cpclog.Debugf(`Item %s has no auctions for level %s`, item_id, rank_level)
+					cpclog.Debugf(`Item %d has no auctions for level %d`, item_id, rank_level)
 				}
 			}
 
@@ -442,7 +417,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 			})
 		}
 	} else {
-		cpclog.Debugf(`Item %s (%s) not craftable with professions: %s`, item_detail.Name, item_id, character_professions)
+		cpclog.Debugf(`Item %s (%d) not craftable with professions: %v`, item_detail.Name, item_id, character_professions)
 		if len(price_obj.Bonus_lists) > 0 {
 			//price_obj.bonus_prices = [];
 			for _, bonus := range bl_flat {
@@ -482,7 +457,7 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 			cost.Low += component.Vendor_price * component.Item_quantity
 			cost.Average += float64(component.Vendor_price * component.Item_quantity)
 			cpclog.Debug("Use vendor price for ", component.Item_name, " (", component.Item_id, ")")
-		} else if component.Crafting_status.Craftable == false {
+		} else if !component.Crafting_status.Craftable {
 
 			high := float64(0)
 			low := float64(math.MaxUint64)
@@ -501,9 +476,9 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 			cost.Average += (average / float64(count)) * float64(component.Item_quantity)
 			cost.High += high * component.Item_quantity
 			cost.Low += low * component.Item_quantity
-			cpclog.Debugf("Use auction price for uncraftable item %s (%s)", component.Item_name, component.Item_id)
+			cpclog.Debugf("Use auction price for uncraftable item %s (%d)", component.Item_name, component.Item_id)
 		} else {
-			cpclog.Debugf("Recursive check for item %s (%s)", component.Item_name, component.Item_id)
+			cpclog.Debugf("Recursive check for item %s (%d)", component.Item_name, component.Item_id)
 			ave_acc := float64(0)
 			ave_cnt := 0
 
@@ -565,17 +540,7 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 			if err != nil {
 				return globalTypes.OutputFormatObject{}
 			}
-			obj_recipe := struct {
-				Name    string
-				Rank    uint
-				Id      uint
-				Output  globalTypes.OutpoutFormatRecipeOutput
-				Ah      globalTypes.OutputFormatPrice
-				High    float64
-				Low     float64
-				Average float64
-				Parts   []globalTypes.OutputFormatObject
-			}{
+			obj_recipe := globalTypes.OutputFormatRecipe{
 				Name:    recipe.Name,
 				Rank:    recipe_option.Rank,
 				Id:      recipe_option.Recipe.Recipe_id,
@@ -607,10 +572,7 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 
 	if len(price_data.Bonus_prices) > 0 {
 		for _, bonus_price := range price_data.Bonus_prices {
-			object_output.Bonus_prices = append(object_output.Bonus_prices, struct {
-				Level uint
-				Ah    globalTypes.OutputFormatPrice
-			}{
+			object_output.Bonus_prices = append(object_output.Bonus_prices, globalTypes.OutputFormatBonusPrices{
 				Level: bonus_price.Level,
 				Ah: globalTypes.OutputFormatPrice{
 					Sales:   bonus_price.Ah.Total_sales,
@@ -688,14 +650,14 @@ func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_
 			needed := li.Quantity
 			available := on_hand.ItemCount(li.Id)
 
-			cpclog.Debugf("%s (%s) %s needed with %s available", li.Name, li.Id, needed, available)
+			cpclog.Debugf("%s (%d) %s needed with %d available", li.Name, li.Id, needed, available)
 			if needed <= float64(available) {
-				cpclog.Debugf("$%s (%s) used %s of the available %s", li.Name, li.Id, needed, available)
+				cpclog.Debugf("$%s (%d) used %d of the available %d", li.Name, li.Id, needed, available)
 				needed = 0
 				on_hand.AdjustInventory(li.Id, (int(needed) * -1))
 			} else if (needed > float64(available)) && (int(available) != 0) {
 				needed -= float64(available)
-				cpclog.Debugf("%s (%s) used all of the available %s and still need %s", li.Name, li.Id, available, needed)
+				cpclog.Debugf("%s (%d) used all of the available %d and still need %d", li.Name, li.Id, available, needed)
 				on_hand.AdjustInventory(li.Id, (int(available) * -1))
 			}
 
@@ -727,7 +689,7 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 	shopping_recipe_exclusions_ptr := static_sources.GetShoppingRecipeExclusionList()
 	shopping_recipe_exclusions := *shopping_recipe_exclusions_ptr
 
-	cpclog.Debugf(`Build shopping list for %s (%s) rank %s`, intermediate_data.Name, intermediate_data.Id, rank_requested)
+	cpclog.Debugf(`Build shopping list for %s (%d) rank %d`, intermediate_data.Name, intermediate_data.Id, rank_requested)
 
 	needed := intermediate_data.Required
 
@@ -736,10 +698,7 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 			Id:       intermediate_data.Id,
 			Name:     intermediate_data.Name,
 			Quantity: intermediate_data.Required,
-			Cost: struct {
-				Vendor float64
-				Ah     globalTypes.OutputFormatPrice
-			}{
+			Cost: globalTypes.ShoppingListCost{
 				Ah:     intermediate_data.Ah,
 				Vendor: intermediate_data.Vendor,
 			},
@@ -754,10 +713,7 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 					Id:       intermediate_data.Id,
 					Name:     intermediate_data.Name,
 					Quantity: intermediate_data.Required,
-					Cost: struct {
-						Vendor float64
-						Ah     globalTypes.OutputFormatPrice
-					}{
+					Cost: globalTypes.ShoppingListCost{
 						Ah:     intermediate_data.Ah,
 						Vendor: intermediate_data.Vendor,
 					},
@@ -768,14 +724,14 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 						// Only top level searches can have ranks
 						for _, sl := range build_shopping_list(part, 0) {
 							//let al = sl;
-							cpclog.Debug(`Need %s of %s (%s) for each of %s`, sl.Quantity, sl.Name, sl.Id, needed)
+							cpclog.Debugf(`Need %d of %s (%d) for each of %d`, sl.Quantity, sl.Name, sl.Id, needed)
 
 							sl.Quantity = sl.Quantity * needed
 							shopping_list = append(shopping_list, sl)
 						}
 					}
 				} else {
-					cpclog.Debugf(`Skipping recipe %s because its rank (%s) does not match the requested rank (%s)`, recipe.Id, recipe.Rank, rank_requested)
+					cpclog.Debugf(`Skipping recipe %d because its rank (%d) does not match the requested rank (%d)`, recipe.Id, recipe.Rank, rank_requested)
 				}
 			}
 		}
@@ -794,7 +750,13 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 		        cost: list_element.cost,
 		    };
 		}*/
-		hld := tmp[list_element.Id]
+		hld, present := tmp[list_element.Id]
+		if !present {
+			hld.Id = list_element.Id
+			hld.Name = list_element.Name
+			hld.Quantity = 0
+			hld.Cost = list_element.Cost
+		}
 		hld.Quantity += list_element.Quantity
 		tmp[list_element.Id] = hld
 	}
@@ -819,7 +781,7 @@ func getRegionCode(region string) (region_coded globalTypes.RegionCode, err erro
 	case "tw":
 		region_coded = globalTypes.RegionCode(check_str)
 	default:
-		err = fmt.Errorf("%s is invalid. Valid regions include 'us', 'eu', 'kr', and 'tw'.", region)
+		err = fmt.Errorf("%s is invalid. Valid regions include 'us', 'eu', 'kr', and 'tw'", region)
 	}
 	return
 }
@@ -871,9 +833,10 @@ func run(region string, server globalTypes.RealmName, professions []globalTypes.
 func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data globalTypes.OutputFormatObject, formatted_data string) error {
 	const (
 		intermediate_output_fn string = "intermediate_output.json"
-		formatted_output_fn    string = "formatted_output"
+		formatted_output_fn    string = "formatted_output.text"
 		raw_output_fn          string = "raw_output.json"
 	)
+
 	cpclog.Info("Saving output")
 	if intermediate_data.Id != 0 {
 		intFile, err := os.Create(intermediate_output_fn)
@@ -881,27 +844,39 @@ func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data g
 			return err
 		}
 		defer intFile.Close()
-		encode_err := json.NewEncoder(intFile).Encode(&intermediate_data)
+		encoder := json.NewEncoder(intFile)
+		encoder.SetIndent("", "  ")
+		encode_err := encoder.Encode(&intermediate_data)
 		if encode_err != nil {
 			return encode_err
 		}
 		cpclog.Info("Intermediate output saved")
 	}
-	forFile, err := os.Create(raw_output_fn)
+	forFile, err := os.Create(formatted_output_fn)
 	if err != nil {
 		return err
 	}
-	defer forFile.Sync()
 	defer forFile.Close()
-	forFile.WriteString(formatted_data)
+
+	formatted_writer := bufio.NewWriter(forFile)
+	defer formatted_writer.Flush()
+
+	_, writer_err := formatted_writer.WriteString(formatted_data)
+	if writer_err != nil {
+		cpclog.Error("Issue writing to file for formatted data: ", writer_err)
+	}
+
 	cpclog.Info("Formatted output saved")
+
 	if price_data.Item_id != 0 {
 		rawFile, err := os.Create(raw_output_fn)
 		if err != nil {
 			return err
 		}
 		defer rawFile.Close()
-		encode_err := json.NewEncoder(rawFile).Encode(&price_data)
+		encoder := json.NewEncoder(rawFile)
+		encoder.SetIndent("", "  ")
+		encode_err := encoder.Encode(&price_data)
 		if encode_err != nil {
 			return encode_err
 		}

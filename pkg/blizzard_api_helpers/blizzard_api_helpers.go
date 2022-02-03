@@ -176,7 +176,7 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 		for _, rlm := range realm_list {
 			cpclog.Debugf("Realm %s", rlm.Name)
 			if strings.EqualFold(server_name, rlm.Name) {
-				cpclog.Debugf("Realm %s matches %s", rlm, server_name)
+				cpclog.Debugf("Realm %v matches %s", rlm, server_name)
 				found_realm = true
 				break
 			}
@@ -277,7 +277,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 		check_scan_tier = true
 	}
 	if check_scan_tier {
-		cpclog.Debugf("Checking: %s for: %s", skill_tier.Name, item_id)
+		cpclog.Debugf("Checking: %s for: %d", skill_tier.Name, item_id)
 		// Get a list of all recipes each level can do
 		skill_tier_detail, err := GetBlizSkillTierDetail(check_profession_id, skill_tier.Id, region)
 		if err != nil {
@@ -310,7 +310,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 						}
 
 						if !crafty && (strings.Contains(skill_tier.Name, "Enchanting") && (strings.Contains(cat.Name, "Enchantments") || strings.Contains(cat.Name, "Echantments"))) {
-							cpclog.Sillyf("Checking if uncraftable item %s is craftable with a synthetic item-recipe connection.", item_detail.Id)
+							cpclog.Sillyf("Checking if uncraftable item %d is craftable with a synthetic item-recipe connection.", item_detail.Id)
 							slot := getSlotName(&cat)
 							synthetic_item_name := fmt.Sprintf("Enchant %s - %s", slot, rec.Name)
 							cpclog.Sillyf("Generated synthetic item name ", synthetic_item_name)
@@ -324,7 +324,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 								cpclog.Sillyf("Synthetic item %s match for %s.", synthetic_item_name, item_detail.Name)
 							}
 						} else {
-							cpclog.Sillyf("Skipping synthetic for %s (%s) %s (%s) %s (%s) %s", crafty, !crafty, skill_tier.Name, strings.Contains(skill_tier.Name, "Enchanting"), cat.Name, strings.Contains(cat.Name, "Enchantments"), rec.Name)
+							cpclog.Sillyf("Skipping synthetic for %t (%t) %s (%t) %s (%t) %s", crafty, !crafty, skill_tier.Name, strings.Contains(skill_tier.Name, "Enchanting"), cat.Name, strings.Contains(cat.Name, "Enchantments"), rec.Name)
 						}
 
 						if crafty {
@@ -449,15 +449,24 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 
 	links := make(SkillTierCyclicLinksBuild, 0)
 
-	id, err := getProfessionId(profession_list, "Enchanting")
-	if err != nil {
-		return globalTypes.SkillTierCyclicLinks{}, err
+	profz := make([]BlizzardApi.Profession, 0)
+	for _, pro := range profession_list.Professions {
+		profDetail, err := GetBlizProfessionDetail(pro.Id, region)
+		if err != nil {
+			return globalTypes.SkillTierCyclicLinks{}, err
+		}
+		profz = append(profz, profDetail)
 	}
-	profDetail, err := GetBlizProfessionDetail(id, region)
-	if err != nil {
-		return globalTypes.SkillTierCyclicLinks{}, err
-	}
-	profz := []BlizzardApi.Profession{profDetail}
+
+	//id, err := getProfessionId(profession_list, "Enchanting")
+	//if err != nil {
+	//	return globalTypes.SkillTierCyclicLinks{}, err
+	//}
+	//profDetail, err := GetBlizProfessionDetail(id, region)
+	//if err != nil {
+	//	return globalTypes.SkillTierCyclicLinks{}, err
+	//}
+	//profz := []BlizzardApi.Profession{profDetail}
 
 	counter := 0
 	profession_counter := 0
@@ -608,7 +617,7 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 
 									if uint_slice_has(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
 										if uint_slice_has(rc_ids, recipe.Reagents[0].Reagent.Id) {
-											cpclog.Debugf("Found cyclic link for %s (%s) and %s (%s)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
+											cpclog.Debugf("Found cyclic link for %s (%d) and %s (%d)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
 											p1 := getRecipeCraftedItemID(recipe)
 											p2 := getRecipeCraftedItemID(recheck_recipe)
 											found_links = append(found_links, []struct {

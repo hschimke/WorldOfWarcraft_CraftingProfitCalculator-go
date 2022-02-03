@@ -23,28 +23,28 @@ type GetAllBonusesReturn struct {
 
 type AuctionPriceSummaryRecord struct {
 	Data     []SalesCountSummary `json:"data,omitempty"`
-	MinValue float64             `json:"min_value,omitempty"`
-	MaxValue float64             `json:"max_value,omitempty"`
+	MinValue uint                `json:"min_value,omitempty"`
+	MaxValue uint                `json:"max_value,omitempty"`
 	AvgValue float64             `json:"avg_value,omitempty"`
 }
 
 type SalesCountSummary struct {
-	SalesAtPrice    float64 `json:"sales_at_price,omitempty"`
-	QuantityAtPrice float64 `json:"quantity_at_price,omitempty"`
-	Price           float64 `json:"price,omitempty"`
+	SalesAtPrice    uint `json:"sales_at_price,omitempty"`
+	QuantityAtPrice uint `json:"quantity_at_price,omitempty"`
+	Price           uint `json:"price,omitempty"`
 }
 
 type AuctionSummaryData struct {
-	Min      float64                              `json:"min,omitempty"`
-	Max      float64                              `json:"max,omitempty"`
+	Min      uint                                 `json:"min,omitempty"`
+	Max      uint                                 `json:"max,omitempty"`
 	Avg      float64                              `json:"avg,omitempty"`
-	Latest   float64                              `json:"latest,omitempty"`
+	Latest   uint                                 `json:"latest,omitempty"`
 	PriceMap map[string]AuctionPriceSummaryRecord `json:"price_map,omitempty"`
 	Archives []struct {
 		Timestamp string              `json:"timestamp,omitempty"`
 		Data      []SalesCountSummary `json:"data,omitempty"`
-		MinValue  float64             `json:"min_value,omitempty"`
-		MaxValue  float64             `json:"max_value,omitempty"`
+		MinValue  uint                `json:"min_value,omitempty"`
+		MaxValue  uint                `json:"max_value,omitempty"`
 		AvgValue  float64             `json:"avg_value,omitempty"`
 	} `json:"archives,omitempty"`
 }
@@ -139,7 +139,8 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 
 	return_value := AuctionPriceSummaryRecord{}
 
-	total_sales, total_price := 0, 0
+	//total_sales, total_price := 0, 0
+	var total_price, total_sales uint
 	price_map := make(map[uint]struct {
 		Quantity uint
 		Sales    uint
@@ -163,17 +164,19 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 		total_sales += quantity
 		total_price += price * quantity
 
-		if _, found := price_map[price]; found {
+		if _, found := price_map[price]; !found {
 			price_map[price] = struct {
 				Quantity uint
 				Sales    uint
 			}{}
 		}
-		price_map[price].Quantity += quantity
-		price_map[price].Sales += 1
+		pmh := price_map[price]
+		pmh.Quantity += quantity
+		pmh.Sales += 1
+		price_map[price] = pmh
 	}
 
-	return_value.AvgValue = total_price / total_sales
+	return_value.AvgValue = float64(total_price) / float64(total_sales)
 	for price, price_lu := range price_map {
 		//const p_lookup = Number(price);
 		return_value.Data = append(return_value.Data, SalesCountSummary{
@@ -186,31 +189,30 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 	return return_value, nil
 }
 
+func arrayIncludes(array []uint, search uint) bool {
+	for _, num := range array {
+		if num == search {
+			return true
+		}
+	}
+	return false
+}
+
 func check_bonus(bonus_list []uint, target []uint) (found bool) {
-	found = false
-	/*
-		 found := true;
+	found = true
 
-		// Filter array
-		const filtered : string[] | number[] = (bonus_list as any[]).filter(n=>n);
-		const numbers = filtered.map(element => Number(element));
-		const numbers_only = numbers.filter((number) => {
-			return Number.isInteger(number);
-		})
-
-		// Take care of undefined targets
-		if( target === undefined){
-			if(numbers_only.length !== 0){
-				return false;
-			}
-			return true;
+	// Take care of undefined targets
+	if len(target) == 0 {
+		if len(bonus_list) != 0 {
+			found = false
 		}
+		found = true
+	}
 
-		for( const list_entry of numbers_only ){
-			found = found && target.includes(list_entry);
-		}
+	for _, list_entry := range bonus_list {
+		found = found && arrayIncludes(target, list_entry)
+	}
 
-		return found;*/
 	return
 }
 

@@ -1,6 +1,10 @@
 package BlizzardApi
 
-import "github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
+import (
+	"time"
+
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
+)
 
 type ItemSearch struct {
 	PageCount         uint `json:"pageCount,omitempty"`
@@ -96,9 +100,11 @@ type Auction struct {
 		Id          globalTypes.ItemID `json:"id,omitempty"`
 		Bonus_lists []uint             `json:"bonus_lists,omitempty"`
 	} `json:"item,omitempty"`
-	Quantity   uint `json:"quantity,omitempty"`
-	Buyout     uint `json:"buyout,omitempty"`
-	Unit_price uint `json:"unit_price,omitempty"`
+	Quantity   uint      `json:"quantity,omitempty"`
+	Buyout     uint      `json:"buyout,omitempty"`
+	Unit_price uint      `json:"unit_price,omitempty"`
+	Fetched    time.Time `json:"-" bson:"fetched"`
+	Region     string    `json:"-" bson:"region"`
 }
 
 type Auctions struct {

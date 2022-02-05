@@ -125,3 +125,5 @@ type ConnectedRealmSoftIentity struct {
 	Id   ConnectedRealmID
 	Name ConnectedRealmName
 }
+
+var ALL_PROFESSIONS []CharacterProfession = []CharacterProfession{"Jewelcrafting", "Tailoring", "Alchemy", "Herbalism", "Inscription", "Enchanting", "Blacksmithing", "Mining", "Engineering", "Leatherworking", "Skinning", "Cooking"}

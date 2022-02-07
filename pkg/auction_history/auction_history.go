@@ -3,6 +3,7 @@ package auction_history
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -23,7 +24,7 @@ type ScanRealmsResult struct {
 }
 
 type GetAllBonusesReturn struct {
-	Bonuses [][]uint `json:"bonuses,omitempty"`
+	Bonuses []uint `json:"bonuses,omitempty"`
 	//Bonuses []map[string]string `json:"bonuses,omitempty"`
 	Item BlizzardApi.Item `json:"item,omitempty"`
 }
@@ -42,13 +43,13 @@ type SalesCountSummary struct {
 }
 
 type AuctionSummaryData struct {
-	Min      uint                                 `json:"min,omitempty"`
-	Max      uint                                 `json:"max,omitempty"`
-	Avg      float64                              `json:"avg,omitempty"`
-	Latest   uint                                 `json:"latest,omitempty"`
-	PriceMap map[string]AuctionPriceSummaryRecord `json:"price_map,omitempty"`
+	Min      uint                                `json:"min,omitempty"`
+	Max      uint                                `json:"max,omitempty"`
+	Avg      float64                             `json:"avg,omitempty"`
+	Latest   int64                               `json:"latest,omitempty"`
+	PriceMap map[int64]AuctionPriceSummaryRecord `json:"price_map,omitempty"`
 	Archives []struct {
-		Timestamp string              `json:"timestamp,omitempty"`
+		Timestamp int64               `json:"timestamp,omitempty"`
 		Data      []SalesCountSummary `json:"data,omitempty"`
 		MinValue  uint                `json:"min_value,omitempty"`
 		MaxValue  uint                `json:"max_value,omitempty"`
@@ -66,16 +67,16 @@ type localItem struct {
 	ItemName  string                 `bson:"item_name"`
 	ItemId    uint                   `bson:"item_id"`
 	Region    globalTypes.RegionCode `bson:"region"`
-	Craftable bool                   `bson:"craftable,omitempty"`
+	Craftable *bool                  `bson:"craftable,omitempty"`
 }
 
 // Injest all the realms in the scan list
-func ScanRealms() {
+func ScanRealms() error {
 	// Connect to mongo
 	mongoClient, clientError := mongo.Connect(context.TODO(), options.Client().ApplyURI(environment_variables.DATABASE_CONNECTION_STRING))
 	if clientError != nil {
 		//panic(clientError)
-		panic(clientError)
+		return (clientError)
 	}
 	defer func() {
 		if clientError = mongoClient.Disconnect(context.TODO()); clientError != nil {
@@ -85,28 +86,29 @@ func ScanRealms() {
 
 	// Auctions collection
 	scanRealmsCollection := mongoClient.Database("cpc").Collection("scan_realms")
-	realmsToScan, scanErr := scanRealmsCollection.Find(context.TODO(), nil)
+	realmsToScan, scanErr := scanRealmsCollection.Find(context.TODO(), bson.D{{}})
 	if scanErr != nil {
-		panic(scanErr)
+		return (scanErr)
 	}
 
 	var realms []scanRealm
-	realmsToScan.Decode(&realms)
+	realmsToScan.All(context.TODO(), &realms)
 
 	for _, realm := range realms {
 		err := ingest(realm.Region, realm.ConnectedRealmId)
 		if err != nil {
-			continue
+			return err
 		}
 	}
+	return nil
 }
 
-func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) {
+func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
 	// Connect to mongo
 	mongoClient, clientError := mongo.Connect(context.TODO(), options.Client().ApplyURI(environment_variables.DATABASE_CONNECTION_STRING))
 	if clientError != nil {
 		//panic(clientError)
-		panic(clientError)
+		return (clientError)
 	}
 	defer func() {
 		if clientError = mongoClient.Disconnect(context.TODO()); clientError != nil {
@@ -128,16 +130,19 @@ func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalType
 	} else if realm.Name != "" {
 		fetchRealmId, fetchRealmIdErr := blizzard_api_helpers.GetConnectedRealmId(realm.Name, region)
 		if fetchRealmIdErr != nil {
-			panic("could not get realm")
+			return fmt.Errorf("could not get realm %v", fetchRealmIdErr)
+		}
+		if fetchRealmId == 0 {
+			return fmt.Errorf("could not get realm")
 		}
 		newRealmId = fetchRealmId
 	} else {
-		panic("no realm")
+		return fmt.Errorf("no realm")
 	}
 
 	fetchRealm, fetchRealmErr := blizzard_api_helpers.GetBlizConnectedRealmDetail(newRealmId, region)
 	if fetchRealmErr != nil {
-		panic("could not get realm")
+		return fmt.Errorf("could not get realm %v", fetchRealmErr)
 	}
 
 	for _, server := range fetchRealm.Realms {
@@ -161,6 +166,7 @@ func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalType
 	update := bson.D{{"$setOnInsert", newRealm}}
 
 	scanRealmsCollection.UpdateOne(context.TODO(), searchFilter, update, options.Update().SetUpsert(true))
+	return nil
 }
 
 func RemoveScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) {
@@ -210,11 +216,149 @@ func RemoveScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalT
 
 // Get all auctions filtering with parameters
 func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint, start_dtm time.Time, end_dtm time.Time) (AuctionSummaryData, error) {
+	// Connect to mongo
+	mongoClient, clientError := mongo.Connect(context.TODO(), options.Client().ApplyURI(environment_variables.DATABASE_CONNECTION_STRING))
+	if clientError != nil {
+		//panic(clientError)
+		panic(clientError)
+	}
+	defer func() {
+		if clientError = mongoClient.Disconnect(context.TODO()); clientError != nil {
+			panic(clientError)
+		}
+	}()
 
+	// Auctions collection
+	auctionsCollection := mongoClient.Database("cpc").Collection("auctions")
+
+	var itemId, connectedRealmId uint
+
+	// Get realm
+	if realm.Id != 0 {
+		connectedRealmId = realm.Id
+	} else if realm.Name != "" {
+		rlm, err := blizzard_api_helpers.GetConnectedRealmId(realm.Name, region)
+		if err != nil {
+			return AuctionSummaryData{}, err
+		}
+		connectedRealmId = rlm
+	} else {
+		return AuctionSummaryData{}, fmt.Errorf("no realm detectable for %v", realm)
+	}
+
+	// Get item
+	if item.ItemId != 0 {
+		itemId = item.ItemId
+	} else if item.ItemName != "" {
+		itm, err := blizzard_api_helpers.GetItemId(region, item.ItemName)
+		if err != nil {
+			return AuctionSummaryData{}, err
+		}
+		itemId = itm
+	} else {
+		return AuctionSummaryData{}, fmt.Errorf("no item detectable for %v", item)
+	}
+
+	var return_value AuctionSummaryData
+	return_value.PriceMap = make(map[int64]AuctionPriceSummaryRecord)
+	return_value.Min = math.MaxUint
+
+	var filterBonuses bson.D
+
+	filterId := bson.D{{"item.id", itemId}}
+	if len(bonuses) > 0 {
+		filterBonuses = bson.D{{"item.bonus_lists", bson.D{{"$all", bonuses}}}}
+	} else {
+		filterBonuses = bson.D{}
+	}
+
+	filterDates := bson.D{{"$and",
+		bson.A{
+			bson.D{{"fetched", bson.D{{"$lt", end_dtm}}}},
+			bson.D{{"fetched", bson.D{{"$gt", start_dtm}}}},
+		}}}
+	filterConnectedRealm := bson.D{{"realm", connectedRealmId}}
+
+	allFilters := bson.D{{"$and", bson.A{
+		filterId,
+		filterBonuses,
+		filterDates,
+		filterConnectedRealm,
+	}}}
+
+	allGroupsings := bson.D{
+		{"_id", "$fetched"},
+		{"total_sales", bson.D{{"$sum", "$quantity"}}},
+		{"average", bson.D{{"$avg", bson.D{{"$sum", bson.A{"$unit_price", "$buyout"}}}}}},
+		{"max", bson.D{{"$max", bson.D{{"$sum", bson.A{"$unit_price", "$buyout"}}}}}},
+		{"min", bson.D{{"$min", bson.D{{"$sum", bson.A{"$unit_price", "$buyout"}}}}}},
+	}
+
+	//q := bson.M{}
+	//jsonString, _ := json.Marshal(allFilters)
+	//fmt.Printf("mgo query: %s\n", jsonString)
+
+	// Get historical auction
+	aggregationPipeline := bson.A{
+		bson.D{{"$match", allFilters}},         // bonuses, item_id, dates
+		bson.D{{"$group", allGroupsings}},      // group by id and date and calculate high,lo,avg,total sales
+		bson.D{{"$sort", bson.D{{"_id", -1}}}}, // sort by id descending
+	}
+
+	aggregatedAuctions, err := auctionsCollection.Aggregate(context.TODO(), aggregationPipeline)
+	if err != nil {
+		return AuctionSummaryData{}, err
+	}
+
+	type aggregateAuctions struct {
+		Id         time.Time `bson:"_id,omitempty"`
+		TotalSales uint      `bson:"total_sales,omitempty"`
+		Average    float64   `bson:"average,omitempty"`
+		Min        uint      `bson:"min,omitempty"`
+		Max        uint      `bson:"max,omitempty"`
+	}
+
+	for aggregatedAuctions.Next(context.TODO()) {
+		var entry aggregateAuctions
+		err := aggregatedAuctions.Decode(&entry)
+		if err != nil {
+			return AuctionSummaryData{}, err
+		}
+		return_value.PriceMap[entry.Id.Unix()] = AuctionPriceSummaryRecord{
+			MinValue: entry.Min,
+			MaxValue: entry.Max,
+			AvgValue: entry.Average,
+		}
+
+		if entry.Min < return_value.Min {
+			return_value.Min = entry.Min
+		}
+		if entry.Max > return_value.Max {
+			return_value.Max = entry.Max
+		}
+	}
+
+	// Get spot auctions
+	spotSummary, err := getSpotAuctionSummary(item, realm, region, bonuses)
+	if err != nil {
+		return AuctionSummaryData{}, err
+	}
+	cTime := time.Now().Unix()
+	return_value.PriceMap[cTime] = spotSummary
+	return_value.Latest = cTime
+
+	if spotSummary.MinValue < return_value.Min {
+		return_value.Min = spotSummary.MinValue
+	}
+	if spotSummary.MaxValue > return_value.Max {
+		return_value.Max = spotSummary.MaxValue
+	}
+
+	return return_value, nil
 }
 
 // Return all bonuses availble for an item
-func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionCode) GetAllBonusesReturn {
+func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionCode) (GetAllBonusesReturn, error) {
 	// Connect to mongo
 	mongoClient, clientError := mongo.Connect(context.TODO(), options.Client().ApplyURI(environment_variables.DATABASE_CONNECTION_STRING))
 	if clientError != nil {
@@ -236,11 +380,11 @@ func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionC
 	} else if item.ItemName != "" {
 		itemId, idErr := blizzard_api_helpers.GetItemId(region, item.ItemName)
 		if idErr != nil {
-			return GetAllBonusesReturn{}
+			return GetAllBonusesReturn{}, idErr
 		}
 		searchId = itemId
 	} else {
-		return GetAllBonusesReturn{}
+		return GetAllBonusesReturn{}, fmt.Errorf("no item")
 	}
 
 	auctionsFilter := bson.D{
@@ -248,13 +392,14 @@ func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionC
 			bson.A{
 				bson.D{{"item.id", searchId}},
 				bson.D{{"region", region}},
-				bson.D{{"$exists", bson.D{{"item.bonus_lists", true}}}},
+				bson.D{{"item.bonus_lists", bson.D{{"$exists", true}}}},
+				bson.D{{"item.bonus_lists", bson.D{{"$ne", bson.TypeNull}}}},
 			},
 		}}
 
 	results, err := auctionsCollection.Distinct(context.TODO(), "item.bonus_lists", auctionsFilter)
 	if err != nil {
-		return GetAllBonusesReturn{}
+		return GetAllBonusesReturn{}, err
 	}
 
 	var return_value GetAllBonusesReturn
@@ -263,10 +408,11 @@ func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionC
 	return_value.Item.Name = item.ItemName
 
 	for _, auction := range results {
-		return_value.Bonuses = append(return_value.Bonuses, auction.([]uint))
+
+		return_value.Bonuses = append(return_value.Bonuses, uint(auction.(int64)))
 	}
 
-	return return_value
+	return return_value, nil
 }
 
 // Archive auctions, in this implementation it generally just deletes old auctions
@@ -310,7 +456,7 @@ func FillNItems(fillCount uint) {
 	// Items collection
 	itemsCollection := mongoClient.Database("cpc").Collection("items")
 
-	filterNotScanned := bson.D{{"$exists", bson.D{{"craftable", false}}}}
+	filterNotScanned := bson.D{{"craftable", bson.D{{"$exists", false}}}}
 
 	items, err := itemsCollection.Find(context.TODO(), filterNotScanned, options.Find().SetLimit(int64(fillCount)))
 	if err != nil {
@@ -319,10 +465,10 @@ func FillNItems(fillCount uint) {
 
 	for items.Next(context.TODO()) {
 		var updateItem localItem
-		if err := items.Decode(&updateItem); err != nil {
+		if err := items.Decode(&updateItem); err == nil {
 			crafting, craftCalcError := blizzard_api_helpers.CheckIsCrafting(updateItem.ItemId, globalTypes.ALL_PROFESSIONS, updateItem.Region)
 			if craftCalcError != nil {
-				continue
+				panic(craftCalcError)
 			}
 			itemFilter := bson.D{
 				{"$and",
@@ -333,7 +479,7 @@ func FillNItems(fillCount uint) {
 				},
 			}
 
-			itemUpdate := bson.D{{"craftable", crafting.Craftable}}
+			itemUpdate := bson.D{{"$set", bson.D{{"craftable", crafting.Craftable}}}}
 
 			itemsCollection.UpdateOne(context.TODO(), itemFilter, itemUpdate)
 		}
@@ -373,10 +519,10 @@ func FillNNames(fillCount uint) {
 
 	for items.Next(context.TODO()) {
 		var updateItem localItem
-		if err := items.Decode(&updateItem); err != nil {
+		if err := items.Decode(&updateItem); err == nil {
 			itemDetail, itemFetchErr := blizzard_api_helpers.GetItemDetails(updateItem.ItemId, updateItem.Region)
 			if itemFetchErr != nil {
-				continue
+				panic(itemFetchErr)
 			}
 			itemFilter := bson.D{
 				{"$and",
@@ -387,7 +533,7 @@ func FillNNames(fillCount uint) {
 				},
 			}
 
-			itemUpdate := bson.D{{"item_name", itemDetail.Name}}
+			itemUpdate := bson.D{{"$set", bson.D{{"item_name", itemDetail.Name}}}}
 
 			itemsCollection.UpdateOne(context.TODO(), itemFilter, itemUpdate)
 		}
@@ -395,12 +541,12 @@ func FillNNames(fillCount uint) {
 }
 
 // Get a list of all scanned realms
-func GetScanRealms() []ScanRealmsResult {
+func GetScanRealms() ([]ScanRealmsResult, error) {
 	// Connect to mongo
 	mongoClient, clientError := mongo.Connect(context.TODO(), options.Client().ApplyURI(environment_variables.DATABASE_CONNECTION_STRING))
 	if clientError != nil {
 		//panic(clientError)
-		panic(clientError)
+		return []ScanRealmsResult{}, clientError
 	}
 	defer func() {
 		if clientError = mongoClient.Disconnect(context.TODO()); clientError != nil {
@@ -410,13 +556,16 @@ func GetScanRealms() []ScanRealmsResult {
 
 	// Auctions collection
 	scanRealmsCollection := mongoClient.Database("cpc").Collection("scan_realms")
-	realmsToScan, scanErr := scanRealmsCollection.Find(context.TODO(), nil)
+	realmsToScan, scanErr := scanRealmsCollection.Find(context.TODO(), bson.D{{}})
 	if scanErr != nil {
-		panic(scanErr)
+		return []ScanRealmsResult{}, scanErr
 	}
 
 	var realms []scanRealm
-	realmsToScan.Decode(&realms)
+	err := realmsToScan.All(context.TODO(), &realms)
+	if err != nil {
+		return []ScanRealmsResult{}, err
+	}
 
 	var result []ScanRealmsResult
 	for _, realm := range realms {
@@ -426,7 +575,7 @@ func GetScanRealms() []ScanRealmsResult {
 			Region:     realm.Region,
 		})
 	}
-	return result
+	return result, nil
 
 }
 
@@ -605,6 +754,7 @@ func check_bonus(bonus_list []uint, target []uint) (found bool) {
 
 // Injest a realm for auction archives
 func ingest(region globalTypes.RegionCode, connected_realm globalTypes.ConnectedRealmID) error {
+	cpclog.Infof("start ingest for %v - %v", region, connected_realm)
 	// Connect to mongo
 	mongoClient, clientError := mongo.Connect(context.TODO(), options.Client().ApplyURI(environment_variables.DATABASE_CONNECTION_STRING))
 	if clientError != nil {
@@ -632,6 +782,7 @@ func ingest(region globalTypes.RegionCode, connected_realm globalTypes.Connected
 	for _, auction := range auctions.Auctions {
 		auction.Fetched = fetchTime
 		auction.Region = region
+		auction.ConnectedRealmId = connected_realm
 		auctionInsert = append(auctionInsert, auction)
 		itemsToChurn = append(itemsToChurn, localItem{
 			ItemId: auction.Item.Id,
@@ -639,17 +790,19 @@ func ingest(region globalTypes.RegionCode, connected_realm globalTypes.Connected
 		})
 	}
 
-	go churnAuctionItemsOnInjest(itemsToChurn)
+	churnAuctionItemsOnInjest(itemsToChurn)
 
 	_, insertErr := auctionsCollection.InsertMany(context.TODO(), auctionInsert)
 	if insertErr != nil {
 		return insertErr
 	}
 
+	cpclog.Infof("finished ingest for %v - %v", region, connected_realm)
 	return nil
 }
 
 func churnAuctionItemsOnInjest(items []localItem) {
+	cpclog.Infof("start item churn for %d items", len(items))
 	// Connect to mongo
 	mongoClient, clientError := mongo.Connect(context.TODO(), options.Client().ApplyURI(environment_variables.DATABASE_CONNECTION_STRING))
 	if clientError != nil {
@@ -669,11 +822,15 @@ func churnAuctionItemsOnInjest(items []localItem) {
 	for _, item := range items {
 		// Upsert Item
 		filter := bson.D{{"item_id", item.ItemId}}
-		new_option, err := bson.Marshal(item)
-		if err != nil {
-			continue
+		//new_option, err := bson.Marshal(item)
+		//if err != nil {
+		//	continue
+		//}
+		update := bson.D{{"$setOnInsert", item}}
+		_, updateErr := itemsCollection.UpdateOne(context.TODO(), filter, update, options.Update().SetUpsert(true))
+		if updateErr != nil {
+			panic(updateErr)
 		}
-		update := bson.D{{"$setOnInsert", new_option}}
-		itemsCollection.UpdateOne(context.TODO(), filter, update, options.Update().SetUpsert(true))
 	}
+	cpclog.Info("finished item churn")
 }

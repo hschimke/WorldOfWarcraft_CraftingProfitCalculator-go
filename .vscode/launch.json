@@ -11,6 +11,24 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Launch CLI with commands",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${fileDirname}",
+            "envFile": "${workspaceFolder}/.env",
+            //"args": ["--add_scan_realm", "--region", "us", "--realm_name", "hyjal"]
+            //"args": ["--get_scan_realms"]
+            //"args": ["--get_all_bonuses", "--item_name", "Grim-Veiled Bracers", "--region", "us", "--realm_name", "hyjal"]
+            //"args": ["--scan_realms"]
+            //"args": ["--fill_n_names", "--count", "5"],
+            //"args": ["--get_all_names"]
+            //"args": ["--fill_n_items", "--count", "5"],
+            //"args": ["--remove_scan_realm", "--region", "us", "--realm_name", "hyjal"]
+            "args": ["--get_auctions", "--item_name", "Grim-Veiled Bracers", "--region", "us", "--realm_name", "hyjal", "--bonuses", "[]"]
+            //"args": ["--archive_auctions"]
         }
     ]
 }

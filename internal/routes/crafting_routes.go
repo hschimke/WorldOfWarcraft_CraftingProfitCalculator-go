@@ -42,8 +42,7 @@ type jsonOutputBodyCheckData struct {
 func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body == nil {
-		fmt.Fprintf(w, "body required")
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, "body required", http.StatusBadRequest)
 		return
 	}
 
@@ -52,8 +51,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 	var data jsonOutputBodyQueueData
 	parseErr := json.NewDecoder(r.Body).Decode(&data)
 	if parseErr != nil {
-		fmt.Fprint(w, parseErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, parseErr.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -85,8 +83,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 		}
 		rjs, rjsErr := json.Marshal(runJob)
 		if rjsErr != nil {
-			fmt.Fprint(w, rjsErr.Error())
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, rjsErr.Error(), http.StatusInternalServerError)
 			return
 		}
 		redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
@@ -106,8 +103,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 		}
 		rjs, rjsErr := json.Marshal(runJob)
 		if rjsErr != nil {
-			fmt.Fprint(w, rjsErr.Error())
-			w.WriteHeader(http.StatusInternalServerError)
+			http.Error(w, rjsErr.Error(), http.StatusInternalServerError)
 			return
 		}
 		redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
@@ -124,16 +120,14 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body == nil {
-		fmt.Fprintf(w, "body required")
-		w.WriteHeader(http.StatusBadRequest)
+		http.Error(w, "body required", http.StatusBadRequest)
 		return
 	}
 
 	var data jsonOutputBodyCheckData
 	parseErr := json.NewDecoder(r.Body).Decode(&data)
 	if parseErr != nil {
-		fmt.Fprint(w, parseErr.Error())
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, parseErr.Error(), http.StatusInternalServerError)
 		return
 	}
 

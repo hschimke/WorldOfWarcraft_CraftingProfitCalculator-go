@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,16 +28,16 @@ type SeenItemBonusesReturn struct {
 		ILvl []struct {
 			Id    uint `json:"id,omitempty"`
 			Level int  `json:"level,omitempty"`
-		} `json:"ilvl,omitempty"`
+		} `json:"ilvl"`
 		Socket []struct {
 			Id      uint `json:"id,omitempty"`
 			Sockets *int `json:"sockets,omitempty"`
-		} `json:"socket,omitempty"`
+		} `json:"socket"`
 		Quality []struct {
 			Id      uint `json:"id,omitempty"`
 			Quality *int `json:"quality,omitempty"`
-		} `json:"quality,omitempty"`
-		Unknown []uint `json:"unknown,omitempty"`
+		} `json:"quality"`
+		Unknown []uint `json:"unknown"`
 		Empty   bool   `json:"empty,omitempty"`
 	} `json:"collected,omitempty"`
 }
@@ -80,6 +81,7 @@ func AllItems(w http.ResponseWriter, r *http.Request) {
 	} else {
 		cpclog.Debug("Getting fresh all items.")
 		names = auction_history.GetAllNames()
+		cache_provider.CacheSet(cacheNS, cacheKey, names, time.Hour)
 	}
 
 	partial := r.URL.Query().Get("partial")
@@ -98,6 +100,10 @@ func handleNames(names []string, partial string) []string {
 				filteredNames = append(filteredNames, name)
 			}
 		}
+
+		if len(filteredNames) == 0 {
+			filteredNames = make([]string, 0)
+		}
 	} else {
 		cpclog.Debug("Returning all unfiltered items.")
 		filteredNames = names
@@ -107,12 +113,12 @@ func handleNames(names []string, partial string) []string {
 
 func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 	type expectedBody struct {
-		Item     string `json:"item"`
-		Realm    string `json:"realm"`
-		Region   string `json:"region"`
-		Bonuses  []uint `json:"bonuses"`
-		StartDtm string `json:"start_dtm"`
-		EndDtm   string `json:"end_dtm"`
+		Item     string   `json:"item"`
+		Realm    string   `json:"realm"`
+		Region   string   `json:"region"`
+		Bonuses  []string `json:"bonuses"`
+		StartDtm string   `json:"start_dtm"`
+		EndDtm   string   `json:"end_dtm"`
 	}
 
 	if r.Body == nil {
@@ -141,7 +147,7 @@ func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 		endTime = time.Now()
 	}
 
-	auctionData, auctionDataError := auction_history.GetAuctions(item, realm, data.Region, data.Bonuses, startTime, endTime)
+	auctionData, auctionDataError := auction_history.GetAuctions(item, realm, data.Region, parseStringArrayToUint(data.Bonuses), startTime, endTime)
 	if auctionDataError != nil {
 		cpclog.Error("Issue getting auctions ", auctionDataError)
 		fmt.Fprintf(w, "{ ERROR: %v }", auctionDataError)
@@ -150,6 +156,16 @@ func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 
 	cpclog.Debug("returned auction data")
 	json.NewEncoder(w).Encode(auctionData)
+}
+
+func parseStringArrayToUint(array []string) []uint {
+	var r []uint
+	for _, s := range array {
+		if hld, hldErr := strconv.ParseUint(s, 10, 64); hldErr == nil {
+			r = append(r, uint(hld))
+		}
+	}
+	return r
 }
 
 func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
@@ -181,8 +197,9 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	bonuses, allBonusesErr := auction_history.GetAllBonuses(globalTypes.NewItemFromString(data.Item), data.Region)
 	if allBonusesErr != nil {
 		cpclog.Errorf("Issue getting bonuses %v", allBonusesErr)
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "{ERROR:\"%s\"}", allBonusesErr.Error())
+		http.Error(w, fmt.Sprintf("{ERROR:\"%s\"}", allBonusesErr.Error()), http.StatusInternalServerError)
+		//w.WriteHeader(http.StatusInternalServerError)
+		//fmt.Fprintf(w, "{ERROR:\"%s\"}", allBonusesErr.Error())
 		return
 	}
 
@@ -240,6 +257,20 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 
 	return_value.Bonuses = bonuses.Bonuses
 	return_value.Mapped = &b_array
+
+	return_value.Collected.ILvl = make([]struct {
+		Id    uint "json:\"id,omitempty\""
+		Level int  "json:\"level,omitempty\""
+	}, 0)
+	return_value.Collected.Socket = make([]struct {
+		Id      uint "json:\"id,omitempty\""
+		Sockets *int "json:\"sockets,omitempty\""
+	}, 0)
+	return_value.Collected.Quality = make([]struct {
+		Id      uint "json:\"id,omitempty\""
+		Quality *int "json:\"quality,omitempty\""
+	}, 0)
+
 	for _, elem := range ilvl_adjusts.toArray() {
 		name := fmt.Sprint(elem)
 		return_value.Collected.ILvl = append(return_value.Collected.ILvl, struct {

@@ -84,7 +84,7 @@ func main() {
 
 	http.HandleFunc("/json_output_QUEUED", routes.JsonOutputQueue)
 	http.HandleFunc("/json_output_CHECK", routes.JsonOutputCheck)
-	http.HandleFunc("/json_output", routes.JsonOutput)
+	//http.HandleFunc("/json_output", routes.JsonOutput)
 
 	if !environment_variables.DISABLE_AUCTION_HISTORY {
 		http.HandleFunc("/all_items", routes.AllItems)

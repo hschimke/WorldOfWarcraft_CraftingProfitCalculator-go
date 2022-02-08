@@ -126,4 +126,22 @@ type ConnectedRealmSoftIentity struct {
 	Name ConnectedRealmName
 }
 
+type RunJob struct {
+	JobId     string
+	JobConfig struct {
+		Item      ItemSoftIdentity
+		Count     uint
+		AddonData AddonData
+	}
+}
+
+type ReturnError struct {
+	ERROR string
+}
+
 var ALL_PROFESSIONS []CharacterProfession = []CharacterProfession{"Jewelcrafting", "Tailoring", "Alchemy", "Herbalism", "Inscription", "Enchanting", "Blacksmithing", "Mining", "Engineering", "Leatherworking", "Skinning", "Cooking"}
+
+const (
+	CPC_JOB_QUEUE_NAME           = "cpc-job-queue:web-jobs"
+	CPC_JOB_RETURN_FORMAT_STRING = "cpc-job-queue-results:%s"
+)

@@ -9,10 +9,10 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/auction_history"
 )
 
-func job(ctx context.Context) {
+func job(ctx context.Context, async bool) {
 	cpclog.Info("Starting hourly injest job.")
 
-	auction_history.ScanRealms()
+	auction_history.ScanRealms(async)
 	auction_history.FillNItems(20)
 	if time.Now().Hour() == 4 {
 		cpclog.Info("Performing daily archive.")
@@ -37,7 +37,7 @@ func main() {
 
 			cpclog.Info("Started in default mode. Running job and exiting.")
 
-			job(context.Background())
+			job(context.Background(), false)
 			fillNames(context.Background())
 
 		case "worker":
@@ -63,7 +63,7 @@ func main() {
 				for range injestFetchTick.C {
 
 					if time.Now().Hour()%3 == 0 {
-						job(context.Background())
+						job(context.Background(), true)
 					}
 				}
 			}()

@@ -16,29 +16,29 @@ import (
 )
 
 type mapped struct {
-	Text    string   `json:"text,omitempty"`
-	Parsed  []string `json:"parsed,omitempty"`
-	Reduced *string  `json:"reduced,omitempty"`
+	Text    string  `json:"text,omitempty"`
+	Parsed  []uint  `json:"parsed,omitempty"`
+	Reduced *string `json:"reduced,omitempty"`
 }
 
 type SeenItemBonusesReturn struct {
-	Bonuses   []uint    `json:"bonuses,omitempty"`
-	Mapped    *[]mapped `json:"mapped,omitempty"`
+	Bonuses   []map[string]string `json:"bonuses,omitempty"`
+	Mapped    *[]mapped           `json:"mapped,omitempty"`
 	Collected struct {
 		ILvl []struct {
-			Id    uint `json:"id,omitempty"`
-			Level int  `json:"level,omitempty"`
+			Id    string `json:"id,omitempty"`
+			Level int    `json:"level,omitempty"`
 		} `json:"ilvl"`
 		Socket []struct {
-			Id      uint `json:"id,omitempty"`
-			Sockets *int `json:"sockets,omitempty"`
+			Id      string `json:"id,omitempty"`
+			Sockets *int   `json:"sockets,omitempty"`
 		} `json:"socket"`
 		Quality []struct {
-			Id      uint `json:"id,omitempty"`
-			Quality *int `json:"quality,omitempty"`
+			Id      string `json:"id,omitempty"`
+			Quality *int   `json:"quality,omitempty"`
 		} `json:"quality"`
-		Unknown []uint `json:"unknown"`
-		Empty   bool   `json:"empty,omitempty"`
+		Unknown []string `json:"unknown"`
+		Empty   bool     `json:"empty,omitempty"`
 	} `json:"collected,omitempty"`
 }
 
@@ -211,82 +211,85 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bonus_cache := *bonus_cache_ptr
+	bonuses_cache := *bonus_cache_ptr
 
 	cpclog.Debugf(`Regurning bonus lists for %s`, data.Item)
-	var ilvl_adjusts, socket_adjusts, quality_adjusts, unknown_adjusts uintSet
+	var ilvl_adjusts, socket_adjusts, quality_adjusts, unknown_adjusts stringSet
 	found_empty_bonuses := false
 
 	b_array := make([]mapped, 0)
+
 	for _, e := range bonuses.Bonuses {
-		var value strings.Builder
-		cur := fmt.Sprint(e)
-		v := mapped{
-			Text:    fmt.Sprint(e),
-			Parsed:  []string{fmt.Sprint(e)},
-			Reduced: nil,
+		var v mapped
+		var sb strings.Builder
+		v.Parsed = e
+		if len(v.Parsed) == 0 {
+			for _, curU := range v.Parsed {
+				cur := fmt.Sprint(curU)
+				if bonus_link, blPres := bonuses_cache[cur]; blPres {
+					found := false
+					if bonus_link.Level != 0 {
+						sb.WriteString(fmt.Sprintf(`ilevel %d `, int(bonuses.Item.Level)+bonus_link.Level))
+						found = true
+						ilvl_adjusts.add(cur)
+					}
+					if bonus_link.Socket != 0 {
+						sb.WriteString(`socketed `)
+						found = true
+						socket_adjusts.add(cur)
+					}
+					if bonus_link.Quality != 0 {
+						sb.WriteString(fmt.Sprintf(`quality: %d `, bonuses_cache[cur].Quality))
+						found = true
+						quality_adjusts.add(cur)
+					}
+					if !found {
+						unknown_adjusts.add(cur)
+					}
+				}
+				//return value;
+			}
+			sb_hld := sb.String()
+			v.Reduced = &sb_hld
+		} else {
+			found_empty_bonuses = true
 		}
-
-		//let value = acc;
-		found := false
-		bonus_link := bonus_cache[cur]
-
-		if bonus_link.Level != 0 {
-			value.WriteString(fmt.Sprintf(`ilevel %d `, int(bonuses.Item.Level)+bonus_link.Level))
-			found = true
-			ilvl_adjusts.add(e)
-		}
-		if bonus_link.Socket != 0 {
-			value.WriteString(`socketed `)
-			found = true
-			socket_adjusts.add(e)
-		}
-		if bonus_link.Quality != 0 {
-			value.WriteString(fmt.Sprintf(`quality: %d `, bonus_cache[cur].Quality))
-			found = true
-			quality_adjusts.add(e)
-		}
-		if !found {
-			unknown_adjusts.add(e)
-		}
-
-		str := value.String()
-		v.Reduced = &str
 		b_array = append(b_array, v)
+		strVal, _ := json.Marshal(e)
+		return_value.Bonuses = append(return_value.Bonuses, map[string]string{"bonuses": string(strVal)})
 	}
 
-	return_value.Bonuses = bonuses.Bonuses
 	return_value.Mapped = &b_array
 
 	return_value.Collected.ILvl = make([]struct {
-		Id    uint "json:\"id,omitempty\""
-		Level int  "json:\"level,omitempty\""
+		Id    string "json:\"id,omitempty\""
+		Level int    "json:\"level,omitempty\""
 	}, 0)
 	return_value.Collected.Socket = make([]struct {
-		Id      uint "json:\"id,omitempty\""
-		Sockets *int "json:\"sockets,omitempty\""
+		Id      string "json:\"id,omitempty\""
+		Sockets *int   "json:\"sockets,omitempty\""
 	}, 0)
 	return_value.Collected.Quality = make([]struct {
-		Id      uint "json:\"id,omitempty\""
-		Quality *int "json:\"quality,omitempty\""
+		Id      string "json:\"id,omitempty\""
+		Quality *int   "json:\"quality,omitempty\""
 	}, 0)
 
 	for _, elem := range ilvl_adjusts.toArray() {
 		name := fmt.Sprint(elem)
 		return_value.Collected.ILvl = append(return_value.Collected.ILvl, struct {
-			Id    uint "json:\"id,omitempty\""
-			Level int  "json:\"level,omitempty\""
+			Id    string "json:\"id,omitempty\""
+			Level int    "json:\"level,omitempty\""
 		}{
 			Id:    elem,
-			Level: bonus_cache[name].Level + int(bonuses.Item.Level),
+			Level: bonuses_cache[name].Level + int(bonuses.Item.Level),
 		})
 	}
 	for _, elem := range socket_adjusts.toArray() {
 		name := fmt.Sprint(elem)
-		sockets := bonus_cache[name].Socket
+		sockets := bonuses_cache[name].Socket
 		return_value.Collected.Socket = append(return_value.Collected.Socket, struct {
-			Id      uint "json:\"id,omitempty\""
-			Sockets *int "json:\"sockets,omitempty\""
+			Id      string "json:\"id,omitempty\""
+			Sockets *int   "json:\"sockets,omitempty\""
 		}{
 			Id:      elem,
 			Sockets: &sockets,
@@ -294,10 +297,10 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, elem := range quality_adjusts.toArray() {
 		name := fmt.Sprint(elem)
-		quality := bonus_cache[name].Quality
+		quality := bonuses_cache[name].Quality
 		return_value.Collected.Quality = append(return_value.Collected.Quality, struct {
-			Id      uint "json:\"id,omitempty\""
-			Quality *int "json:\"quality,omitempty\""
+			Id      string "json:\"id,omitempty\""
+			Quality *int   "json:\"quality,omitempty\""
 		}{
 			Id:      elem,
 			Quality: &quality,
@@ -309,19 +312,19 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(return_value)
 }
 
-type uintSet struct {
-	set map[uint]bool
+type stringSet struct {
+	set map[string]bool
 }
 
-func (s *uintSet) add(v uint) {
+func (s *stringSet) add(v string) {
 	if s.set == nil {
-		s.set = make(map[uint]bool)
+		s.set = make(map[string]bool)
 	}
 	s.set[v] = true
 }
 
-func (s *uintSet) toArray() []uint {
-	var return_list []uint
+func (s *stringSet) toArray() []string {
+	var return_list []string
 	for key, pres := range s.set {
 		if pres {
 			return_list = append(return_list, key)

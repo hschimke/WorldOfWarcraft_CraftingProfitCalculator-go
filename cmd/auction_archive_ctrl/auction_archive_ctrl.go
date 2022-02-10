@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/auction_history"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
@@ -13,16 +14,17 @@ import (
 func main() {
 	fmt.Println("Auction Archive Control Program")
 
-	fAddScanRealm := flag.Bool("add_scan_realm", false, "Add a scanned realm")                     // checked
-	fArchiveAuctions := flag.Bool("archive_auctions", false, "Perform an auction archive")         // untested
-	fFillNItems := flag.Bool("fill_n_items", false, "Fill items with crafting data")               // checked
-	fFillNNames := flag.Bool("fill_n_names", false, "Fill items with names")                       // checked
-	fGetAllBonuses := flag.Bool("get_all_bonuses", false, "Return all bonuses for item")           // checked
-	fGetAllNames := flag.Bool("get_all_names", false, "Return all names in the system")            // checked
-	fGetAuctions := flag.Bool("get_auctions", false, "Perform an auction search")                  // prartial
-	fGetScanRealms := flag.Bool("get_scan_realms", false, "Return a list of all scanned realms")   // checked
-	fRemoveScanRealm := flag.Bool("remove_scan_realm", false, "Remove a realm from the scan list") // checked
-	fScanRealms := flag.Bool("scan_realms", false, "Perform a scan on all scan realms")            // checked
+	fAddScanRealm := flag.Bool("add_scan_realm", false, "Add a scanned realm")                     // (X)
+	fArchiveAuctions := flag.Bool("archive_auctions", false, "Perform an auction archive")         // (-)
+	fFillNItems := flag.Bool("fill_n_items", false, "Fill items with crafting data")               // (X)
+	fFillNNames := flag.Bool("fill_n_names", false, "Fill items with names")                       // (X)
+	fGetAllBonuses := flag.Bool("get_all_bonuses", false, "Return all bonuses for item")           // (X)
+	fGetAllNames := flag.Bool("get_all_names", false, "Return all names in the system")            // (X)
+	fGetAuctions := flag.Bool("get_auctions", false, "Perform an auction search")                  // (X)
+	fGetScanRealms := flag.Bool("get_scan_realms", false, "Return a list of all scanned realms")   // (X)
+	fRemoveScanRealm := flag.Bool("remove_scan_realm", false, "Remove a realm from the scan list") // (X)
+	fScanRealms := flag.Bool("scan_realms", false, "Perform a scan on all scan realms")            // (X)
+	fLogLevel := flag.String("log_level", "info", "Loglevel to output")
 
 	fRealmName := flag.String("realm_name", "", "A name of a realm")
 	fRealmId := flag.Uint("realm_id", 0, "A connected realm ID")
@@ -40,6 +42,8 @@ func main() {
 	fBonuses := flag.String("bonuses", "[]", "json formatted array of bonuses")
 
 	flag.Parse()
+
+	cpclog.LogLevel = cpclog.GetLevel(*fLogLevel)
 
 	realm := globalTypes.ConnectedRealmSoftIentity{
 		Id:   *fRealmId,
@@ -146,7 +150,7 @@ func main() {
 
 	if *fScanRealms {
 		fmt.Println("ScanRealms selected")
-		err := auction_history.ScanRealms()
+		err := auction_history.ScanRealms(false)
 		if err != nil {
 			fmt.Println("Error scanning realms")
 			fmt.Println(err)

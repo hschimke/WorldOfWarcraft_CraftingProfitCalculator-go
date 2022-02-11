@@ -15,9 +15,11 @@ func main() {
 
 	cpclog.LogLevel = cpclog.GetLevel("debug")
 
+	allProfessions, _ := json.Marshal(globalTypes.ALL_PROFESSIONS)
+
 	fRegion := flag.String("region", "us", "Region")
 	fServer := flag.String("server", "Hyjal", "Server")
-	fProfession := flag.String("profession", "[\"Jewelcrafting\", \"Tailoring\", \"Alchemy\", \"Herbalism\", \"Inscription\", \"Enchanting\", \"Blacksmithing\", \"Mining\", \"Engineering\", \"Leatherworking\", \"Skinning\", \"Cooking\"]", "Profession")
+	fProfession := flag.String("profession", string(allProfessions), "Profession")
 	//fProfession := flag.String("profession", "[\"Tailoring\", \"Enchanting\"]", "Profession")
 	//fItem := flag.String("item", "171276", "Item")
 	fItem := flag.String("item", "Grim-Veiled Bracers", "Item")

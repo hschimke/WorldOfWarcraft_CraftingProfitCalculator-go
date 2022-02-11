@@ -139,7 +139,7 @@ type ReturnError struct {
 	ERROR string
 }
 
-var ALL_PROFESSIONS []CharacterProfession = []CharacterProfession{"Jewelcrafting", "Tailoring", "Alchemy", "Herbalism", "Inscription", "Enchanting", "Blacksmithing", "Mining", "Engineering", "Leatherworking", "Skinning", "Cooking"}
+var ALL_PROFESSIONS []CharacterProfession = []CharacterProfession{"Blacksmithing", "Leatherworking", "Alchemy", "Herbalism", "Cooking", "Mining", "Tailoring", "Engineering", "Enchanting", "Fishing", "Skinning", "Jewelcrafting", "Inscription", "Archaeology", "Soul Cyphering", "Abominable Stitching", "Ascension Crafting", "Stygia Crafting"}
 
 const (
 	CPC_JOB_QUEUE_NAME           = "cpc-job-queue:web-jobs"

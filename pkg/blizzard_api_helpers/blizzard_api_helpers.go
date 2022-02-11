@@ -227,23 +227,60 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 
 	profession_result_array := make([]globalTypes.CraftingStatus, 0)
 
-	for _, prof := range character_professions {
-		z, err := checkProfessionCrafting(profession_list, prof, region, item_id, item_detail)
-		if err != nil {
-			return globalTypes.CraftingStatus{}, err
-		}
-		profession_result_array = append(profession_result_array, z)
+	type iData struct {
+		profession_list BlizzardApi.ProfessionsIndex
+		prof            globalTypes.CharacterProfession
+		region          globalTypes.RegionCode
+		item_id         globalTypes.ItemID
+		item_detail     BlizzardApi.Item
 	}
 
-	// This may be too many concurrent promises
-	//const character_profession_check_promises: Promise<CraftingStatus>[] = [];
-	//for (let prof of character_professions) {
-	//    character_profession_check_promises.push(checkProfessionCrafting(profession_list, prof, region, item_id, item_detail));
-	//}
+	type iRet struct {
+		ret globalTypes.CraftingStatus
+		err error
+	}
 
-	//(await Promise.all(character_profession_check_promises)).forEach((check) => {
-	//    profession_result_array.push(check);
-	//});
+	inputData := make(chan iData, 3)
+	outputData := make(chan iRet, len(character_professions))
+
+	workerFunc := func(input chan iData, output chan iRet) {
+		for z := range input {
+			z, err := checkProfessionCrafting(z.profession_list, z.prof, z.region, z.item_id, z.item_detail)
+			output <- iRet{z, err}
+		}
+	}
+
+	go workerFunc(inputData, outputData)
+	go workerFunc(inputData, outputData)
+	go workerFunc(inputData, outputData)
+
+	for _, prof := range character_professions {
+		inputData <- iData{profession_list, prof, region, item_id, item_detail}
+	}
+	close(inputData)
+
+	var errArr []error
+
+	for job := 1; job <= len(character_professions); job++ {
+		jBr := <-outputData
+		if jBr.err != nil {
+			errArr = append(errArr, jBr.err)
+		}
+		profession_result_array = append(profession_result_array, jBr.ret)
+	}
+
+	if len(errArr) != 0 {
+		return globalTypes.CraftingStatus{}, errArr[0]
+	}
+
+	/*
+		for _, prof := range character_professions {
+			z, err := checkProfessionCrafting(profession_list, prof, region, item_id, item_detail)
+			if err != nil {
+				return globalTypes.CraftingStatus{}, err
+			}
+			profession_result_array = append(profession_result_array, z)
+		}*/
 
 	// collate professions
 	for _, profession_crafting_check := range profession_result_array {
@@ -458,34 +495,78 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 		profz = append(profz, profDetail)
 	}
 
-	//id, err := getProfessionId(profession_list, "Enchanting")
-	//if err != nil {
-	//	return globalTypes.SkillTierCyclicLinks{}, err
-	//}
-	//profDetail, err := GetBlizProfessionDetail(id, region)
-	//if err != nil {
-	//	return globalTypes.SkillTierCyclicLinks{}, err
-	//}
-	//profz := []BlizzardApi.Profession{profDetail}
-
 	counter := 0
 	profession_counter := 0
 
-	for _, prof := range profz {
-		last_count := counter
-		cpclog.Debug("Scanning profession: ", prof.Name, " for cyclic relationships.")
-		profession, err := GetBlizProfessionDetail(prof.Id, region)
-		if err != nil {
-			return globalTypes.SkillTierCyclicLinks{}, err
-		}
-		if profession.Skill_tiers != nil {
-			for _, st := range profession.Skill_tiers {
-				links = append(links, buildCyclicLinkforSkillTier(st, profession, region)...)
-			}
-		}
-		cpclog.Debug("Scanned ", counter-last_count, " new recipes.")
-		profession_counter++
+	type oData struct {
+		ret SkillTierCyclicLinksBuild
+		err error
 	}
+
+	inputData := make(chan BlizzardApi.Profession, 4)
+	outputData := make(chan oData, len(profz))
+
+	workerFunc := func(input chan BlizzardApi.Profession, output chan oData) {
+		for prof := range input {
+			//var collectLinks SkillTierCyclicLinksBuild
+			return_data := oData{}
+			last_count := counter
+			cpclog.Debug("Scanning profession: ", prof.Name, " for cyclic relationships.")
+			profession, err := GetBlizProfessionDetail(prof.Id, region)
+			if err != nil {
+				return_data.err = err
+			} else if profession.Skill_tiers != nil {
+				for _, st := range profession.Skill_tiers {
+					return_data.ret = append(return_data.ret, buildCyclicLinkforSkillTier(st, profession, region)...)
+				}
+			}
+			cpclog.Debug("Scanned ", counter-last_count, " new recipes.")
+			profession_counter++
+			output <- return_data
+		}
+	}
+
+	go workerFunc(inputData, outputData)
+	go workerFunc(inputData, outputData)
+	go workerFunc(inputData, outputData)
+
+	for _, prof := range profz {
+		inputData <- prof
+	}
+	close(inputData)
+
+	var errors []error
+	for job := 1; job <= len(profz); job++ {
+		jbR := <-outputData
+		//for job := range outputData {
+		if jbR.err != nil {
+			errors = append(errors, jbR.err)
+		}
+
+		links = append(links, jbR.ret...)
+	}
+
+	if len(errors) > 0 {
+		return globalTypes.SkillTierCyclicLinks{}, errors[0]
+	}
+
+	/*
+		for _, prof := range profz {
+			last_count := counter
+			cpclog.Debug("Scanning profession: ", prof.Name, " for cyclic relationships.")
+			profession, err := GetBlizProfessionDetail(prof.Id, region)
+			if err != nil {
+				return globalTypes.SkillTierCyclicLinks{}, err
+			}
+			if profession.Skill_tiers != nil {
+				for _, st := range profession.Skill_tiers {
+					links = append(links, buildCyclicLinkforSkillTier(st, profession, region)...)
+				}
+			}
+			cpclog.Debug("Scanned ", counter-last_count, " new recipes.")
+			profession_counter++
+		}
+	*/
 
 	cpclog.Debug("Scanned ", counter, " recipes in ", profession_counter, " professions")
 

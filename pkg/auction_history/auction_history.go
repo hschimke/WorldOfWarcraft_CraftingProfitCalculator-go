@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -170,7 +171,7 @@ func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalType
 		realmNameComposite = append(realmNameComposite, server.Name)
 	}
 
-	_, execErr := dbpool.Exec(context.TODO(), sql, newRealmId, strings.ToLower(region), strings.Join(realmNameComposite, ","))
+	_, execErr := dbpool.Exec(context.TODO(), sql, newRealmId, strings.ToLower(region), strings.Join(realmNameComposite, ", "))
 	if execErr != nil {
 		cpclog.Errorf(`Couldn't add %v in %s to scan realms table: %v.`, realm, region, err)
 		return execErr
@@ -365,11 +366,12 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 		)
 		newSummary := AuctionPriceSummaryRecord{}
 		distRows.Scan(&downloaded)
-		dbpool.QueryRow(context.TODO(), min_dtm_sql, value_searches...).Scan(&newSummary.MinValue)
-		dbpool.QueryRow(context.TODO(), max_dtm_sql, value_searches...).Scan(&newSummary.MaxValue)
-		dbpool.QueryRow(context.TODO(), avg_dtm_sql, value_searches...).Scan(&newSummary.AvgValue)
+		modVS := append(value_searches, downloaded)
+		dbpool.QueryRow(context.TODO(), min_dtm_sql, modVS...).Scan(&newSummary.MinValue)
+		dbpool.QueryRow(context.TODO(), max_dtm_sql, modVS...).Scan(&newSummary.MaxValue)
+		dbpool.QueryRow(context.TODO(), avg_dtm_sql, modVS...).Scan(&newSummary.AvgValue)
 
-		priceGrpRows, prcGrpErr := dbpool.Query(context.TODO(), price_group_sql, append(value_searches, downloaded)...)
+		priceGrpRows, prcGrpErr := dbpool.Query(context.TODO(), price_group_sql, modVS...)
 		if prcGrpErr != nil {
 			return AuctionSummaryData{}, prcGrpErr
 		}
@@ -724,7 +726,9 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 
 	cpclog.Debugf(`Found %d auctions`, len(auction_set))
 
-	return_value := AuctionPriceSummaryRecord{}
+	return_value := AuctionPriceSummaryRecord{
+		MinValue: math.MaxUint,
+	}
 
 	//total_sales, total_price := 0, 0
 	var total_price, total_sales uint

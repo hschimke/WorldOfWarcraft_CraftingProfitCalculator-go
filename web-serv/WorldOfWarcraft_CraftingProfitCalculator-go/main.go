@@ -50,5 +50,7 @@ func main() {
 		ReadTimeout:  time.Second * 15,
 	}
 
+	fmt.Println("Starting CPC client and api server")
+
 	log.Fatal(server.ListenAndServe())
 }

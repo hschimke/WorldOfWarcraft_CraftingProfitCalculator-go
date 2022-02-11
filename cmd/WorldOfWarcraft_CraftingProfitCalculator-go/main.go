@@ -13,7 +13,7 @@ import (
 
 func main() {
 
-	cpclog.LogLevel = cpclog.GetLevel("debug")
+	cpclog.LogLevel = cpclog.GetLevel("info")
 
 	allProfessions, _ := json.Marshal(globalTypes.ALL_PROFESSIONS)
 

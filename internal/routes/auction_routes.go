@@ -223,7 +223,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 		var v mapped
 		var sb strings.Builder
 		v.Parsed = e
-		if len(v.Parsed) == 0 {
+		if len(v.Parsed) != 0 {
 			for _, curU := range v.Parsed {
 				cur := fmt.Sprint(curU)
 				if bonus_link, blPres := bonuses_cache[cur]; blPres {

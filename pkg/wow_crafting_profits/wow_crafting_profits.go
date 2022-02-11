@@ -650,14 +650,14 @@ func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_
 			needed := li.Quantity
 			available := on_hand.ItemCount(li.Id)
 
-			cpclog.Debugf("%s (%d) %s needed with %d available", li.Name, li.Id, needed, available)
+			cpclog.Debugf("%s (%d) %f needed with %d available", li.Name, li.Id, needed, available)
 			if needed <= float64(available) {
-				cpclog.Debugf("$%s (%d) used %d of the available %d", li.Name, li.Id, needed, available)
+				cpclog.Debugf("$%s (%d) used %f of the available %d", li.Name, li.Id, needed, available)
 				needed = 0
 				on_hand.AdjustInventory(li.Id, (int(needed) * -1))
 			} else if (needed > float64(available)) && (int(available) != 0) {
 				needed -= float64(available)
-				cpclog.Debugf("%s (%d) used all of the available %d and still need %d", li.Name, li.Id, available, needed)
+				cpclog.Debugf("%s (%d) used all of the available %d and still need %f", li.Name, li.Id, available, needed)
 				on_hand.AdjustInventory(li.Id, (int(available) * -1))
 			}
 
@@ -724,7 +724,7 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 						// Only top level searches can have ranks
 						for _, sl := range build_shopping_list(part, 0) {
 							//let al = sl;
-							cpclog.Debugf(`Need %d of %s (%d) for each of %d`, sl.Quantity, sl.Name, sl.Id, needed)
+							cpclog.Debugf(`Need %f of %s (%d) for each of %f`, sl.Quantity, sl.Name, sl.Id, needed)
 
 							sl.Quantity = sl.Quantity * needed
 							shopping_list = append(shopping_list, sl)

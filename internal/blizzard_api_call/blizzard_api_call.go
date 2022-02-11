@@ -53,7 +53,7 @@ func ShutdownApiManager() {
 
 func init() {
 	httpClient = &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 11 * time.Second,
 		Transport: &http.Transport{
 			ForceAttemptHTTP2:  true,
 			DisableCompression: false,

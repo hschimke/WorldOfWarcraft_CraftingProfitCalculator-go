@@ -1,0 +1,33 @@
+.RegionSelector select {
+    display: none;
+}
+
+.RegionSelector div {
+    position: relative;
+}
+
+.RegionSelector div ul {
+    list-style: none;
+    margin: 0px;
+    padding: 0px;
+    z-index: 10;
+    position: absolute;
+    box-shadow: 10px 12px 0.5rem rgba(0,0,0,0.5);
+}
+
+.RegionSelector div li {
+    display: block;
+    height: 25px;
+    background: #fe7;
+    border-left: 1px solid black;
+    border-right: 1px solid black;
+    border-top: 1px solid black;
+}
+
+.RegionSelector div li:last-child {
+    border-bottom: 1px solid black;
+}
+
+.RegionSelector div li:hover {
+    background-color: #874;
+}

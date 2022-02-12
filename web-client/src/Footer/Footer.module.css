@@ -1,0 +1,21 @@
+.footer {
+    clear: both;
+    text-align: left;
+    padding: 15px;
+    background-color: #001f00;
+    margin-top: 100px;
+    width: 100%;
+  }
+
+  .footer ul {
+      list-style: none;
+  }
+
+  .footer ul li, .footer ul li a {
+      margin: 10px;
+      color: gray;
+  }
+
+  .footer p {
+      color: gray;
+  }

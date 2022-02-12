@@ -1,0 +1,93 @@
+.RunResultDisplay {
+    clear: both;
+    display: block;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 25px;
+}
+
+.Status {
+    font-size: 14px;
+    font-family: monospace;
+}
+
+.RawResult pre {
+    text-align: left;
+    font-family: monospace;
+}
+
+.WebResult {
+    text-align: left;
+}
+
+.RunResultItem {
+    padding-left: 10px;
+}
+
+.RunResultItemRecipes {
+    float:left;
+}
+
+.Bonuses {
+    background-color: green;
+}
+
+.RecipeListing {
+    display: block;
+    padding-left: 25px;
+    background-color: #3FB5B0;
+}
+
+.RecipeCost {
+    font-size: 10pt;
+}
+
+.RunResultItemRecipes .VendorItemPrice,.AHItemPrice{
+    font-size: 10pt;
+}
+
+.RunResultItemRecipes {
+    background-color: #359690;
+}
+
+.RunResultItemRecipesHeader {
+    font-size: 14pt;
+    padding-bottom: 5px;
+}
+
+.RecipeListing .RunResultItemRecipesHeader {
+    font-size: 12pt;
+    padding-bottom: 5px;
+}
+
+.RecipeHeader {
+    font-size: 12pt;
+}
+
+.RecipeHeader .RecipeHeaderDetails {
+    display: block;
+    clear: both;
+}
+
+.RunResultItemRecipesChildren {
+    
+}
+
+.HideableChild {
+    overflow: hidden;
+    max-height: 10000px;
+    transition-property: all;
+    transition-duration: .5s;
+    transition-timing-function:ease-in-out;
+}
+
+.HiddenChild {
+    max-height: 0px;
+}
+
+.RecipeBanner,.ItemBanner,.RecipePartsBanner,.ItemRecipesBanner {
+    display: block;
+    font-family: sans-serif;
+    font-variant-caps: all-petite-caps;
+    cursor: pointer;
+}

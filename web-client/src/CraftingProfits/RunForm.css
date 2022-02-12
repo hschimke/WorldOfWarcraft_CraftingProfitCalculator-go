@@ -1,0 +1,56 @@
+.RunForm label {
+    display: block;
+    float:none;
+    text-align: left;
+    margin-top: 15px;
+}
+
+.RunForm label input[type=text],textarea {
+    display:block;
+    width: 75%;
+    padding:10px;
+    background-color: #42A86B;
+}
+
+.RunForm .RegionSelector div span {
+    display: block;
+    background-color: #42A86B;
+    width: 75%;
+    padding: 10px;
+}
+
+.RunForm .RegionSelector div li {
+    background-color: #42A86B;
+    width: 75%;
+    padding: 10px;
+}
+
+.RunForm .RegionSelector div li:hover {
+    background-color: rgb(46, 116, 69);
+}
+
+.RunForm .Professions {
+    text-align: left;
+}
+
+.RunForm fieldset.Professions {
+    border: 0px none black;
+}
+
+.RunForm .Professions label {
+    width:25%;
+    float: left;
+    padding-right: 50px;
+}
+
+.RunForm .Professions span {
+    display:block;
+    clear: both;
+    font-weight: bold;
+}
+
+.RunForm button {
+    display: block;
+    margin-top:15px;
+    padding: 15px 25px;
+}

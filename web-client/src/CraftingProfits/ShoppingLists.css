@@ -1,0 +1,54 @@
+.ShoppingListItem {
+    clear: left;
+}
+
+.ShoppingListItem .ShoppingListColumn{
+    display: block;
+    float:left;
+}
+
+.ShoppingListItem .Quantity {
+    vertical-align: top;
+    text-align: right;
+    font-family: monospace;
+    width: 50px;
+}
+
+.ShoppingListItem .Data {
+    padding-left: 20px;
+}
+
+.ShoppingListItem .Data .VendorItemPrice,.AHItemPrice {
+    font-size: 10pt;
+}
+
+.ShoppingList {
+    padding-left:20px;
+}
+
+.ShoppingLists {
+    display: block;
+    float: right;
+    padding-left: 25px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.ShoppingListsHeader {
+    font-weight: bold;
+    font-size: 14pt;
+    display: block;;
+}
+
+.ShoppingListTitle {
+    font-weight: bold;
+    display: block;
+    clear: left;
+}
+
+.ShoppingLists ul {
+    list-style: none;
+    margin-left: 0px;
+    margin-top: 5px;
+    padding-left: 0px;
+}

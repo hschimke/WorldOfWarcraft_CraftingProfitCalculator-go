@@ -1,0 +1,24 @@
+.HelpBox {
+    display: block;
+    float: left;
+    width: 250px;
+    position: absolute;
+    right: 50px;
+    text-align: left;
+}
+
+.HelpBox .HelpHeader {
+    font-weight: bold;
+    font-variant: small-caps;
+}
+
+.HelpBox .HelpTop {
+    font-weight: bolder;
+    display: block;
+    margin-bottom: 5pt;
+    cursor: help;
+}
+
+.HelpBox p {
+    font-size: small;
+}

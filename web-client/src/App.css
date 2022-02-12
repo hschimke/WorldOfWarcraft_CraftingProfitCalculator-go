@@ -1,0 +1,47 @@
+.App {
+  text-align: center;
+  height: 100%;
+  min-height: 100%;
+}
+
+.App .Main {
+  clear: both;
+  text-align: left;
+  margin: 15px;
+}
+
+.App .Header {
+  text-align: left;
+  padding: 15px;
+  background-color: #001f00;
+}
+
+.App .Header H1 {
+  font-family: sans-serif;
+  color: #42A86B;
+  margin: 0px;
+}
+
+.App .Nav ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #333;
+}
+
+.App .Nav ul li {
+  float: left;
+}
+
+.App .Nav ul li a {
+  display: block;
+  color: white;
+  text-align: center;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+.App .Nav ul li a:hover {
+  background-color: #111;
+}

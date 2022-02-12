@@ -1,0 +1,19 @@
+.Box {
+    position: absolute;
+    box-shadow: 3px;
+    z-index: 1;
+    width: auto;
+    display: inline-block;
+    background-color: lightgray;
+    margin-top: 0px;
+    list-style: none;
+    padding-left: 0px;
+}
+
+.Row {
+    padding: 5px;
+}
+
+.Row:hover {
+    background-color: gray;
+}

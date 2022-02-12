@@ -1,0 +1,38 @@
+.PriceData {
+    font-family: monospace;
+}
+
+.PriceData .Gold {
+}
+
+.PriceData .Silver {
+}
+
+.PriceData .Copper {
+}
+
+.PriceData .Gold .Currency {
+    color:transparent;
+    background-image: url(./Gold.svg);
+    background-size: contain;
+}
+
+.PriceData .Silver .Currency {
+    color:transparent;
+    background-image: url(./Silver.svg);
+    background-size: contain;
+}
+
+.PriceData .Copper .Currency {
+    color:transparent;
+    background-image: url(./Copper.svg);
+    background-size: contain;
+}
+
+.PriceData .Currency::after {
+    content: "\00a0";
+}
+
+.VendorItemPrice {}
+
+.AHItemPrice {}

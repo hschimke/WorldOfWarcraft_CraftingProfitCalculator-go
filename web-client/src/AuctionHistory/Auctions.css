@@ -1,0 +1,39 @@
+.PriceSummary {
+    display: block;
+    padding-bottom: 10px;
+}
+
+.PriceSummary .PriceSummaryTitle {
+    font-weight: bold;
+}
+
+.PriceSummary .PriceSummarySection {
+    display: inline-block;
+    width: 100px;
+    height: fit-content;
+}
+
+.PriceChart {
+    display: block;
+}
+
+.Auctions .RegionSelector div {
+ display: inline-block;
+ width: 75px;
+}
+
+.Auctions .RegionSelector div span {
+    background-color: white;
+    width: 75px;
+    display: inline-block;
+}
+
+.Auctions .RegionSelector div li {
+    background-color: #42A86B;
+    width: 75%;
+    padding: 10px;
+}
+
+.Auctions .RegionSelector div li:hover {
+    background-color: rgb(46, 116, 69);
+}

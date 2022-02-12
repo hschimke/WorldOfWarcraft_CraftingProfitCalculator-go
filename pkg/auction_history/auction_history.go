@@ -44,13 +44,13 @@ type SalesCountSummary struct {
 }
 
 type AuctionSummaryData struct {
-	Min      uint                                `json:"min,omitempty"`
-	Max      uint                                `json:"max,omitempty"`
-	Avg      float64                             `json:"avg,omitempty"`
-	Latest   int64                               `json:"latest,omitempty"`
-	PriceMap map[int64]AuctionPriceSummaryRecord `json:"price_map,omitempty"`
+	Min      uint                                    `json:"min,omitempty"`
+	Max      uint                                    `json:"max,omitempty"`
+	Avg      float64                                 `json:"avg,omitempty"`
+	Latest   time.Time                               `json:"latest,omitempty"`
+	PriceMap map[time.Time]AuctionPriceSummaryRecord `json:"price_map,omitempty"`
 	Archives []struct {
-		Timestamp int64               `json:"timestamp,omitempty"`
+		Timestamp time.Time           `json:"timestamp,omitempty"`
 		Data      []SalesCountSummary `json:"data,omitempty"`
 		MinValue  uint                `json:"min_value,omitempty"`
 		MaxValue  uint                `json:"max_value,omitempty"`
@@ -73,7 +73,7 @@ type localItem struct {
 
 func init() {
 	const (
-		sql_create_item_table            string = "CREATE TABLE IF NOT EXISTS auctions (item_id NUMERIC, bonuses TEXT, quantity NUMERIC, price NUMERIC, downloaded NUMERIC, connected_realm_id NUMERIC, region TEXT)"
+		sql_create_item_table            string = "CREATE TABLE IF NOT EXISTS auctions (item_id NUMERIC, bonuses TEXT, quantity NUMERIC, price NUMERIC, downloaded TIMESTAMP WITH TIME ZONE, connected_realm_id NUMERIC, region TEXT)"
 		sql_create_items_table           string = "CREATE TABLE IF NOT EXISTS items (item_id NUMERIC, region TEXT, name TEXT, craftable BOOLEAN, scanned BOOLEAN, PRIMARY KEY (item_id,region))"
 		sql_create_realm_scan_table      string = "CREATE TABLE IF NOT EXISTS realm_scan_list (connected_realm_id NUMERIC, connected_realm_names TEXT, region TEXT, PRIMARY KEY (connected_realm_id,region))"
 		sql_create_archive_table         string = "CREATE TABLE IF NOT EXISTS auction_archive (item_id NUMERIC, bonuses TEXT, quantity NUMERIC, summary JSON, downloaded NUMERIC, connected_realm_id NUMERIC, region TEXT)"
@@ -311,11 +311,11 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 
 	// Include oldest fetch date time
 	sql_addins = append(sql_addins, fmt.Sprintf(`downloaded >= %s`, get_place_marker()))
-	value_searches = append(value_searches, start_dtm.Unix())
+	value_searches = append(value_searches, start_dtm)
 
 	// Include newest fetch date time
 	sql_addins = append(sql_addins, fmt.Sprintf(`downloaded <= %s`, get_place_marker()))
-	value_searches = append(value_searches, end_dtm.Unix())
+	value_searches = append(value_searches, end_dtm)
 
 	if len(bonuses) > 0 {
 		// Get only with specific bonuses
@@ -354,7 +354,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	dbpool.QueryRow(context.TODO(), avg_sql, value_searches...).Scan(&avg_value)
 	dbpool.QueryRow(context.TODO(), latest_dl_sql, value_searches...).Scan(&latest_dl_value)
 
-	price_data_by_download := make(map[int64]AuctionPriceSummaryRecord)
+	price_data_by_download := make(map[time.Time]AuctionPriceSummaryRecord)
 	distRows, dErr := dbpool.Query(context.TODO(), distinct_download_sql, value_searches...)
 	if dErr != nil {
 		return AuctionSummaryData{}, dErr
@@ -362,7 +362,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	defer distRows.Close()
 	for distRows.Next() {
 		var (
-			downloaded int64
+			downloaded time.Time
 		)
 		newSummary := AuctionPriceSummaryRecord{}
 		distRows.Scan(&downloaded)
@@ -386,7 +386,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	}
 
 	var return_value AuctionSummaryData
-	return_value.PriceMap = make(map[int64]AuctionPriceSummaryRecord)
+	return_value.PriceMap = make(map[time.Time]AuctionPriceSummaryRecord)
 
 	return_value.Min = min_value
 	return_value.Max = max_value
@@ -398,7 +398,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	if err != nil {
 		return AuctionSummaryData{}, err
 	}
-	cTime := time.Now().Unix()
+	cTime := time.Now()
 	return_value.PriceMap[cTime] = spotSummary
 	return_value.Latest = cTime
 
@@ -489,7 +489,7 @@ func ArchiveAuctions() {
 
 	const sql string = "DELETE FROM auctions WHERE downloaded < $1"
 
-	dbpool.Exec(context.TODO(), sql, twoWeeksAgo.Unix())
+	dbpool.Exec(context.TODO(), sql, twoWeeksAgo)
 }
 
 // Fill in fill_count items into the database
@@ -879,7 +879,7 @@ func ingest(region globalTypes.RegionCode, connected_realm globalTypes.Connected
 				bonusListString = "[]"
 			}
 			insert_values_array = append(insert_values_array, []interface{}{
-				items[key][pk].ItemId, items[key][pk].Quantity, items[key][pk].Price, fetchTime.Unix(), connected_realm, bonusListString, strings.ToLower(region),
+				items[key][pk].ItemId, items[key][pk].Quantity, items[key][pk].Price, fetchTime, connected_realm, bonusListString, strings.ToLower(region),
 			})
 		}
 	}

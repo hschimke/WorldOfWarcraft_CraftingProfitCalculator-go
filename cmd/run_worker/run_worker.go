@@ -14,6 +14,9 @@ import (
 )
 
 func main() {
+
+	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
+
 	cpclog.Info("Starting cpc-job-worker")
 
 	uri := environment_variables.REDIS_URL
@@ -37,14 +40,16 @@ func main() {
 
 	for running {
 		cpclog.Debug("Trying to get job")
-		job_json := redisClient.BRPop(ctx, time.Second*15, globalTypes.CPC_JOB_QUEUE_NAME).String()
+		job_json, popErr := redisClient.BRPop(ctx, time.Second*15, globalTypes.CPC_JOB_QUEUE_NAME).Result()
 
-		if job_json == "" {
+		cpclog.Sillyf("Got \"%v\" from json : %v.", job_json, popErr)
+
+		if len(job_json) == 0 {
 			continue
 		}
 
 		job := globalTypes.RunJob{}
-		err := json.Unmarshal([]byte(job_json), &job)
+		err := json.Unmarshal([]byte(job_json[1]), &job)
 		if err != nil {
 			cpclog.Error("Error decoding job", err)
 		}

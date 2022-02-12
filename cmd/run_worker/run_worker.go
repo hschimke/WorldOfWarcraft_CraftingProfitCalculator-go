@@ -40,7 +40,7 @@ func main() {
 
 	for running {
 		cpclog.Debug("Trying to get job")
-		job_json, popErr := redisClient.BRPop(ctx, time.Second*15, globalTypes.CPC_JOB_QUEUE_NAME).Result()
+		job_json, popErr := redisClient.BRPop(ctx, time.Second*30, globalTypes.CPC_JOB_QUEUE_NAME).Result()
 
 		cpclog.Sillyf("Got \"%v\" from json : %v.", job_json, popErr)
 

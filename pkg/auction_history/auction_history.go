@@ -55,7 +55,7 @@ type AuctionSummaryData struct {
 		MinValue  uint                `json:"min_value,omitempty"`
 		MaxValue  uint                `json:"max_value,omitempty"`
 		AvgValue  float64             `json:"avg_value,omitempty"`
-	} `json:"archives,omitempty"`
+	} `json:"archives"`
 }
 
 type scanRealm struct {
@@ -408,6 +408,14 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	if spotSummary.MaxValue > return_value.Max {
 		return_value.Max = spotSummary.MaxValue
 	}
+
+	return_value.Archives = make([]struct {
+		Timestamp time.Time           "json:\"timestamp,omitempty\""
+		Data      []SalesCountSummary "json:\"data,omitempty\""
+		MinValue  uint                "json:\"min_value,omitempty\""
+		MaxValue  uint                "json:\"max_value,omitempty\""
+		AvgValue  float64             "json:\"avg_value,omitempty\""
+	}, 0)
 
 	return return_value, nil
 }

@@ -26,17 +26,14 @@ func init() {
 }
 
 type jsonOutputBodyQueueData struct {
-	AddonData   globalTypes.AddonData `json:"addon_data,omitempty"`
-	Type        string                `json:"type,omitempty"`
-	ItemId      string                `json:"item_id,omitempty"`
-	Count       uint                  `json:"count,omitempty"`
-	Professions []string              `json:"professions,omitempty"`
-	Server      string                `json:"server,omitempty"`
-	Region      string                `json:"region,omitempty"`
-}
-
-type jsonOutputBodyCheckData struct {
-	RunId string `json:"run_id,omitempty"`
+	//AddonData   globalTypes.AddonData `json:"addon_data,omitempty"`
+	AddonData   string   `json:"addon_data,omitempty"`
+	Type        string   `json:"type,omitempty"`
+	ItemId      string   `json:"item_id,omitempty"`
+	Count       uint     `json:"count,omitempty"`
+	Professions []string `json:"professions,omitempty"`
+	Server      string   `json:"server,omitempty"`
+	Region      string   `json:"region,omitempty"`
 }
 
 func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
@@ -55,8 +52,15 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var adData globalTypes.AddonData
+
+	adDataErr := json.Unmarshal([]byte(data.AddonData), &adData)
+	if adDataErr != nil {
+		adData = globalTypes.AddonData{}
+	}
+
 	if data.Type == "custom" {
-		cpclog.Debugf(`Custom search for item: %s, server: %s, region: %s, professions: %v. JSON DATA: %d`, data.ItemId, data.Server, data.Region, data.Professions, len(data.AddonData.Inventory))
+		cpclog.Debugf(`Custom search for item: %s, server: %s, region: %s, professions: %v. JSON DATA: %d`, data.ItemId, data.Server, data.Region, data.Professions, len(adData.Inventory))
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
 			JobConfig: struct {
@@ -67,7 +71,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 				Item:  globalTypes.NewItemFromString(data.ItemId),
 				Count: data.Count,
 				AddonData: globalTypes.AddonData{
-					Inventory:   data.AddonData.Inventory,
+					Inventory:   adData.Inventory, //data.AddonData.Inventory,
 					Professions: data.Professions,
 					Realm: struct {
 						Region_id   uint   "json:\"region_id,omitempty\""
@@ -98,7 +102,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 			}{
 				Item:      globalTypes.NewItemFromString(data.ItemId),
 				Count:     data.Count,
-				AddonData: data.AddonData,
+				AddonData: adData, //data.AddonData,
 			},
 		}
 		rjs, rjsErr := json.Marshal(runJob)
@@ -114,7 +118,10 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	fmt.Fprintf(w, "{ job_id: \"%s\" }", jobUUID)
+	json.NewEncoder(w).Encode(globalTypes.QueuedJobReturn{
+		JobId: jobUUID,
+	})
+	//fmt.Fprintf(w, "{ \"job_id\": \"%s\" }", jobUUID)
 }
 
 func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
@@ -124,14 +131,14 @@ func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var data jsonOutputBodyCheckData
+	var data globalTypes.QueuedJobReturn
 	parseErr := json.NewDecoder(r.Body).Decode(&data)
 	if parseErr != nil {
 		http.Error(w, parseErr.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, data.RunId)
+	key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, data.JobId)
 	jobDone := false
 
 	fnd, err := redisClient.Exists(context.TODO(), key).Result()
@@ -144,12 +151,18 @@ func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 	if jobDone {
 		job, jobErr := redisClient.Get(context.TODO(), key).Result()
 		if jobErr != nil {
-			fmt.Fprintf(w, "{ERROR:\"%s\"}", jobErr.Error())
+			json.NewEncoder(w).Encode(globalTypes.ReturnError{
+				ERROR: jobErr.Error(),
+			})
+			//fmt.Fprintf(w, "{\"ERROR\":\"%s\"}", jobErr.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		w.Write([]byte(job))
 	} else {
-		fmt.Fprintf(w, "{job_id:\"%s\"}", data.RunId)
+		json.NewEncoder(w).Encode(globalTypes.QueuedJobReturn{
+			JobId: data.JobId,
+		})
+		//fmt.Fprintf(w, "{\"job_id\":\"%s\"}", data.RunId)
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")

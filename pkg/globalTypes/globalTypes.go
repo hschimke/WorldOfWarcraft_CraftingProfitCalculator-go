@@ -139,6 +139,10 @@ type ReturnError struct {
 	ERROR string
 }
 
+type QueuedJobReturn struct {
+	JobId string `json:"job_id"`
+}
+
 var ALL_PROFESSIONS []CharacterProfession = []CharacterProfession{"Blacksmithing", "Leatherworking", "Alchemy", "Herbalism", "Cooking", "Mining", "Tailoring", "Engineering", "Enchanting", "Fishing", "Skinning", "Jewelcrafting", "Inscription", "Archaeology", "Soul Cyphering", "Abominable Stitching", "Ascension Crafting", "Stygia Crafting"}
 
 const (

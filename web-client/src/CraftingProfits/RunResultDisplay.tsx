@@ -100,6 +100,8 @@ function RunResultItem({ raw_run, show_children = true }: RunResultItemProps) {
     let shopping = false;
     const output_data = raw_run;
 
+    console.log(output_data)
+
     ah_addin = ((output_data.ah !== undefined) && (output_data.ah.sales > 0));
     vendor_addin = (output_data.vendor > 0);
     recipes = (output_data.recipes !== undefined);

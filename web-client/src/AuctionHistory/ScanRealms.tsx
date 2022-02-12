@@ -24,7 +24,7 @@ function ScanRealmsList() {
     const realms = realms_dl.read();
     return <ul>
         {realms.map((scan_target) => {
-            return (<li key={scan_target.realm_id}>{scan_target.realm_names.slice(2)} in {scan_target.region}</li>);
+            return (<li key={scan_target.realm_id}>{scan_target.realm_names} in {scan_target.region}</li>);
         })}
     </ul>;
 }

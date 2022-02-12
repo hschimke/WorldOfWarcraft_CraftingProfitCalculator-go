@@ -253,6 +253,7 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 	go workerFunc(inputData, outputData)
 	go workerFunc(inputData, outputData)
 	go workerFunc(inputData, outputData)
+	go workerFunc(inputData, outputData)
 
 	for _, prof := range character_professions {
 		inputData <- iData{profession_list, prof, region, item_id, item_detail}

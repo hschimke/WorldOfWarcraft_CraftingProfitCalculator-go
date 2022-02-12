@@ -168,7 +168,7 @@ function AuctionReturnDisplay({ resource }: { resource: AuctionSummaryDataRespon
                 //bar_chart_data = [['Fetch', 'High', 'Low', 'Average']];
                 Object.keys(data.price_map).forEach(key => {
                     const element = data.price_map[key];
-                    bar_chart_data.push([new Date(Number(key)), Number(element.max_value), Number(element.min_value), Number(element.avg_value)]);
+                    bar_chart_data.push([new Date(key), Number(element.max_value), Number(element.min_value), Number(element.avg_value)]);
                 });
 
                 //volume_chart_data = [['Date', 'Qauntity']];
@@ -180,18 +180,18 @@ function AuctionReturnDisplay({ resource }: { resource: AuctionSummaryDataRespon
                             sales_by_key += Number(element.quantity_at_price);
                         });
                     }
-                    volume_chart_data.push([new Date(Number(key)), sales_by_key]);
+                    volume_chart_data.push([new Date(key), sales_by_key]);
                 });
 
                 // Handle Archives
                 for (const archive_row of data.archives) {
-                    bar_chart_data.push([new Date(Number(archive_row.timestamp)), Number(archive_row.max_value), Number(archive_row.min_value), Number(archive_row.avg_value)])
+                    bar_chart_data.push([new Date(archive_row.timestamp), Number(archive_row.max_value), Number(archive_row.min_value), Number(archive_row.avg_value)])
                     {
                         let sales_by_key = 0;
                         archive_row.data.forEach(element => {
                             sales_by_key += Number(element.quantity_at_price);
                         });
-                        volume_chart_data.push([new Date(Number(archive_row.timestamp)), (sales_by_key / 24)]);
+                        volume_chart_data.push([new Date(archive_row.timestamp), (sales_by_key / 24)]);
                     }
                 }
 

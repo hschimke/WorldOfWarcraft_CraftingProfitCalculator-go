@@ -71,7 +71,7 @@ type OutputFormatObject struct {
 	Name           string                    `json:"name,omitempty"`
 	Id             uint                      `json:"id,omitempty"`
 	Required       float64                   `json:"required,omitempty"`
-	Recipes        []OutputFormatRecipe      `json:"recipes,omitempty"`
+	Recipes        []OutputFormatRecipe      `json:"recipes"`
 	Ah             OutputFormatPrice         `json:"ah,omitempty"`
 	Vendor         float64                   `json:"vendor,omitempty"`
 	Bonus_prices   []OutputFormatBonusPrices `json:"bonus_prices,omitempty"`

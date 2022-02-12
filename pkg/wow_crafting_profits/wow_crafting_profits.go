@@ -520,6 +520,7 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 		Name:     price_data.Item_name,
 		Id:       price_data.Item_id,
 		Required: price_data.Item_quantity,
+		Recipes:  make([]globalTypes.OutputFormatRecipe, 0),
 	}
 
 	if (price_data.Ah_price.Total_sales != 0) && (price_data.Ah_price.Total_sales > 0) {

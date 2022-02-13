@@ -24,11 +24,11 @@
             //"args": ["--get_scan_realms"]
             //"args": ["--get_all_bonuses", "--item_name", "Grim-Veiled Bracers", "--region", "us", "--realm_name", "hyjal"]
             //"args": ["--scan_realms", "--log_level", "debug"]
-            //"args": ["--fill_n_names", "--count", "35"],
-            //"args": ["--get_all_names"]
+            //"args": ["--fill_n_names", "--count", "100"],
+            "args": ["--get_all_names"]
             //"args": ["--fill_n_items", "--count", "15", "--log_level", "debug"],
             //"args": ["--remove_scan_realm", "--region", "us", "--realm_name", "Grizzly Hills"]
-            "args": ["--get_auctions", "--item_name", "Grim-Veiled Bracers", "--region", "us", "--realm_name", "hyjal", "--bonuses", "[]"]
+            //"args": ["--get_auctions", "--item_name", "Grim-Veiled Bracers", "--region", "us", "--realm_name", "hyjal", "--bonuses", "[]"]
             //"args": ["--archive_auctions"]
         },
     ]

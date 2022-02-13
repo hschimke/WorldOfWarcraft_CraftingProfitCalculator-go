@@ -1,11 +1,11 @@
 export function SourceLink({text}: {text:string}){
-    const source_uri = 'https://github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator';
+    const source_uri = 'https://github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go';
     return(
         <a href={source_uri}>{text}</a>
     );
 }
 export function BugReportLink({text}: {text:string}){
-    const bug_uri = 'https://github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator/issues';
+    const bug_uri = 'https://github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/issues';
     return(
         <a href={bug_uri}>{text}</a>
     );
@@ -16,7 +16,7 @@ export function CopyRightTag(){
     );
 }
 export function ReadMeLink({text}: {text:string}){
-    const readme_uri = 'https://github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator/blob/main/README.md';
+    const readme_uri = 'https://github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/blob/main/README.md';
     return(
         <a href={readme_uri}>{text}</a>
     );

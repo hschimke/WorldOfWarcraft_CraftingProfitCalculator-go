@@ -1,2 +1,15 @@
 # syntax=docker/dockerfile:1
 # https://docs.docker.com/language/golang/build-images/
+FROM node:17-alpine AS client-build
+WORKDIR /usr/src/build
+RUN mkdir client
+COPY web-client/package*.json ./
+RUN npm ci
+COPY web-client/ ./
+RUN npm run build
+
+FROM alpine AS zip-build
+WORKDIR /usr/src/build
+RUN apk --no-cache add zip
+COPY ./wow-addon .
+RUN zip -r ./CraftingProfitCalculator_data.zip ./CraftingProfitCalculator_data

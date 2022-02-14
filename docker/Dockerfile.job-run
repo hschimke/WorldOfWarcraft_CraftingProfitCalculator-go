@@ -1,2 +1,18 @@
 # syntax=docker/dockerfile:1
 # https://docs.docker.com/language/golang/build-images/
+FROM golang:alpine AS build
+
+WORKDIR /app-build
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY ./cmd ./internal ./pkg ./web-serv ./
+
+RUN go build cmd/run_worker/run_worker.go -o ./run_worker
+
+FROM alpine:latest
+WORKDIR /app
+COPY ./static_files ./
+COPY --from=build /app-build/run_worker /app/run_worker
+
+CMD ["run_worker"]

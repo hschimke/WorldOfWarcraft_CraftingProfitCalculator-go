@@ -1,2 +1,21 @@
 # syntax=docker/dockerfile:1
 # https://docs.docker.com/language/golang/build-images/
+FROM golang:alpine AS build
+
+WORKDIR /app-build
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY ./cmd ./internal ./pkg ./web-serv ./
+
+RUN go build cmd/hourly_injest/hourly_injest.go -o ./hourly_injest
+RUN go build cmd/auction_archive_ctrl/auction_archive_ctrl.go -o ./auction_archive_ctrl
+
+FROM alpine:latest
+WORKDIR /app
+COPY ./static_files ./
+COPY --from=build /app-build/hourly_injest /app/hourly_injest
+COPY --from=build /app-build/auction_archive_ctrl /app/auction_archive_ctrl
+
+CMD ["hourly_injest"]
+

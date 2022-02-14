@@ -13,3 +13,29 @@ WORKDIR /usr/src/build
 RUN apk --no-cache add zip
 COPY ./wow-addon .
 RUN zip -r ./CraftingProfitCalculator_data.zip ./CraftingProfitCalculator_data
+
+FROM golang:alpine AS server-build
+
+WORKDIR /app-build
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY cmd/ ./cmd
+COPY internal/ ./internal 
+COPY pkg/ ./pkg
+COPY web-serv/ ./web-serv
+
+RUN go build -o ./web_server -v ./web-serv/WorldOfWarcraft_CraftingProfitCalculator-go/
+
+FROM alpine:latest
+RUN apk --no-cache add curl
+WORKDIR /app
+COPY ./static_files ./
+COPY --from=client-build /usr/src/build/build ./html/build
+COPY --from=zip-build /usr/src/build/CraftingProfitCalculator_data.zip ./html/CraftingProfitCalculator_data.zip
+COPY --from=server-build /app-build/web_server /app/web_server
+EXPOSE 8080
+HEALTHCHECK --interval=5m --timeout=3s \
+  CMD curl -f http://localhost:8080/healthcheck || exit 1
+
+CMD ["web_server"]

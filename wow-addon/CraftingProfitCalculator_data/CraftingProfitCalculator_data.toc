@@ -1,0 +1,9 @@
+## Interface: 90002
+## Title: CraftingProfitCalculator_data
+## Notes: Constructs CraftingProfitCalculator export strings
+## Author: hschimke
+## Version: 20210105
+## SavedVariables: CraftingProfitCalculator_dataDB
+
+ui.xml
+core.lua

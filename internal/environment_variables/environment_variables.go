@@ -8,20 +8,20 @@ import (
 )
 
 var (
-	STANDALONE_CONTAINER       string = ""
-	DISABLE_AUCTION_HISTORY    bool   = false
-	DATABASE_TYPE              string = ""
-	CACHE_DB_FN                string = ""
-	HISTORY_DB_FN              string = ""
-	CLIENT_ID                  string = ""
-	CLIENT_SECRET              string = ""
-	USE_REDIS                  bool   = false
-	LOG_LEVEL                  string = ""
-	NODE_ENV                   string = ""
-	DOCKERIZED                 bool   = false
-	REDIS_URL                  string = ""
-	SERVER_PORT                uint64 = 0
-	CLUSTER_SIZE               uint64 = 1
+	STANDALONE_CONTAINER    string = ""
+	DISABLE_AUCTION_HISTORY bool   = false
+	//DATABASE_TYPE              string = ""
+	//CACHE_DB_FN                string = ""
+	//HISTORY_DB_FN              string = ""
+	CLIENT_ID     string = ""
+	CLIENT_SECRET string = ""
+	USE_REDIS     bool   = false
+	LOG_LEVEL     string = ""
+	//NODE_ENV                   string = ""
+	DOCKERIZED  bool   = false
+	REDIS_URL   string = ""
+	SERVER_PORT uint64 = 0
+	//CLUSTER_SIZE               uint64 = 1
 	DATABASE_CONNECTION_STRING string = ""
 	STATIC_DIR_ROOT            string = ""
 )
@@ -60,9 +60,9 @@ func validateFromArray(check string, options []string) (found bool) {
 }
 
 func init() {
-	CACHE_DB_FN = os.Getenv("CACHE_DB_FN")
+	//CACHE_DB_FN = os.Getenv("CACHE_DB_FN")
 
-	HISTORY_DB_FN = os.Getenv("HISTORY_DB_FN")
+	//HISTORY_DB_FN = os.Getenv("HISTORY_DB_FN")
 
 	USE_REDIS = getBoolean(os.Getenv("USE_REDIS"))
 
@@ -83,15 +83,15 @@ func init() {
 	}
 	LOG_LEVEL = getWithDefault("LOG_LEVEL", "info")
 
-	NODE_ENV = getWithDefault("NODE_ENV", "development")
+	//NODE_ENV = getWithDefault("NODE_ENV", "development")
 
 	DISABLE_AUCTION_HISTORY = getBoolean("DISABLE_AUCTION_HISTORY")
 
-	tempCS, err := strconv.ParseUint(getWithDefault("CLUSTER_SIZE", "1"), 0, 64)
+	/*tempCS, err := strconv.ParseUint(getWithDefault("CLUSTER_SIZE", "1"), 0, 64)
 	if err != nil {
 		log.Fatal("could not parse CLUSTER_SIZE from environment variable")
 	}
-	CLUSTER_SIZE = tempCS
+	CLUSTER_SIZE = tempCS*/
 
 	tempSP, err := strconv.ParseUint(getWithDefault("SERVER_PORT", "3001"), 0, 64)
 	if err != nil {
@@ -100,7 +100,7 @@ func init() {
 	SERVER_PORT = tempSP
 
 	DATABASE_CONNECTION_STRING = os.Getenv("DATABASE_CONNECTION_STRING")
-	DATABASE_TYPE = os.Getenv("DATABASE_TYPE")
+	//DATABASE_TYPE = os.Getenv("DATABASE_TYPE")
 
 	var standaloneContainerOptions []string = []string{"normal", "hourly", "worker", "standalone"}
 	if fetched_var := getWithDefault("STANDALONE_CONTAINER", "normal"); validateFromArray(fetched_var, standaloneContainerOptions) {

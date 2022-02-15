@@ -14,7 +14,9 @@ RUN go build -o ./run_worker -v ./cmd/run_worker/
 
 FROM alpine:latest
 WORKDIR /app
-COPY ./static_files ./
+COPY static_files/ /data/static_files
+ENV STATIC_DIR_ROOT=/data/static_files DOCKERIZED=true
+VOLUME [ "/data/static_files" ]
 COPY --from=build /app-build/run_worker /app/run_worker
 
 CMD ["run_worker"]

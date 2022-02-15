@@ -15,7 +15,9 @@ RUN go build -o ./auction_archive_ctrl -v ./cmd/auction_archive_ctrl/
 
 FROM alpine:latest
 WORKDIR /app
-COPY ./static_files ./
+COPY static_files/ /data/static_files
+ENV STATIC_DIR_ROOT=/data/static_files DOCKERIZED=true
+VOLUME [ "/data/static_files" ]
 COPY --from=build /app-build/hourly_injest /app/hourly_injest
 COPY --from=build /app-build/auction_archive_ctrl /app/auction_archive_ctrl
 

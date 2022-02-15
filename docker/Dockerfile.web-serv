@@ -30,7 +30,9 @@ RUN go build -o ./web_server -v ./web-serv/WorldOfWarcraft_CraftingProfitCalcula
 FROM alpine:latest
 RUN apk --no-cache add curl
 WORKDIR /app
-COPY ./static_files ./
+COPY static_files/ /data/static_files
+ENV STATIC_DIR_ROOT=/data/static_files DOCKERIZED=true
+VOLUME [ "/data/static_files" ]
 COPY --from=client-build /usr/src/build/build ./html/build
 COPY --from=zip-build /usr/src/build/CraftingProfitCalculator_data.zip ./html/CraftingProfitCalculator_data.zip
 COPY --from=server-build /app-build/web_server /app/web_server

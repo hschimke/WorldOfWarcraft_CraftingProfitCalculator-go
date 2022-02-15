@@ -23,8 +23,7 @@ func ingest(region globalTypes.RegionCode, connected_realm globalTypes.Connected
 		Price      uint
 		Quantity   uint
 	}
-	var items map[string]map[uint]lItm
-	items = make(map[string]map[uint]lItm)
+	items := make(map[string]map[uint]lItm)
 
 	cpclog.Infof("start ingest for %v - %v", region, connected_realm)
 

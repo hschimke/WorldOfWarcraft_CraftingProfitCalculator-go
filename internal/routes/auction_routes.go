@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/auction_history"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
@@ -147,7 +147,7 @@ func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 		endTime = time.Now()
 	}
 
-	auctionData, auctionDataError := auction_history.GetAuctions(item, realm, data.Region, parseStringArrayToUint(data.Bonuses), startTime, endTime)
+	auctionData, auctionDataError := auction_history.GetAuctions(item, realm, data.Region, util.ParseStringArrayToUint(data.Bonuses), startTime, endTime)
 	if auctionDataError != nil {
 		cpclog.Error("Issue getting auctions ", auctionDataError)
 		fmt.Fprintf(w, "{ ERROR: %v }", auctionDataError)
@@ -156,16 +156,6 @@ func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 
 	cpclog.Debug("returned auction data")
 	json.NewEncoder(w).Encode(auctionData)
-}
-
-func parseStringArrayToUint(array []string) []uint {
-	var r []uint
-	for _, s := range array {
-		if hld, hldErr := strconv.ParseUint(s, 10, 64); hldErr == nil {
-			r = append(r, uint(hld))
-		}
-	}
-	return r
 }
 
 func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
@@ -214,7 +204,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	bonuses_cache := *bonus_cache_ptr
 
 	cpclog.Debugf(`Regurning bonus lists for %s`, data.Item)
-	var ilvl_adjusts, socket_adjusts, quality_adjusts, unknown_adjusts stringSet
+	var ilvl_adjusts, socket_adjusts, quality_adjusts, unknown_adjusts util.StringSet
 	found_empty_bonuses := false
 
 	b_array := make([]mapped, 0)
@@ -231,20 +221,20 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 					if bonus_link.Level != 0 {
 						sb.WriteString(fmt.Sprintf(`ilevel %d `, int(bonuses.Item.Level)+bonus_link.Level))
 						found = true
-						ilvl_adjusts.add(cur)
+						ilvl_adjusts.Add(cur)
 					}
 					if bonus_link.Socket != 0 {
 						sb.WriteString(`socketed `)
 						found = true
-						socket_adjusts.add(cur)
+						socket_adjusts.Add(cur)
 					}
 					if bonus_link.Quality != 0 {
 						sb.WriteString(fmt.Sprintf(`quality: %d `, bonuses_cache[cur].Quality))
 						found = true
-						quality_adjusts.add(cur)
+						quality_adjusts.Add(cur)
 					}
 					if !found {
-						unknown_adjusts.add(cur)
+						unknown_adjusts.Add(cur)
 					}
 				}
 				//return value;
@@ -274,7 +264,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 		Quality *int   "json:\"quality,omitempty\""
 	}, 0)
 
-	for _, elem := range ilvl_adjusts.toArray() {
+	for _, elem := range ilvl_adjusts.ToArray() {
 		name := fmt.Sprint(elem)
 		return_value.Collected.ILvl = append(return_value.Collected.ILvl, struct {
 			Id    string "json:\"id,omitempty\""
@@ -284,7 +274,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 			Level: bonuses_cache[name].Level + int(bonuses.Item.Level),
 		})
 	}
-	for _, elem := range socket_adjusts.toArray() {
+	for _, elem := range socket_adjusts.ToArray() {
 		name := fmt.Sprint(elem)
 		sockets := bonuses_cache[name].Socket
 		return_value.Collected.Socket = append(return_value.Collected.Socket, struct {
@@ -295,7 +285,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 			Sockets: &sockets,
 		})
 	}
-	for _, elem := range quality_adjusts.toArray() {
+	for _, elem := range quality_adjusts.ToArray() {
 		name := fmt.Sprint(elem)
 		quality := bonuses_cache[name].Quality
 		return_value.Collected.Quality = append(return_value.Collected.Quality, struct {
@@ -306,29 +296,8 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 			Quality: &quality,
 		})
 	}
-	return_value.Collected.Unknown = unknown_adjusts.toArray()
+	return_value.Collected.Unknown = unknown_adjusts.ToArray()
 	return_value.Collected.Empty = found_empty_bonuses
 
 	json.NewEncoder(w).Encode(return_value)
-}
-
-type stringSet struct {
-	set map[string]bool
-}
-
-func (s *stringSet) add(v string) {
-	if s.set == nil {
-		s.set = make(map[string]bool)
-	}
-	s.set[v] = true
-}
-
-func (s *stringSet) toArray() []string {
-	var return_list []string
-	for key, pres := range s.set {
-		if pres {
-			return_list = append(return_list, key)
-		}
-	}
-	return return_list
 }

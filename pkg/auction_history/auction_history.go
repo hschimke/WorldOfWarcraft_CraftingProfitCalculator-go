@@ -10,11 +10,11 @@ import (
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -500,185 +500,6 @@ func ArchiveAuctions() {
 	dbpool.Exec(context.TODO(), sql, twoWeeksAgo)
 }
 
-// Fill in fill_count items into the database
-func FillNItems(fillCount uint) {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
-	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
-		panic(err)
-	}
-	defer dbpool.Close()
-
-	const (
-		select_sql string = "SELECT item_id, region FROM items WHERE scanned = false LIMIT $1"
-		update_sql string = "UPDATE items SET name = $1, craftable = $2, scanned = true WHERE item_id = $3 AND region = $4"
-		delete_sql string = "DELETE FROM items WHERE item_id = $1 AND region = $2"
-	)
-
-	cpclog.Infof(`Filling %d items with details.`, fillCount)
-
-	rows, rowsErr := dbpool.Query(context.TODO(), select_sql, fillCount)
-	if rowsErr != nil {
-		panic(rowsErr)
-	}
-	defer rows.Close()
-
-	tranaction, tErr := dbpool.Begin(context.TODO())
-	if tErr != nil {
-		panic(tErr)
-	}
-	defer tranaction.Commit(context.TODO())
-
-	for rows.Next() {
-		var (
-			item_id uint
-			region  string
-		)
-		rows.Scan(&item_id, &region)
-
-		safe := true
-
-		fetchedItem, fetchErr := blizzard_api_helpers.GetItemDetails(item_id, region)
-		if fetchErr != nil {
-			safe = false
-		}
-		isCraftable, craftErr := blizzard_api_helpers.CheckIsCrafting(item_id, globalTypes.ALL_PROFESSIONS, region)
-		if craftErr != nil {
-			safe = false
-		}
-
-		if safe {
-			_, updateErr := tranaction.Exec(context.TODO(), update_sql, fetchedItem.Name, isCraftable.Craftable, item_id, region)
-			if updateErr != nil {
-				tranaction.Rollback(context.TODO())
-				panic(updateErr)
-			}
-			cpclog.Debugf(`Updated item: %d:%s with name: '%s' and craftable: %t`, item_id, region, fetchedItem.Name, isCraftable.Craftable)
-		} else {
-			cpclog.Errorf(`Issue filling %d in %s. Skipping`, item_id, region)
-			tranaction.Exec(context.TODO(), delete_sql, item_id, region)
-			cpclog.Errorf(`DELETED %d in %s from items table.`, item_id, region)
-		}
-	}
-}
-
-// Fill in fillCount names into the database
-func FillNNames(fillCount uint) {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
-	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
-		panic(err)
-	}
-	defer dbpool.Close()
-
-	cpclog.Infof(`Filling %d unnamed item names.`, fillCount)
-	const (
-		select_sql      string = "SELECT item_id, region FROM items WHERE name ISNULL ORDER BY item_id DESC LIMIT $1"
-		update_sql      string = "UPDATE items SET name = $1 WHERE item_id = $2 AND region = $3"
-		delete_item_sql string = "DELETE FROM items WHERE item_id = $1 AND region = $2"
-	)
-
-	rows, rowErr := dbpool.Query(context.TODO(), select_sql, fillCount)
-	if rowErr != nil {
-		panic(rowErr)
-	}
-	defer rows.Close()
-
-	transaction, err := dbpool.Begin(context.TODO())
-	if err != nil {
-		panic(err)
-	}
-	defer transaction.Commit(context.TODO())
-
-	for rows.Next() {
-		var (
-			item_id uint
-			region  string
-		)
-		rows.Scan(&item_id, &region)
-		fetchedItem, fetchErr := blizzard_api_helpers.GetItemDetails(item_id, region)
-		if fetchErr != nil {
-			cpclog.Errorf(`Issue filling %d in %s. Skipping: %v`, item_id, region, fetchErr)
-			_, delErr := transaction.Exec(context.TODO(), delete_item_sql, item_id, region)
-			if delErr != nil {
-				transaction.Rollback(context.TODO())
-				panic(delErr)
-			}
-			cpclog.Errorf(`DELETED %d in %s from items table.`, item_id, region)
-		} else {
-			_, updateErr := transaction.Exec(context.TODO(), update_sql, fetchedItem.Name, item_id, region)
-			if updateErr != nil {
-				transaction.Rollback(context.TODO())
-				panic(updateErr)
-			}
-			cpclog.Debugf(`Updated item: %d:%s with name: '%s'`, item_id, region, fetchedItem.Name)
-		}
-	}
-}
-
-// Get a list of all scanned realms
-func GetScanRealms() ([]ScanRealmsResult, error) {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
-	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
-		return []ScanRealmsResult{}, err
-	}
-	defer dbpool.Close()
-
-	const sql string = "SELECT connected_realm_id, region, connected_realm_names FROM realm_scan_list"
-
-	realms, realmErr := dbpool.Query(context.TODO(), sql)
-	if realmErr != nil {
-		return []ScanRealmsResult{}, realmErr
-	}
-	defer realms.Close()
-
-	var result []ScanRealmsResult
-	for realms.Next() {
-		var (
-			connected_realm_id            uint
-			region, connected_realm_names string
-		)
-		realms.Scan(&connected_realm_id, &region, &connected_realm_names)
-		result = append(result, ScanRealmsResult{
-			RealmNames: connected_realm_names,
-			RealmId:    connected_realm_id,
-			Region:     region,
-		})
-	}
-
-	return result, nil
-}
-
-// Get all the names available, filtering if availble
-func GetAllNames() []string {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
-	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
-		panic(err)
-	}
-	defer dbpool.Close()
-
-	const sql string = "SELECT DISTINCT name FROM items WHERE name NOTNULL"
-
-	names, nameErr := dbpool.Query(context.TODO(), sql)
-	if nameErr != nil {
-		panic(nameErr)
-	}
-	defer names.Close()
-
-	var return_value []string
-	for names.Next() {
-		var name string
-		names.Scan(&name)
-		if len(name) > 0 {
-			return_value = append(return_value, name)
-		}
-	}
-
-	return return_value
-}
-
 // Get a current auction spot summary from the internet
 func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint) (AuctionPriceSummaryRecord, error) {
 	var realm_get uint
@@ -788,15 +609,6 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 	return return_value, nil
 }
 
-func arrayIncludes(array []uint, search uint) bool {
-	for _, num := range array {
-		if num == search {
-			return true
-		}
-	}
-	return false
-}
-
 func check_bonus(bonus_list []uint, target []uint) (found bool) {
 	found = true
 
@@ -809,128 +621,8 @@ func check_bonus(bonus_list []uint, target []uint) (found bool) {
 	}
 
 	for _, list_entry := range bonus_list {
-		found = found && arrayIncludes(target, list_entry)
+		found = found && util.ArrayIncludes(target, list_entry)
 	}
 
 	return
-}
-
-// Injest a realm for auction archives
-func ingest(region globalTypes.RegionCode, connected_realm globalTypes.ConnectedRealmID, dbpool *pgxpool.Pool, async bool) error {
-	type lItm struct {
-		ItemId     globalTypes.ItemID
-		BonusLists []uint
-		Price      uint
-		Quantity   uint
-	}
-	var items map[string]map[uint]lItm
-	items = make(map[string]map[uint]lItm)
-
-	cpclog.Infof("start ingest for %v - %v", region, connected_realm)
-
-	// Get Auctions
-	auctions, auctionError := blizzard_api_helpers.GetAuctionHouse(connected_realm, region)
-	if auctionError != nil {
-		return auctionError
-	}
-
-	fetchTime := time.Now()
-
-	for _, auction := range auctions.Auctions {
-		item_id_key := fmt.Sprint(auction.Item.Id)
-		if len(auction.Item.Bonus_lists) > 0 {
-			if blstr, err := json.Marshal(auction.Item.Bonus_lists); err == nil {
-				item_id_key += string(blstr)
-			}
-		}
-		if _, present := items[item_id_key]; !present {
-			items[item_id_key] = make(map[uint]lItm)
-		}
-
-		var price uint
-		quantity := auction.Quantity
-
-		if auction.Buyout != 0 {
-			price = auction.Buyout
-		} else {
-			price = auction.Unit_price
-		}
-
-		if _, prcPres := items[item_id_key][price]; !prcPres {
-			items[item_id_key][price] = lItm{
-				ItemId:     auction.Item.Id,
-				BonusLists: auction.Item.Bonus_lists,
-				Price:      price,
-				Quantity:   0,
-			}
-		}
-		hld := items[item_id_key][price]
-		hld.Quantity += quantity
-		items[item_id_key][price] = hld
-	}
-
-	//const item_set: Set<number> = new Set();
-	var insert_values_array [][]interface{}
-	var item_set []localItem
-
-	for key, itm := range items {
-		for pk, r := range itm {
-			item_set = append(item_set, localItem{
-				ItemId: r.ItemId,
-				Region: region,
-			})
-			//item_id, quantity, price, downloaded, connected_realm_id, bonuses
-			var bonusListString string
-			if bstr, jsonErr := json.Marshal(items[key][pk].BonusLists); jsonErr == nil {
-				bonusListString = string(bstr)
-			} else {
-				bonusListString = "[]"
-			}
-			insert_values_array = append(insert_values_array, []interface{}{
-				items[key][pk].ItemId, items[key][pk].Quantity, items[key][pk].Price, fetchTime, connected_realm, bonusListString, strings.ToLower(region),
-			})
-		}
-	}
-
-	if async {
-		go churnAuctionItemsOnInjest(item_set)
-	} else {
-		churnAuctionItemsOnInjest(item_set)
-	}
-
-	copyCount, copyErr := dbpool.CopyFrom(context.TODO(),
-		pgx.Identifier{"auctions"},
-		[]string{"item_id", "quantity", "price", "downloaded", "connected_realm_id", "bonuses", "region"},
-		pgx.CopyFromRows(insert_values_array),
-	)
-	if copyErr != nil {
-		return copyErr
-	}
-
-	cpclog.Infof("finished ingest of %d auctions for %v - %v", copyCount, region, connected_realm)
-	return nil
-}
-
-func churnAuctionItemsOnInjest(items []localItem) {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
-	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
-		panic(err)
-	}
-	defer dbpool.Close()
-	cpclog.Infof("start item churn for %d items", len(items))
-
-	insertBatch := &pgx.Batch{}
-
-	const sql_insert_item = "INSERT INTO items(item_id, region, name, craftable, scanned) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING"
-
-	// Churn Items
-	for _, item := range items {
-		insertBatch.Queue(sql_insert_item, item.ItemId, item.Region, nil, false, false)
-	}
-
-	batchRes := dbpool.SendBatch(context.TODO(), insertBatch)
-	batchRes.Close()
-
-	cpclog.Info("finished item churn")
 }

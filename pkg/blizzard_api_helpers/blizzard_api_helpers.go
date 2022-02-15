@@ -7,6 +7,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 )
@@ -629,35 +630,6 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 	return link_lookup, nil
 }
 
-type uint_set struct {
-	internal_map map[uint]bool
-}
-
-func (s *uint_set) Has(check uint) bool {
-	if s.internal_map == nil {
-		s.internal_map = make(map[uint]bool)
-	}
-	_, present := s.internal_map[check]
-	return present
-}
-func (s *uint_set) Add(value uint) {
-	if s.internal_map == nil {
-		s.internal_map = make(map[uint]bool)
-	}
-	s.internal_map[value] = true
-}
-
-func uint_slice_has(arr []uint, value uint) (found bool) {
-	found = false
-	for _, v := range arr {
-		if v == value {
-			found = true
-			return
-		}
-	}
-	return
-}
-
 func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode) SkillTierCyclicLinksBuild {
 	cache_key := fmt.Sprintf("%s::%s::%d", region, skill_tier.Name, profession.Id)
 
@@ -668,7 +640,7 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 	}
 
 	cpclog.Debug("Scanning st: ", skill_tier.Name)
-	checked_set := uint_set{}
+	checked_set := util.UintSet{}
 	var found_links SkillTierCyclicLinksBuild
 	skill_tier_detail, err := GetBlizSkillTierDetail(profession.Id, skill_tier.Id, region)
 	if err != nil {
@@ -697,8 +669,8 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 
 									rc_ids := getRecipeCraftedItemID(recheck_recipe)
 
-									if uint_slice_has(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
-										if uint_slice_has(rc_ids, recipe.Reagents[0].Reagent.Id) {
+									if util.UintSliceHas(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
+										if util.UintSliceHas(rc_ids, recipe.Reagents[0].Reagent.Id) {
 											cpclog.Debugf("Found cyclic link for %s (%d) and %s (%d)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
 											p1 := getRecipeCraftedItemID(recipe)
 											p2 := getRecipeCraftedItemID(recheck_recipe)

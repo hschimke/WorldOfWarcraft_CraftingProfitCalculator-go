@@ -10,6 +10,7 @@ import (
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
@@ -186,47 +187,6 @@ func getLvlModifierForBonus(bonus_id uint) int {
 	return 0
 }
 
-func filterArrayToSetDouble(array [][]uint) (result [][]uint) {
-	hld := make(map[string]bool)
-	for _, element := range array {
-		srch := fmt.Sprint(element)
-		if _, present := hld[srch]; !present {
-			hld[srch] = true
-			result = append(result, element)
-		}
-	}
-	return
-}
-
-func filterArrayToSet(array []uint) (result []uint) {
-	hld := make(map[uint]bool)
-	for _, element := range array {
-		if _, present := hld[element]; present {
-			hld[element] = true
-			result = append(result, element)
-		}
-	}
-	return
-}
-
-func flattenArray(array [][]uint) (return_array []uint) {
-	return_array = make([]uint, 0)
-	for _, sub_array := range array {
-		return_array = append(return_array, sub_array...)
-	}
-	return
-}
-
-func arrayContains(array []uint, search uint) (found bool) {
-	found = false
-	for _, item := range array {
-		if item == search {
-			found = true
-		}
-	}
-	return
-}
-
 /**
  * Analyze the profit potential for constructing or buying an item based on available recipes.
  * @param {!string} region The region in which to search.
@@ -327,11 +287,11 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	// possible bonus_list. They're actually different items, blizz just tells us they aren't.
 
 	//  price_obj.bonus_lists = Array.from(new Set(await getItemBonusLists(item_id, auction_house)));
-	price_obj.Bonus_lists = filterArrayToSetDouble(getItemBonusLists(item_id, auction_house))
+	price_obj.Bonus_lists = util.FilterArrayToSetDouble(getItemBonusLists(item_id, auction_house))
 	bonus_link := make(map[uint]uint)
 	//bl_flat := filterArrayToSet(flattenArray(price_obj.bonus_lists)).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));)
-	fltn_arr := flattenArray(price_obj.Bonus_lists) //Flatten(price_obj.Bonus_lists)
-	bl_flat_hld := filterArrayToSet(fltn_arr)
+	fltn_arr := util.FlattenArray(price_obj.Bonus_lists) //Flatten(price_obj.Bonus_lists)
+	bl_flat_hld := util.FilterArrayToSet(fltn_arr)
 	bl_flat := make([]uint, 0)
 	for _, bonus := range bl_flat_hld {
 		bns, rb_b_pres := raidbots_bonus_lists[fmt.Sprint(bonus)]
@@ -389,7 +349,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 			var rank_AH globalTypes.AHItemPriceObject
 			if len(recipe_id_list) > 1 {
 				//var rank_level uint
-				if arrayContains(recipe_id_list, recipe.Recipe_id) {
+				if util.ArrayContains(recipe_id_list, recipe.Recipe_id) {
 					for loc, el := range recipe_id_list {
 						if el == recipe.Recipe_id {
 							rank_level = rankings.Available_levels[rankings.Rank_mapping[loc]]
@@ -708,7 +668,7 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 	} else {
 		for _, recipe := range intermediate_data.Recipes {
 			// Make sure the recipe isn't on the exclusion list
-			if arrayContains(shopping_recipe_exclusions.Exclusions, recipe.Id) {
+			if util.ArrayContains(shopping_recipe_exclusions.Exclusions, recipe.Id) {
 				cpclog.Debug(recipe.Name, " (", recipe.Id, ") is on the exclusion list. Add it directly")
 				shopping_list = append(shopping_list, globalTypes.ShoppingList{
 					Id:       intermediate_data.Id,

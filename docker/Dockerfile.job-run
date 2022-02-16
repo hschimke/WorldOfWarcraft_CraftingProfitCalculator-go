@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-# https://docs.docker.com/language/golang/build-images/
 FROM golang:alpine AS build
 
 WORKDIR /app-build
@@ -15,8 +14,8 @@ RUN go build -o ./run_worker -v ./cmd/run_worker/
 FROM alpine:latest
 WORKDIR /app
 COPY static_files/ /data/static_files
-ENV STATIC_DIR_ROOT=/data/static_files DOCKERIZED=true
-VOLUME [ "/data/static_files" ]
+ENV STATIC_DIR_ROOT=/data DOCKERIZED=true
+VOLUME [ "/data" ]
 COPY --from=build /app-build/run_worker /app/run_worker
 
-CMD ["run_worker"]
+CMD ["/app/run_worker"]

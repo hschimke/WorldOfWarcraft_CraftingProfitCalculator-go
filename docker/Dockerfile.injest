@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-# https://docs.docker.com/language/golang/build-images/
 FROM golang:alpine AS build
 
 WORKDIR /app-build
@@ -16,10 +15,10 @@ RUN go build -o ./auction_archive_ctrl -v ./cmd/auction_archive_ctrl/
 FROM alpine:latest
 WORKDIR /app
 COPY static_files/ /data/static_files
-ENV STATIC_DIR_ROOT=/data/static_files DOCKERIZED=true
-VOLUME [ "/data/static_files" ]
+ENV STATIC_DIR_ROOT=/data DOCKERIZED=true STANDALONE_CONTAINER=worker
+VOLUME [ "/data" ]
 COPY --from=build /app-build/hourly_injest /app/hourly_injest
 COPY --from=build /app-build/auction_archive_ctrl /app/auction_archive_ctrl
 
-CMD ["hourly_injest"]
+CMD ["/app/hourly_injest"]
 

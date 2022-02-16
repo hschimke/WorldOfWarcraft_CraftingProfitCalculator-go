@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-# https://docs.docker.com/language/golang/build-images/
 FROM node:17-alpine AS client-build
 WORKDIR /usr/src/build
 RUN mkdir client
@@ -31,8 +30,8 @@ FROM alpine:latest
 RUN apk --no-cache add curl
 WORKDIR /app
 COPY static_files/ /data/static_files
-ENV STATIC_DIR_ROOT=/data/static_files DOCKERIZED=true
-VOLUME [ "/data/static_files" ]
+ENV STATIC_DIR_ROOT=/data DOCKERIZED=true
+VOLUME [ "/data" ]
 COPY --from=client-build /usr/src/build/build ./html/build
 COPY --from=zip-build /usr/src/build/CraftingProfitCalculator_data.zip ./html/CraftingProfitCalculator_data.zip
 COPY --from=server-build /app-build/web_server /app/web_server
@@ -40,4 +39,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=5m --timeout=3s \
   CMD curl -f http://localhost:8080/healthcheck || exit 1
 
-CMD ["web_server"]
+CMD ["/app/web_server"]

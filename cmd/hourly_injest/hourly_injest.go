@@ -28,7 +28,7 @@ func fillNames(ctx context.Context) {
 func main() {
 	var (
 		server_mode             = environment_variables.STANDALONE_CONTAINER
-		include_auction_history = environment_variables.DISABLE_AUCTION_HISTORY
+		include_auction_history = !environment_variables.DISABLE_AUCTION_HISTORY
 	)
 
 	if include_auction_history {
@@ -75,5 +75,7 @@ func main() {
 		default:
 			cpclog.Info("Started in normal mode taking no action.")
 		}
+	} else {
+		cpclog.Info("Started without auction history enabled, why do I exist? Exiting.")
 	}
 }

@@ -15,8 +15,6 @@ import (
 
 func main() {
 
-	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
-
 	cpclog.Info("Starting cpc-job-worker")
 
 	uri := environment_variables.REDIS_URL

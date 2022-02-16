@@ -150,7 +150,7 @@ func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 	auctionData, auctionDataError := auction_history.GetAuctions(item, realm, data.Region, util.ParseStringArrayToUint(data.Bonuses), startTime, endTime)
 	if auctionDataError != nil {
 		cpclog.Error("Issue getting auctions ", auctionDataError)
-		fmt.Fprintf(w, "{ ERROR: %v }", auctionDataError)
+		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: auctionDataError.Error()})
 		return
 	}
 
@@ -180,14 +180,15 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	cpclog.Debugf(`Getting seen bonus lists for %s in %s`, data.Item, data.Region)
 
 	if data.Item == "" {
-		fmt.Fprint(w, "{ERROR:\"empty item\"}")
+		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: "empty item"})
 		return
 	}
 
 	bonuses, allBonusesErr := auction_history.GetAllBonuses(globalTypes.NewItemFromString(data.Item), data.Region)
 	if allBonusesErr != nil {
 		cpclog.Errorf("Issue getting bonuses %v", allBonusesErr)
-		http.Error(w, fmt.Sprintf("{ERROR:\"%s\"}", allBonusesErr.Error()), http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: allBonusesErr.Error()})
+		w.WriteHeader(http.StatusInternalServerError)
 		//w.WriteHeader(http.StatusInternalServerError)
 		//fmt.Fprintf(w, "{ERROR:\"%s\"}", allBonusesErr.Error())
 		return

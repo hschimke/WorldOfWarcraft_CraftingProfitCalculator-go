@@ -146,8 +146,9 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	)
 
 	var (
-		min_value, max_value, latest_dl_value uint
-		avg_value                             float64
+		min_value, max_value uint
+		avg_value            float64
+		latest_dl_value      time.Time
 	)
 
 	dbpool.QueryRow(context.TODO(), min_sql, value_searches...).Scan(&min_value)
@@ -200,14 +201,18 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 		return AuctionSummaryData{}, err
 	}
 	cTime := time.Now()
-	return_value.PriceMap[cTime] = spotSummary
-	return_value.Latest = cTime
+	if len(spotSummary.Data) > 0 {
+		return_value.PriceMap[cTime] = spotSummary
+		return_value.Latest = cTime
 
-	if spotSummary.MinValue < return_value.Min {
-		return_value.Min = spotSummary.MinValue
-	}
-	if spotSummary.MaxValue > return_value.Max {
-		return_value.Max = spotSummary.MaxValue
+		if spotSummary.MinValue < return_value.Min {
+			return_value.Min = spotSummary.MinValue
+		}
+		if spotSummary.MaxValue > return_value.Max {
+			return_value.Max = spotSummary.MaxValue
+		}
+	} else {
+		return_value.Latest = latest_dl_value
 	}
 
 	return_value.Archives = make([]struct {
@@ -237,7 +242,7 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 	}
 
 	ah, _ := blizzard_api_helpers.GetAuctionHouse(realm_get, region)
-	cpclog.Debugf(`Spot search for item: %s and realm %v and region %s, with bonuses %v`, item, realm, region, bonuses)
+	cpclog.Debugf(`Spot search for item: %v and realm %v and region %s, with bonuses %v`, item, realm, region, bonuses)
 
 	var item_id uint
 	if item.ItemId != 0 {

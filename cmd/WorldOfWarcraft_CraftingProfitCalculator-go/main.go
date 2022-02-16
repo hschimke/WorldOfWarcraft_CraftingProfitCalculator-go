@@ -13,8 +13,6 @@ import (
 
 func main() {
 
-	cpclog.LogLevel = cpclog.GetLevel("info")
-
 	allProfessions, _ := json.Marshal(globalTypes.ALL_PROFESSIONS)
 
 	fRegion := flag.String("region", "us", "Region")

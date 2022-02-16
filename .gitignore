@@ -15,4 +15,4 @@
 # vendor/
 
 # Helpful .env files
-.env
+.env*

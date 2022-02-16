@@ -206,7 +206,7 @@ function AuctionReturnDisplay({ resource }: { resource: AuctionSummaryDataRespon
         }
     } catch (e) {
         no_data_result = 'No Data Found for item :' + e;
-        console.error(e)
+        //console.error(e)
     }
 
     return <>

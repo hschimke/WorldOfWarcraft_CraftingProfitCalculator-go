@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
@@ -68,7 +71,11 @@ func main() {
 				}
 			}()
 
-			select {}
+			closeRequested := make(chan os.Signal, 1)
+			signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+			<-closeRequested
+			cpclog.Info("Shutting down")
 
 		case "normal":
 			fallthrough

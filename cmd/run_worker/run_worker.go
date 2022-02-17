@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -21,6 +24,9 @@ func main() {
 
 	ctx := context.Background()
 
+	closeRequested := make(chan os.Signal, 1)
+	signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
 	redis_options, err := redis.ParseURL(uri)
 	if err != nil {
 		panic("redis cannot be contacted")
@@ -28,6 +34,11 @@ func main() {
 	redisClient := redis.NewClient(redis_options)
 
 	running := true
+
+	go func() {
+		<-closeRequested
+		running = false
+	}()
 
 	job_error_return, err := json.Marshal(&globalTypes.ReturnError{
 		ERROR: "Item Not Found",

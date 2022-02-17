@@ -1,9 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
@@ -52,5 +56,14 @@ func main() {
 
 	fmt.Println("Starting CPC client and api server")
 
-	log.Fatal(server.ListenAndServe())
+	go func() {
+		log.Fatal(server.ListenAndServe())
+	}()
+
+	closeRequested := make(chan os.Signal, 1)
+	signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	<-closeRequested
+	cpclog.Info("Shutting down")
+	server.Shutdown(context.Background())
 }

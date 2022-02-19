@@ -86,12 +86,8 @@ func AllItems(w http.ResponseWriter, r *http.Request) {
 
 	partial := r.URL.Query().Get("partial")
 
-	filterd_names := handleNames(names, partial)
+	filterd_names := util.FilterStringArray(names, partial, "items")
 	json.NewEncoder(w).Encode(filterd_names)
-}
-
-func handleNames(names []string, partial string) []string {
-	return util.FilterStringArray(names, partial, "items")
 }
 
 func AuctionHistory(w http.ResponseWriter, r *http.Request) {

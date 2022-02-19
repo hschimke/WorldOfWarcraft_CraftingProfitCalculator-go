@@ -6,6 +6,7 @@ import (
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 )
 
@@ -51,6 +52,6 @@ func AllRealms(w http.ResponseWriter, r *http.Request) {
 		names = blizzard_api_helpers.GetAllRealmNames(region)
 	}
 
-	filterd_names := handleNames(names, partial)
+	filterd_names := util.FilterStringArray(names, partial, "realms")
 	json.NewEncoder(w).Encode(filterd_names)
 }

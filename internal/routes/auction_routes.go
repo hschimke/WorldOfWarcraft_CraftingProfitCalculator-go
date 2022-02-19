@@ -91,24 +91,7 @@ func AllItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleNames(names []string, partial string) []string {
-	var filteredNames []string
-	if len(partial) > 0 {
-		cpclog.Debugf(`Partial search for all items with "%s"`, partial)
-		comparePartial := strings.ToLower(partial)
-		for _, name := range names {
-			if strings.Contains(strings.ToLower(name), comparePartial) {
-				filteredNames = append(filteredNames, name)
-			}
-		}
-
-		if len(filteredNames) == 0 {
-			filteredNames = make([]string, 0)
-		}
-	} else {
-		cpclog.Debug("Returning all unfiltered items.")
-		filteredNames = names
-	}
-	return filteredNames
+	return util.FilterStringArray(names, partial, "items")
 }
 
 func AuctionHistory(w http.ResponseWriter, r *http.Request) {

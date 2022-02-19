@@ -29,6 +29,7 @@ const (
 	PROFESSION_LIST_CACHE                string = "regional_profession_list"
 	COMPOSITE_REALM_NAME_CACHE           string = "connected_realm_detail"
 	CYCLIC_LINK_CACHE                    string = "cyclic_links"
+	ALL_REALM_NAMES_CACHE                string = "all_realm_names"
 )
 
 type basicDataPackage map[string]string
@@ -710,4 +711,45 @@ func GetCraftingRecipe(recipe_id uint, region globalTypes.RegionCode) (BlizzardA
 
 func getNamespace(ns_type string, region globalTypes.RegionCode) string {
 	return fmt.Sprintf("%s-%s", ns_type, strings.ToLower(region))
+}
+
+func GetAllRealmNames(region globalTypes.RegionCode) []string {
+	all_realm_key := string(region)
+
+	var realmNames []string
+
+	if found, err := cache_provider.CacheCheck(ALL_REALM_NAMES_CACHE, all_realm_key); err == nil && found {
+		cache_provider.CacheGet(ALL_REALM_NAMES_CACHE, all_realm_key, &realmNames)
+		return realmNames
+	}
+
+	get_connected_realm_form := basicDataPackage{
+		"namespace": getNamespace(dynamic_ns, region),
+		"locale":    locale_us,
+	}
+
+	// Get a list of all connected realms
+	all_connected_realms, err := getAllConnectedRealms(region)
+	if err != nil {
+		return realmNames
+	}
+
+	// Pull the data for each connection until you find one with the server name in question
+	for _, realm_href := range all_connected_realms.Connected_realms {
+		hr := realm_href.Href
+		var connected_realm_detail BlizzardApi.ConnectedRealm
+		_, crErr := blizzard_api_call.GetBlizzardRawUriResponse(get_connected_realm_form, hr, region, &connected_realm_detail)
+		if crErr != nil {
+			return realmNames
+		}
+
+		realm_list := connected_realm_detail.Realms
+		for _, rlm := range realm_list {
+			realmNames = append(realmNames, rlm.Name)
+		}
+	}
+
+	cache_provider.CacheSet(ALL_REALM_NAMES_CACHE, all_realm_key, realmNames, cache_provider.GetDynamicTimeWithShift())
+
+	return realmNames
 }

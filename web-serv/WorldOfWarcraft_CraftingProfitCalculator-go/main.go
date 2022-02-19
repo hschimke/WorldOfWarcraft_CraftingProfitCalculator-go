@@ -44,6 +44,7 @@ func main() {
 	router.HandleFunc("/bonus_mappings", routes.BonusMappings)
 	router.HandleFunc("/addon-download", routes.AddonDownload)
 	router.HandleFunc("/healthcheck", routes.Healthcheck)
+	router.HandleFunc("/all_realm_names", routes.AllRealms)
 
 	address := fmt.Sprintf(":%d", environment_variables.SERVER_PORT)
 

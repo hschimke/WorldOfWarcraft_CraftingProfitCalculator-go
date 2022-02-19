@@ -17,3 +17,7 @@
 .Row:hover {
     background-color: gray;
 }
+
+.Bolded {
+    font-weight: bold;
+}

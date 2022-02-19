@@ -40,7 +40,7 @@ function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField }
         {visible &&
             <ul ref={ulRef} className={style.Box}>
                 <Suspense fallback={<li>Loading</li>}>
-                    <ItemList items={list} onSelect={onClick} />
+                    <ItemList items={list} onSelect={onClick} currentValue={currentValue}/>
                 </Suspense>
             </ul>
         }
@@ -67,7 +67,29 @@ function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField }
     }
 }
 
-function ItemList({ items, onSelect }: { items: AutoCompleteAgg, onSelect: (event: string) => void }) {
+function MakeFilteredNameValue({name, filter}:{name:string,filter:string}){
+    if( filter.length <= 0 || name.length <= 0 ){
+        return <span>{name}</span>;
+    }
+    const indexStart = name.toLocaleLowerCase().indexOf(filter.toLocaleLowerCase());
+    const indexEnd = filter.length;
+    var strStart
+    //if( indexStart === 0 ){
+    //    strStart = ""
+    //}else{
+        strStart = name.slice(0,indexStart)
+    //}
+    var boldFilter = <span className={style.Bolded}>{name.slice(indexStart,filter.length+indexStart)}</span>
+    var strEnd
+    //if(indexEnd === name.length-1){
+     //   strEnd = ""
+    //}else{
+        strEnd = name.slice(indexEnd+indexStart)
+    //}
+    return <span>{strStart}{boldFilter}{strEnd}</span>
+}
+
+function ItemList({ items, onSelect, currentValue }: { items: AutoCompleteAgg, onSelect: (event: string) => void, currentValue: string }) {
     const item_list = items.read();
     if (item_list === undefined) {
         return null;
@@ -77,7 +99,7 @@ function ItemList({ items, onSelect }: { items: AutoCompleteAgg, onSelect: (even
         {item_list.map((z) => {
             return <li className={style.Row} key={z} onClick={() => {
                 onSelect(z);
-            }}>{z}</li>
+            }}><MakeFilteredNameValue name={z} filter={currentValue} /></li>
         })}
     </>
 }

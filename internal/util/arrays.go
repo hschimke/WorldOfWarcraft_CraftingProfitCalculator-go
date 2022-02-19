@@ -20,7 +20,7 @@ func FilterArrayToSetDouble(array [][]uint) (result [][]uint) {
 func FilterArrayToSet(array []uint) (result []uint) {
 	hld := make(map[uint]bool)
 	for _, element := range array {
-		if _, present := hld[element]; present {
+		if _, present := hld[element]; !present {
 			hld[element] = true
 			result = append(result, element)
 		}
@@ -29,7 +29,7 @@ func FilterArrayToSet(array []uint) (result []uint) {
 }
 
 func FlattenArray(array [][]uint) (return_array []uint) {
-	return_array = make([]uint, 0)
+	//return_array = make([]uint, 0)
 	for _, sub_array := range array {
 		return_array = append(return_array, sub_array...)
 	}

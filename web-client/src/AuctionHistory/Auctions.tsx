@@ -129,6 +129,7 @@ function Auctions(props: AuctionsProps) {
                     <label>
                         Realm:
                         <input type="text" name="realm_name" value={formState.realm_name} onChange={handleChange} />
+                        <AutoCompleteBox currentValue={formState.realm_name} region={formState.region} filter='partial' source='all_realm_names' onSelect={handleAutoCompleteClick} targetField='realm_name' />
                     </label>
                     <RegionSelector selected_region={formState.region} onChange={handleChange} label="Region:" />
                     <BonusListDropdown item={formState.item_name} region={formState.region} realm={formState.realm_name} ilevel={formState.ilevel} quality={formState.quality} sockets={formState.sockets} />

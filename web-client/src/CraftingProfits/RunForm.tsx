@@ -92,6 +92,7 @@ function AdvancedRunFrom(props: RunFormProps) {
             <RegionSelector selected_region={props.region} onChange={handleInputChange} />
             <label>Server:
                     <input type="text" name="realm" value={props.realm} onChange={handleInputChange} />
+                    <AutoCompleteBox currentValue={props.realm} region={props.region} filter='partial' source='all_realm_names' onSelect={handleAutoCompleteClick} targetField='realm' />
             </label>
             <label>Required Count:
                     <input type="text" name="required" value={props.required} onChange={handleInputChange} />

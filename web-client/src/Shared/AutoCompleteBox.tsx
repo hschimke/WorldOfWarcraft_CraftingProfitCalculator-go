@@ -4,7 +4,7 @@ import style from './AutoCompleteBox.module.css';
 
 export type AutoCompleteAgg = { read: () => (string[] | undefined) };
 
-function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField }: { targetField: string, source: string, currentValue: string, filter?: string, onSelect: (field: string, value: string) => void }) {
+function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField, region }: { targetField: string, source: string, currentValue: string, filter?: string, onSelect: (field: string, value: string) => void, region?: string }) {
     const [visible, setVisible] = useState(true);
     const [isLoading, onBatch] = useTransition();
     const [list, setList] = useState({ read: () => { return undefined; } } as AutoCompleteAgg);
@@ -16,7 +16,7 @@ function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField }
         const timer = setTimeout(() => {
             onBatch(() => {
                 if (clickedValue !== currentValue) {
-                    const endPoint = `${source}${filter !== undefined ? '?' + filter + '=' + encodeURIComponent(currentValue) : ''}`;
+                    const endPoint = `${source}${filter !== undefined ? '?' + filter + '=' + encodeURIComponent(currentValue) : ''}${region !== undefined ? '&region=' + encodeURIComponent(region) : ''}`;
                     if (!visible) {
                         setVisible(true);
                     }
@@ -28,7 +28,7 @@ function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField }
         return () => {
             clearTimeout(timer);
         }
-    }, [currentValue]);
+    }, [currentValue, region]);
 
     const onClick = (event: string) => {
         setVisible(false);
@@ -40,7 +40,7 @@ function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField }
         {visible &&
             <ul ref={ulRef} className={style.Box}>
                 <Suspense fallback={<li>Loading</li>}>
-                    <ItemList items={list} onSelect={onClick} currentValue={currentValue}/>
+                    <ItemList items={list} onSelect={onClick} currentValue={currentValue} />
                 </Suspense>
             </ul>
         }
@@ -67,25 +67,15 @@ function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField }
     }
 }
 
-function MakeFilteredNameValue({name, filter}:{name:string,filter:string}){
-    if( filter.length <= 0 || name.length <= 0 ){
+function MakeFilteredNameValue({ name, filter }: { name: string, filter: string }) {
+    if (filter.length <= 0 || name.length <= 0) {
         return <span>{name}</span>;
     }
     const indexStart = name.toLocaleLowerCase().indexOf(filter.toLocaleLowerCase());
     const indexEnd = filter.length;
-    var strStart
-    //if( indexStart === 0 ){
-    //    strStart = ""
-    //}else{
-        strStart = name.slice(0,indexStart)
-    //}
-    var boldFilter = <span className={style.Bolded}>{name.slice(indexStart,filter.length+indexStart)}</span>
-    var strEnd
-    //if(indexEnd === name.length-1){
-     //   strEnd = ""
-    //}else{
-        strEnd = name.slice(indexEnd+indexStart)
-    //}
+    const strStart = name.slice(0, indexStart)
+    const boldFilter = <span className={style.Bolded}>{name.slice(indexStart, filter.length + indexStart)}</span>
+    const strEnd = name.slice(indexEnd + indexStart)
     return <span>{strStart}{boldFilter}{strEnd}</span>
 }
 

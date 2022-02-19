@@ -2,14 +2,12 @@ package util
 
 import (
 	"strings"
-
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 )
 
 func FilterStringArray(array []string, partial string, logName string) []string {
 	var filteredNames []string
 	if len(partial) > 0 {
-		cpclog.Debugf(`Partial search for all %s with "%s"`, logName, partial)
+		//cpclog.Debugf(`Partial search for all %s with "%s"`, logName, partial)
 		comparePartial := strings.ToLower(partial)
 		for _, name := range array {
 			if strings.Contains(strings.ToLower(name), comparePartial) {
@@ -21,8 +19,12 @@ func FilterStringArray(array []string, partial string, logName string) []string 
 			filteredNames = make([]string, 0)
 		}
 	} else {
-		cpclog.Debug("Returning all unfiltered ", logName)
+		//cpclog.Debug("Returning all unfiltered ", logName)
 		filteredNames = array
+
+		if len(filteredNames) == 0 {
+			filteredNames = make([]string, 0)
+		}
 	}
 	return filteredNames
 }

@@ -15,8 +15,8 @@ type AddonData struct {
 }
 
 type RunConfiguration struct {
-	internal_inventory map[ItemID]uint       `json:"internal_inventory,omitempty"`
-	inventory_overlay  map[ItemID]int        `json:"inventory_overlay,omitempty"`
+	internal_inventory map[ItemID]uint       //`json:"internal_inventory,omitempty"`
+	inventory_overlay  map[ItemID]int        //`json:"inventory_overlay,omitempty"`
 	Professions        []CharacterProfession `json:"professions,omitempty"`
 	Realm_name         RealmName             `json:"realm_name,omitempty"`
 	Realm_region       RegionCode            `json:"realm_region,omitempty"`
@@ -41,12 +41,12 @@ func NewRunConfig(raw_configuration_data *AddonData, item ItemSoftIdentity, coun
 	return
 }
 
-func (rc *RunConfiguration) ItemIsInInventory(item_id ItemID) bool {
+func (rc RunConfiguration) ItemIsInInventory(item_id ItemID) bool {
 	_, present := rc.internal_inventory[item_id]
 	return present
 }
 
-func (rc *RunConfiguration) ItemCount(item_id ItemID) uint {
+func (rc RunConfiguration) ItemCount(item_id ItemID) uint {
 	available := 0
 	if rc.ItemIsInInventory(item_id) {
 		available += int(rc.internal_inventory[item_id])

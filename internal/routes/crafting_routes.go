@@ -27,13 +27,14 @@ func init() {
 
 type jsonOutputBodyQueueData struct {
 	//AddonData   globalTypes.AddonData `json:"addon_data,omitempty"`
-	AddonData   string   `json:"addon_data,omitempty"`
-	Type        string   `json:"type,omitempty"`
-	ItemId      string   `json:"item_id,omitempty"`
-	Count       uint     `json:"count,omitempty"`
-	Professions []string `json:"professions,omitempty"`
-	Server      string   `json:"server,omitempty"`
-	Region      string   `json:"region,omitempty"`
+	AddonData         string   `json:"addon_data,omitempty"`
+	Type              string   `json:"type,omitempty"`
+	ItemId            string   `json:"item_id,omitempty"`
+	Count             uint     `json:"count,omitempty"`
+	UseAllProfessions bool     `json:"use_all_professions"`
+	Professions       []string `json:"professions,omitempty"`
+	Server            string   `json:"server,omitempty"`
+	Region            string   `json:"region,omitempty"`
 }
 
 func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
@@ -64,12 +65,14 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
 			JobConfig: struct {
-				Item      globalTypes.ItemSoftIdentity
-				Count     uint
-				AddonData globalTypes.AddonData
+				Item              globalTypes.ItemSoftIdentity
+				Count             uint
+				UseAllProfessions bool
+				AddonData         globalTypes.AddonData
 			}{
-				Item:  globalTypes.NewItemFromString(data.ItemId),
-				Count: data.Count,
+				Item:              globalTypes.NewItemFromString(data.ItemId),
+				Count:             data.Count,
+				UseAllProfessions: data.UseAllProfessions,
 				AddonData: globalTypes.AddonData{
 					Inventory:   adData.Inventory, //data.AddonData.Inventory,
 					Professions: data.Professions,
@@ -96,13 +99,15 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
 			JobConfig: struct {
-				Item      globalTypes.ItemSoftIdentity
-				Count     uint
-				AddonData globalTypes.AddonData
+				Item              globalTypes.ItemSoftIdentity
+				Count             uint
+				UseAllProfessions bool
+				AddonData         globalTypes.AddonData
 			}{
-				Item:      globalTypes.NewItemFromString(data.ItemId),
-				Count:     data.Count,
-				AddonData: adData, //data.AddonData,
+				Item:              globalTypes.NewItemFromString(data.ItemId),
+				Count:             data.Count,
+				UseAllProfessions: false,
+				AddonData:         adData, //data.AddonData,
 			},
 		}
 		rjs, rjsErr := json.Marshal(runJob)

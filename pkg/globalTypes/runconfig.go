@@ -17,6 +17,7 @@ type AddonData struct {
 type RunConfiguration struct {
 	internal_inventory map[ItemID]uint       //`json:"internal_inventory,omitempty"`
 	inventory_overlay  map[ItemID]int        //`json:"inventory_overlay,omitempty"`
+	UseAllProfessions  bool                  `json:"use_all_professions"`
 	Professions        []CharacterProfession `json:"professions,omitempty"`
 	Realm_name         RealmName             `json:"realm_name,omitempty"`
 	Realm_region       RegionCode            `json:"realm_region,omitempty"`

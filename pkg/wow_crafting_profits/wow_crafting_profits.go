@@ -757,17 +757,31 @@ func getRegionCode(region string) (region_coded globalTypes.RegionCode, err erro
  * @param {!RunConfiguration} json_config A RunConfiguration object containing the available inventory.
  * @param {!number} count The number of items required.
  */
-func run(region string, server globalTypes.RealmName, professions []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, json_config *globalTypes.RunConfiguration, count uint) (globalTypes.RunReturn, error) {
+func run(region string, server globalTypes.RealmName, useAllProfessions bool, professions_input []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, json_config *globalTypes.RunConfiguration, count uint) (globalTypes.RunReturn, error) {
 
 	cpclog.Info("World of Warcraft Crafting Profit Calculator")
 
-	cpclog.Infof("Checking %s in %s for %v with available professions %s", server, region, item, professions)
+	cpclog.Infof("Checking %s in %s for %v with available professions %s", server, region, item, professions_input)
 
 	//let formatted_data = 'NO DATA';
 
 	encoded_region, err := getRegionCode(region)
 	if err != nil {
 		return globalTypes.RunReturn{Formatted: "NO DATA"}, err
+	}
+
+	var professions []globalTypes.CharacterProfession
+
+	if useAllProfessions {
+		profList, profErr := blizzard_api_helpers.GetBlizProfessionsList(region)
+		if profErr != nil {
+			return globalTypes.RunReturn{Formatted: "NO DATA"}, profErr
+		}
+		for _, prof := range profList.Professions {
+			professions = append(professions, prof.Name)
+		}
+	} else {
+		professions = professions_input
 	}
 
 	price_data, err := performProfitAnalysis(encoded_region, server, professions, item, count, nil)
@@ -851,7 +865,7 @@ func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data g
  * @param {RunConfiguration} json_config The configuration object.
  */
 func RunWithJSONConfig(json_config *globalTypes.RunConfiguration) (globalTypes.RunReturn, error) {
-	return run(json_config.Realm_region, json_config.Realm_name, json_config.Professions, json_config.Item, json_config, json_config.Item_count)
+	return run(json_config.Realm_region, json_config.Realm_name, json_config.UseAllProfessions, json_config.Professions, json_config.Item, json_config, json_config.Item_count)
 	//return globalTypes.RunReturn{}, fmt.Errorf("not implemented")
 }
 

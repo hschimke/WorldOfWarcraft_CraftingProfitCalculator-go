@@ -43,7 +43,7 @@
     padding-right: 50px;
 }
 
-.RunForm .Professions span {
+.RunForm .Professions legend {
     display:block;
     clear: both;
     font-weight: bold;

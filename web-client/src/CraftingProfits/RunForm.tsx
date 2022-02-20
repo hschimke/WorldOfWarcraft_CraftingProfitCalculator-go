@@ -15,7 +15,7 @@ export interface RunFormProps {
     realm: string,
     professions: CharacterProfessionList,
     allProfessions: CharacterProfessionList,
-
+    useAllProfessions: boolean,
 }
 
 function RunForm(props: RunFormProps) {
@@ -77,6 +77,12 @@ function AdvancedRunFrom(props: RunFormProps) {
         }
     };
 
+    const handleAllProfessions: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+        if (dispatch !== undefined) {
+            dispatch({ field: 'useAllProfessions', value: !props.useAllProfessions ? "true" : "false" });
+        }
+    };
+
     const handleAutoCompleteClick: (field:string,value:string) => void = (field,value) => {
         if (dispatch !== undefined) {
             dispatch({ field: field, value: value });
@@ -97,8 +103,11 @@ function AdvancedRunFrom(props: RunFormProps) {
             <label>Required Count:
                     <input type="text" name="required" value={props.required} onChange={handleInputChange} />
             </label>
-            <fieldset className="Professions">
-                <span>Professions:</span>
+            <fieldset className='Professions'>
+            <label>All Professions: <input type="checkbox" name="allProfessions" checked={props.useAllProfessions} onChange={handleAllProfessions} /></label>
+            </fieldset>
+            <fieldset className="Professions" hidden={props.useAllProfessions}>
+                <legend>Professions: </legend>
                 {profession_list.map(item => {
                     return (
                         <label key={`${item}key`}>

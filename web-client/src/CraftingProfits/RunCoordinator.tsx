@@ -12,7 +12,8 @@ export interface RunCoordinatorFormDataReducerState {
     required: string | number,
     region: string,
     realm: string,
-    professions: CharacterProfessionList
+    useAllProfessions: boolean,
+    professions: CharacterProfessionList,
 }
 
 export interface RunCoordinatorFormDataReducerAction {
@@ -38,6 +39,8 @@ const formDataReducer = (state: RunCoordinatorFormDataReducerState, action: RunC
             return { ...state, region: action.value };
         case 'realm':
             return { ...state, realm: action.value };
+        case 'useAllProfessions':
+            return { ...state, useAllProfessions: action.value == "true" }
         case 'professions':
             const cleaned_prof = validateAndCleanProfessions(action.value);
             console.log(cleaned_prof);
@@ -73,6 +76,7 @@ function RunCoordinator(props: RunCoordinatorProps) {
         required: 1,
         region: 'US',
         realm: 'Hyjal',
+        useAllProfessions: false,
         professions: all_professions.slice(),
     });
     const enable_run_button = true;//!apiState.isLoading;
@@ -101,6 +105,7 @@ function RunCoordinator(props: RunCoordinatorProps) {
                 count: formData.required,
                 region: formData.region,
                 server: formData.realm,
+                use_all_professions: formData.useAllProfessions,
                 professions: formData.professions,//JSON.stringify(formData.professions),
             };
             //setPayload(run_data);
@@ -151,6 +156,7 @@ function RunCoordinator(props: RunCoordinatorProps) {
                         realm={formData.realm}
                         professions={formData.professions}
                         allProfessions={all_professions}
+                        useAllProfessions={formData.useAllProfessions}
                         button_enabled={enable_run_button} />
                 </CraftingProfitsDispatch.Provider>
             </div>

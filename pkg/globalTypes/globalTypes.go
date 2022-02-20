@@ -129,9 +129,10 @@ type ConnectedRealmSoftIentity struct {
 type RunJob struct {
 	JobId     string
 	JobConfig struct {
-		Item      ItemSoftIdentity
-		Count     uint
-		AddonData AddonData
+		Item              ItemSoftIdentity
+		Count             uint
+		UseAllProfessions bool
+		AddonData         AddonData
 	}
 }
 

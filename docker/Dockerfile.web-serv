@@ -4,6 +4,8 @@ WORKDIR /usr/src/build
 RUN mkdir client
 COPY web-client/package*.json ./
 RUN npm ci
+ARG GIT_VERSION
+ENV REACT_APP_VERSION_HASH=${GIT_VERSION}
 COPY web-client/ ./
 RUN npm run build
 
@@ -30,7 +32,8 @@ FROM alpine:latest
 RUN apk --no-cache add curl
 WORKDIR /app
 COPY static_files/ /data/static_files
-ENV STATIC_DIR_ROOT=/data DOCKERIZED=true
+ARG GIT_VERSION
+ENV STATIC_DIR_ROOT=/data DOCKERIZED=true VERSION_HASH=${GIT_VERSION}
 VOLUME [ "/data" ]
 COPY --from=client-build /usr/src/build/build ./html/build
 COPY --from=zip-build /usr/src/build/CraftingProfitCalculator_data.zip ./html/CraftingProfitCalculator_data.zip

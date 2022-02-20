@@ -19,3 +19,8 @@
   .footer p {
       color: gray;
   }
+
+  .Version {
+      font-size: small;
+      font-weight: lighter;
+  }

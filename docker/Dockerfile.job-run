@@ -14,7 +14,8 @@ RUN go build -o ./run_worker -v ./cmd/run_worker/
 FROM alpine:latest
 WORKDIR /app
 COPY static_files/ /data/static_files
-ENV STATIC_DIR_ROOT=/data DOCKERIZED=true
+ARG GIT_VERSION
+ENV STATIC_DIR_ROOT=/data DOCKERIZED=true VERSION_HASH=${GIT_VERSION}
 VOLUME [ "/data" ]
 COPY --from=build /app-build/run_worker /app/run_worker
 

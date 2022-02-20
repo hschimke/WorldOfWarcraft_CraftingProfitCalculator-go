@@ -270,7 +270,7 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 				cpclog.Sillyf(`Found $%d to match null bonus list`, auction.Item.Id)
 			}
 		} else {
-			found_bonus = checkBonux(bonuses, auction.Item.Bonus_lists)
+			found_bonus = checkBonus(bonuses, auction.Item.Bonus_lists)
 			cpclog.Sillyf(`Array bonus list %v returned %t for %v`, bonuses, found_bonus, auction.Item.Bonus_lists)
 		}
 
@@ -335,7 +335,7 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 	return return_value, nil
 }
 
-func checkBonux(bonus_list []uint, target []uint) (found bool) {
+func checkBonus(bonus_list []uint, target []uint) (found bool) {
 	found = true
 
 	// Take care of undefined targets

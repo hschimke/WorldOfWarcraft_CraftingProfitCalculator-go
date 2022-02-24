@@ -139,8 +139,10 @@ func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Au
 		return found
 	}
 
-	bonus_lists := make([][]uint, 0)
-	bonus_lists_set := make([][]uint, 0)
+	//bonus_lists := make([][]uint, 0)
+	//bonus_lists_set := make([][]uint, 0)
+	var bonus_lists [][]uint
+	var bonus_lists_set [][]uint
 	for _, auction := range auction_house.Auctions {
 		if auction.Item.Id == item_id {
 			if len(auction.Item.Bonus_lists) > 0 {

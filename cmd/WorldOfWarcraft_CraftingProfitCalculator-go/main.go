@@ -13,11 +13,11 @@ import (
 
 func main() {
 
-	allProfessions, _ := json.Marshal(globalTypes.ALL_PROFESSIONS)
+	//allProfessions, _ := json.Marshal(globalTypes.ALL_PROFESSIONS)
 
 	fRegion := flag.String("region", "us", "Region")
 	fServer := flag.String("server", "Hyjal", "Server")
-	fProfession := flag.String("profession", string(allProfessions), "Profession")
+	fProfession := flag.String("profession", "[]", "Profession")
 	//fProfession := flag.String("profession", "[\"Tailoring\", \"Enchanting\"]", "Profession")
 	//fItem := flag.String("item", "171276", "Item")
 	//fItem := flag.String("item", "Grim-Veiled Bracers", "Item")
@@ -29,7 +29,8 @@ func main() {
 	fAllProfessionsFlag := flag.Bool("allprof", true, "Use all professions and ignore profession flag")
 	flag.Parse()
 
-	character_config_json := globalTypes.AddonData{}
+	//character_config_json := globalTypes.AddonData{}
+	var character_config_json globalTypes.AddonData
 
 	err := json.Unmarshal([]byte(*fJsonData), &character_config_json)
 	if err != nil {
@@ -37,10 +38,10 @@ func main() {
 	}
 
 	if !(*fUseJsonFlag) {
-		character_config_json.Inventory = make([]struct {
-			Id       uint "json:\"id,omitempty\""
-			Quantity uint "json:\"quantity,omitempty\""
-		}, 0)
+		/*character_config_json.Inventory = make([]struct {
+			Id       uint `json:"id,omitempty"`
+			Quantity uint `json:"quantity,omitempty"`
+		}, 0)*/
 		err := json.Unmarshal([]byte(*fProfession), &(character_config_json.Professions))
 		if err != nil {
 			cpclog.Error(err.Error())

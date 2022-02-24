@@ -40,7 +40,6 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 			runicConstructSql := []rune(construct.String())
 			runicConstructSql = runicConstructSql[:len(runicConstructSql)-4]
 			construct_sql = string(runicConstructSql)
-			//construct_sql = construct_sql.slice(0, construct_sql.length-4)
 		}
 		return construct_sql
 	}
@@ -60,6 +59,11 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 		sql_build_avg            string = "SELECT SUM(price*quantity)/SUM(quantity) AS avg_price FROM auctions"
 		sql_build_latest_dtm     string = "SELECT MAX(downloaded) AS latest_download FROM auctions"
 		jsonQueryTemplate        string = `%s IN (SELECT json_array_elements_text(bonuses::json)::numeric)`
+
+		sql_build_min_max_avg               string = "SELECT MIN(price) as min_price, MAX(price) AS max_price, SUM(price*quantity)/SUM(quantity) AS avg_price FROM auctions"
+		sql_build_min_max_avg_downloaded    string = "SELECT MIN(price) as min_price, MAX(price) AS max_price, SUM(price*quantity)/SUM(quantity) AS avg_price, downloaded FROM auctions"
+		sql_group_by_downloaded_addin       string = "GROUP BY downloaded"
+		sql_group_by_downloaded_price_addin string = "GROUP BY downloaded,price"
 	)
 	var sql_addins []string
 
@@ -133,16 +137,11 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	}*/
 
 	var (
-		min_sql               string = build_sql_with_addins(sql_build_min, sql_addins)
-		max_sql               string = build_sql_with_addins(sql_build_max, sql_addins)
-		avg_sql               string = build_sql_with_addins(sql_build_avg, sql_addins)
-		latest_dl_sql         string = build_sql_with_addins(sql_build_latest_dtm, sql_addins)
-		distinct_download_sql string = build_sql_with_addins(sql_build_distinct_dtm, sql_addins)
+		min_max_avg_sql string = build_sql_with_addins(sql_build_min_max_avg, sql_addins)
+		latest_dl_sql   string = build_sql_with_addins(sql_build_latest_dtm, sql_addins)
 
-		min_dtm_sql     string = build_sql_with_addins(sql_build_min, append(sql_addins, fmt.Sprintf(`downloaded = %s`, get_place_marker())))
-		max_dtm_sql     string = build_sql_with_addins(sql_build_max, append(sql_addins, fmt.Sprintf(`downloaded = %s`, get_place_marker())))
-		avg_dtm_sql     string = build_sql_with_addins(sql_build_avg, append(sql_addins, fmt.Sprintf(`downloaded = %s`, get_place_marker())))
-		price_group_sql string = build_sql_with_addins(sql_build_price_map, append(sql_addins, fmt.Sprintf(`downloaded = %s`, get_place_marker()))) + " " + sql_group_by_price_addin
+		downloaded_group_sql     string = build_sql_with_addins(sql_build_min_max_avg_downloaded, sql_addins) + " " + sql_group_by_downloaded_addin
+		downloaded_price_map_sql string = build_sql_with_addins(sql_build_price_map, sql_addins) + " " + sql_group_by_downloaded_price_addin
 	)
 
 	var (
@@ -151,40 +150,40 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 		latest_dl_value      time.Time
 	)
 
-	dbpool.QueryRow(context.TODO(), min_sql, value_searches...).Scan(&min_value)
-	dbpool.QueryRow(context.TODO(), max_sql, value_searches...).Scan(&max_value)
-	dbpool.QueryRow(context.TODO(), avg_sql, value_searches...).Scan(&avg_value)
+	dbpool.QueryRow(context.TODO(), min_max_avg_sql, value_searches...).Scan(&min_value, &max_value, &avg_value)
+
 	dbpool.QueryRow(context.TODO(), latest_dl_sql, value_searches...).Scan(&latest_dl_value)
 
 	price_data_by_download := make(map[time.Time]AuctionPriceSummaryRecord)
-	distRows, dErr := dbpool.Query(context.TODO(), distinct_download_sql, value_searches...)
-	if dErr != nil {
-		return AuctionSummaryData{}, dErr
-	}
-	defer distRows.Close()
-	for distRows.Next() {
-		var (
-			downloaded time.Time
-		)
-		newSummary := AuctionPriceSummaryRecord{}
-		distRows.Scan(&downloaded)
-		modVS := append(value_searches, downloaded)
-		dbpool.QueryRow(context.TODO(), min_dtm_sql, modVS...).Scan(&newSummary.MinValue)
-		dbpool.QueryRow(context.TODO(), max_dtm_sql, modVS...).Scan(&newSummary.MaxValue)
-		dbpool.QueryRow(context.TODO(), avg_dtm_sql, modVS...).Scan(&newSummary.AvgValue)
 
-		priceGrpRows, prcGrpErr := dbpool.Query(context.TODO(), price_group_sql, modVS...)
-		if prcGrpErr != nil {
-			return AuctionSummaryData{}, prcGrpErr
-		}
-		defer priceGrpRows.Close()
-		for priceGrpRows.Next() {
-			newSCS := SalesCountSummary{}
-			priceGrpRows.Scan(&newSCS.Price, &newSCS.SalesAtPrice, &newSCS.QuantityAtPrice)
-			newSummary.Data = append(newSummary.Data, newSCS)
-		}
+	dataRows, drError := dbpool.Query(context.TODO(), downloaded_group_sql, value_searches...)
+	if drError != nil {
+		return AuctionSummaryData{}, drError
+	}
+	defer dataRows.Close()
+	for dataRows.Next() {
+		var downloaded time.Time
+		newSummary := AuctionPriceSummaryRecord{}
+		dataRows.Scan(&newSummary.MinValue, &newSummary.MaxValue, &newSummary.AvgValue, &downloaded)
 
 		price_data_by_download[downloaded] = newSummary
+	}
+
+	prcMapRows, prMRErr := dbpool.Query(context.TODO(), downloaded_price_map_sql, value_searches...)
+	if prMRErr != nil {
+		return AuctionSummaryData{}, prMRErr
+	}
+	defer prcMapRows.Close()
+
+	for prcMapRows.Next() {
+		var (
+			scSum      SalesCountSummary
+			downloaded time.Time
+		)
+		prcMapRows.Scan(&scSum.Price, &scSum.SalesAtPrice, &scSum.QuantityAtPrice, &downloaded)
+		hldPDBD := price_data_by_download[downloaded]
+		hldPDBD.Data = append(hldPDBD.Data, scSum)
+		price_data_by_download[downloaded] = hldPDBD
 	}
 
 	var return_value AuctionSummaryData
@@ -216,11 +215,11 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	}
 
 	return_value.Archives = make([]struct {
-		Timestamp time.Time           "json:\"timestamp,omitempty\""
-		Data      []SalesCountSummary "json:\"data,omitempty\""
-		MinValue  uint                "json:\"min_value,omitempty\""
-		MaxValue  uint                "json:\"max_value,omitempty\""
-		AvgValue  float64             "json:\"avg_value,omitempty\""
+		Timestamp time.Time           `json:"timestamp,omitempty"`
+		Data      []SalesCountSummary `json:"data,omitempty"`
+		MinValue  uint                `json:"min_value,omitempty"`
+		MaxValue  uint                `json:"max_value,omitempty"`
+		AvgValue  float64             `json:"avg_value,omitempty"`
 	}, 0)
 
 	return return_value, nil

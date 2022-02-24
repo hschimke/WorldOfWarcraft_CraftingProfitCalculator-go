@@ -417,13 +417,9 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 
 	cpclog.Debug("Scanning profession: ", profession_detail.Name)
 
-	// checkProfessionTierCrafting on each crafting level, concurrently.
 	for _, tier := range crafting_levels {
 		checkProfessionTierCrafting(tier, region, item_id, check_profession_id, prof, item_detail, &profession_recipe_options)
 	}
-	//await Promise.all(crafting_levels.map((tier) => {
-	//    return checkProfessionTierCrafting(tier, region);
-	//}));
 
 	cache_provider.CacheSet(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key, profession_recipe_options, cache_provider.GetComputedTimeWithShift())
 

@@ -196,7 +196,7 @@ func getLvlModifierForBonus(bonus_id uint) int {
  * @param {number} qauntity The number of items required.
  * @param {?object} passed_ah If an auction house is already available, pass it in and it will be used.
  */
-func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.RealmName, character_professions []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, qauntity uint, passed_ah *BlizzardApi.Auctions) (globalTypes.ProfitAnalysisObject, error) {
+func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.RealmName, character_professions []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, qauntity uint, passed_ah *BlizzardApi.Auctions, passedCyclicLinks *globalTypes.SkillTierCyclicLinks) (globalTypes.ProfitAnalysisObject, error) {
 	// Check if we have to figure out the item id ourselves
 	item_id := uint(0)
 	if item.ItemId != 0 {
@@ -228,10 +228,15 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 
 	base_ilvl := item_detail.Level
 
-	craftable_item_swaps, err := blizzard_api_helpers.BuildCyclicRecipeList(region)
-	if err != nil {
-		return globalTypes.ProfitAnalysisObject{}, err
+	if passedCyclicLinks == nil {
+		cos, err := blizzard_api_helpers.BuildCyclicRecipeList(region)
+		passedCyclicLinks = &cos
+		if err != nil {
+			return globalTypes.ProfitAnalysisObject{}, err
+		}
 	}
+
+	craftable_item_swaps := *passedCyclicLinks
 
 	var price_obj globalTypes.ProfitAnalysisObject
 	price_obj.Item_id = item_id
@@ -339,7 +344,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 				itm := globalTypes.ItemSoftIdentity{
 					ItemId: reagent.Reagent.Id,
 				}
-				new_analysis, err := performProfitAnalysis(region, server, character_professions, itm, reagent.Quantity, auction_house)
+				new_analysis, err := performProfitAnalysis(region, server, character_professions, itm, reagent.Quantity, auction_house, passedCyclicLinks)
 				if err != nil {
 					return globalTypes.ProfitAnalysisObject{}, err
 				}
@@ -409,10 +414,10 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 	 *     if component is on AH: cost = h/l/a * quantity (tuple)
 	 *     if component is craftable: cost = h/l/a of each recipe option
 	 */
-	cost := recipeCost{}
+	var cost recipeCost
 
 	for _, component := range recipe_option.Prices {
-		if component.Vendor_price != 0 {
+		if component.Vendor_price > 0 {
 			cost.High += component.Vendor_price * component.Item_quantity
 			cost.Low += component.Vendor_price * component.Item_quantity
 			cost.Average += float64(component.Vendor_price * component.Item_quantity)
@@ -561,18 +566,19 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 */
 
 func getRecipeOutputValues(recipe BlizzardApi.Recipe) globalTypes.OutpoutFormatRecipeOutput {
-	min, max, value := -1, -1, -1
+	var min, max, value float64
+	//min, max, value := -1, -1, -1
 	if recipe.Crafted_quantity.Minimum != 0 {
-		min = int(recipe.Crafted_quantity.Minimum)
+		min = recipe.Crafted_quantity.Minimum
 	}
 	if recipe.Crafted_quantity.Maximum != 0 {
-		max = int(recipe.Crafted_quantity.Maximum)
+		max = recipe.Crafted_quantity.Maximum
 	}
 	if recipe.Crafted_quantity.Value != 0 {
-		value = int(recipe.Crafted_quantity.Value)
+		value = recipe.Crafted_quantity.Value
 	}
 
-	if min == -1 && max == -1 {
+	if min == 0 && max == 0 {
 		min = value
 		max = value
 	}
@@ -784,7 +790,7 @@ func run(region string, server globalTypes.RealmName, useAllProfessions bool, pr
 		professions = professions_input
 	}
 
-	price_data, err := performProfitAnalysis(encoded_region, server, professions, item, count, nil)
+	price_data, err := performProfitAnalysis(encoded_region, server, professions, item, count, nil, nil)
 	if err != nil {
 		return globalTypes.RunReturn{Formatted: "NO DATA"}, err
 	}
@@ -808,7 +814,7 @@ func run(region string, server globalTypes.RealmName, useAllProfessions bool, pr
 func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data globalTypes.OutputFormatObject, formatted_data string) error {
 	const (
 		intermediate_output_fn string = "intermediate_output.json"
-		formatted_output_fn    string = "formatted_output.text"
+		formatted_output_fn    string = "formatted_output"
 		raw_output_fn          string = "raw_output.json"
 	)
 
@@ -823,6 +829,7 @@ func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data g
 		encoder.SetIndent("", "  ")
 		encode_err := encoder.Encode(&intermediate_data)
 		if encode_err != nil {
+			fmt.Print(encode_err.Error())
 			return encode_err
 		}
 		cpclog.Info("Intermediate output saved")

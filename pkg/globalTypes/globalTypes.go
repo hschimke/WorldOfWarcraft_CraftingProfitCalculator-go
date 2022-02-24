@@ -45,9 +45,9 @@ type ShoppingList struct {
 type OutputFormatShoppingList = map[uint][]ShoppingList
 
 type OutpoutFormatRecipeOutput struct {
-	Min   int `json:"min,omitempty"`
-	Max   int `json:"max,omitempty"`
-	Value int `json:"value,omitempty"`
+	Min   float64 `json:"min,omitempty"`
+	Max   float64 `json:"max,omitempty"`
+	Value float64 `json:"value,omitempty"`
 }
 
 type OutputFormatRecipe struct {

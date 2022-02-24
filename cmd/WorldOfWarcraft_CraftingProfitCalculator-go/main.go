@@ -26,6 +26,7 @@ func main() {
 	fCount := flag.Uint("count", 1, "How many of the main item to build")
 	fJsonData := flag.String("json_data", "", "JSON configuration data")
 	fUseJsonFlag := flag.Bool("json", false, "Use JSON to configure region, realm, and professions")
+	fAllProfessionsFlag := flag.Bool("allprof", true, "Use all professions and ignore profession flag")
 	flag.Parse()
 
 	character_config_json := globalTypes.AddonData{}
@@ -58,6 +59,7 @@ func main() {
 	}
 
 	config := globalTypes.NewRunConfig(&character_config_json, item, *fCount)
+	config.UseAllProfessions = *fAllProfessionsFlag
 
 	runErr := wow_crafting_profits.CliRun(config)
 	if runErr != nil {

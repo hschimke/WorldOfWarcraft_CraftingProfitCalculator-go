@@ -569,7 +569,6 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 
 func getRecipeOutputValues(recipe BlizzardApi.Recipe) globalTypes.OutpoutFormatRecipeOutput {
 	var min, max, value float64
-	//min, max, value := -1, -1, -1
 	if recipe.Crafted_quantity.Minimum != 0 {
 		min = recipe.Crafted_quantity.Minimum
 	}

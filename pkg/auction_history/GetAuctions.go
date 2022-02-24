@@ -52,7 +52,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	const (
 		sql_archive_build        string = "SELECT downloaded, summary FROM auction_archive"
 		sql_build_distinct_dtm   string = "SELECT DISTINCT downloaded FROM auctions"
-		sql_build_price_map      string = "SELECT price, count(price) AS sales_at_price, sum(quantity) AS quantity_at_price FROM auctions"
+		sql_build_price_map      string = "SELECT price, count(price) AS sales_at_price, sum(quantity) AS quantity_at_price, downloaded FROM auctions"
 		sql_group_by_price_addin string = "GROUP BY price"
 		sql_build_min            string = "SELECT MIN(price) AS min_price FROM auctions"
 		sql_build_max            string = "SELECT MAX(price) AS max_price FROM auctions"

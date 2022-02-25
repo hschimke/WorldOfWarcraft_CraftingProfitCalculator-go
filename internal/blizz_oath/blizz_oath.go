@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
@@ -38,12 +39,16 @@ var (
 	httpClient  *http.Client            = &http.Client{
 		Timeout: 10 * time.Second,
 	}
+	authCheckMutex sync.Mutex
 )
 
 func GetAuthorizationToken(client_id string, client_secret string, region string) (*AccessToken, error) {
 	if client_id == "" || client_secret == "" || region == "" {
 		return nil, nil
 	}
+
+	authCheckMutex.Lock()
+
 	if _, found := token_store[region]; !found {
 		token_store[region] = &AccessToken{
 			Access_token: "",
@@ -99,5 +104,8 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 		token_store[region] = &new_token
 	}
 	return_value := token_store[region]
+
+	authCheckMutex.Unlock()
+
 	return return_value, nil
 }

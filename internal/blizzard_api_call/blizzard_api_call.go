@@ -122,7 +122,7 @@ func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {
-		if allowed_during_period > allowed_connections_per_period {
+		if allowed_during_period >= allowed_connections_per_period {
 			wait_count++
 			time.Sleep(time.Duration(time.Second * 1))
 		} else {
@@ -137,9 +137,11 @@ func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]
 	built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
 	getAndFillerr := getAndFill(built_uri, region_code, data, target)
 	if getAndFillerr != nil {
-		return -1, fmt.Errorf("issue fetching blizzard data: (https://%s.%s%s", region_code, base_uri, uri)
+		return -1, fmt.Errorf("issue fetching blizzard data: (https://%s.%s%s)", region_code, base_uri, uri)
 	}
-	in_use--
+	if in_use > 0 {
+		in_use--
+	}
 	return int(wait_count), nil
 }
 
@@ -147,7 +149,7 @@ func GetBlizzardRawUriResponse(data map[string]string, uri string, region global
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {
-		if allowed_during_period > allowed_connections_per_period {
+		if allowed_during_period >= allowed_connections_per_period {
 			wait_count++
 			time.Sleep(time.Duration(time.Second * 1))
 		} else {
@@ -164,6 +166,9 @@ func GetBlizzardRawUriResponse(data map[string]string, uri string, region global
 	if getAndFillerr != nil {
 		return -1, fmt.Errorf("issue fetching blizzard data: (%s", uri)
 	}
-	in_use--
+	if in_use > 0 {
+		in_use--
+	}
+
 	return int(wait_count), nil
 }

@@ -3,6 +3,7 @@ package blizzard_api_helpers
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
@@ -311,7 +312,7 @@ func getProfessionId(profession_list BlizzardApi.ProfessionsIndex, profession_na
 	return id, nil
 }
 
-func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.RegionCode, item_id uint, check_profession_id uint, prof string, item_detail BlizzardApi.Item, profession_recipe_options *globalTypes.CraftingStatus) {
+func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.RegionCode, item_id uint, check_profession_id uint, prof string, item_detail BlizzardApi.Item, profession_recipe_options *globalTypes.CraftingStatus, mutex *sync.Mutex) {
 	check_scan_tier := strings.Contains(skill_tier.Name, "Shadowlands")
 	if !exclude_before_shadowlands {
 		check_scan_tier = true
@@ -368,6 +369,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 						}
 
 						if crafty {
+							mutex.Lock()
 							cpclog.Infof("Found recipe (%d): %s for (%d) %s", recipe.Id, recipe.Name, item_detail.Id, item_detail.Name)
 
 							profession_recipe_options.Recipes = append(profession_recipe_options.Recipes, struct {
@@ -380,6 +382,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 
 							profession_recipe_options.Recipe_ids = append(profession_recipe_options.Recipe_ids, recipe.Id)
 							profession_recipe_options.Craftable = true
+							mutex.Unlock()
 						}
 					} else {
 						cpclog.Sillyf("Skipping Recipe: (%d) \"%s\"", recipe.Id, recipe.Name)
@@ -417,9 +420,19 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 
 	cpclog.Debug("Scanning profession: ", profession_detail.Name)
 
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+
 	for _, tier := range crafting_levels {
-		checkProfessionTierCrafting(tier, region, item_id, check_profession_id, prof, item_detail, &profession_recipe_options)
+		wg.Add(1)
+		st := tier
+		go func() {
+			defer wg.Done()
+			checkProfessionTierCrafting(st, region, item_id, check_profession_id, prof, item_detail, &profession_recipe_options, &lock)
+		}()
 	}
+
+	wg.Wait()
 
 	cache_provider.CacheSet(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key, profession_recipe_options, cache_provider.GetComputedTimeWithShift())
 
@@ -525,6 +538,7 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 		}
 	}
 
+	go workerFunc(inputData, outputData)
 	go workerFunc(inputData, outputData)
 	go workerFunc(inputData, outputData)
 	go workerFunc(inputData, outputData)

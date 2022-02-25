@@ -30,7 +30,7 @@
             //"args": ["--remove_scan_realm", "--region", "us", "--realm_name", "Grizzly Hills"]
             //"args": ["--get_auctions", "--item_name", "Grim-Veiled Bracers", "--region", "us", "--realm_name", "hyjal", "--bonuses", "[]"]
             //"args": ["--archive_auctions"]
-            "args": ["--get_auctions", "--item_name", "Greater Stoneshield Potion", "--region", "us", "--realm_name", "hyjal", "--bonuses", "[]"]
+            "args": ["--get_auctions", "--item_name", "Grimscale Gauntlets", "--region", "us", "--realm_name", "hyjal", "--bonuses", "[]"]
         },
     ]
 }

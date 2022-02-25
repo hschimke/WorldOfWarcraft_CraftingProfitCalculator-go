@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
@@ -23,12 +24,11 @@ const (
 )
 
 var (
-	allowed_during_period uint = 0
-	in_use                uint = 0
-	//	run                   bool = false
-	httpClient *http.Client
-	clearTicks *time.Ticker
-	stopClear  chan bool
+	allowed_during_period uint64 = 0
+	in_use                uint64 = 0
+	httpClient            *http.Client
+	clearTicks            *time.Ticker
+	stopClear             chan bool
 )
 
 // Maybe redo with: https://go.dev/tour/concurrency/5
@@ -37,8 +37,8 @@ func blizzardApiFlowManager(stopper chan bool) {
 	for {
 		select {
 		case <-clearTicks.C:
-			cpclog.Silly("Reset window ", allowed_during_period, " ")
-			allowed_during_period = 0 + in_use
+			cpclog.Silly("Reset window ", atomic.LoadUint64(&allowed_during_period))
+			atomic.StoreUint64(&allowed_during_period, 0+atomic.LoadUint64(&in_use))
 		case <-stopper:
 			cpclog.Info("Stopping API Flow Manager")
 			clearTicks.Stop()
@@ -122,26 +122,25 @@ func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {
-		if allowed_during_period >= allowed_connections_per_period {
+		if atomic.LoadUint64(&allowed_during_period) >= allowed_connections_per_period {
 			wait_count++
 			time.Sleep(time.Duration(time.Second * 1))
 		} else {
 			proceed = true
-			allowed_during_period++
+			atomic.AddUint64(&allowed_during_period, 1)
 		}
 	}
 	if wait_count > 0 {
 		cpclog.Debugf("Waited %v seconds for an available API window.", wait_count)
 	}
-	in_use++
+	atomic.AddUint64(&in_use, 1)
 	built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
 	getAndFillerr := getAndFill(built_uri, region_code, data, target)
 	if getAndFillerr != nil {
 		return -1, fmt.Errorf("issue fetching blizzard data: (https://%s.%s%s)", region_code, base_uri, uri)
 	}
-	if in_use > 0 {
-		in_use--
-	}
+	atomic.AddUint64(&in_use, ^uint64(0))
+
 	return int(wait_count), nil
 }
 
@@ -149,26 +148,25 @@ func GetBlizzardRawUriResponse(data map[string]string, uri string, region global
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {
-		if allowed_during_period >= allowed_connections_per_period {
+		if atomic.LoadUint64(&allowed_during_period) >= allowed_connections_per_period {
 			wait_count++
 			time.Sleep(time.Duration(time.Second * 1))
 		} else {
 			proceed = true
-			allowed_during_period++
+			atomic.AddUint64(&allowed_during_period, 1)
 		}
 	}
 	if wait_count > 0 {
 		cpclog.Debugf("Waited %v seconds for an available API window.", wait_count)
 	}
-	in_use++
+	atomic.AddUint64(&in_use, 1)
 	//built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
 	getAndFillerr := getAndFill(uri, region, data, target)
 	if getAndFillerr != nil {
 		return -1, fmt.Errorf("issue fetching blizzard data: (%s", uri)
 	}
-	if in_use > 0 {
-		in_use--
-	}
+
+	atomic.AddUint64(&in_use, ^uint64(0))
 
 	return int(wait_count), nil
 }

@@ -334,6 +334,7 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 	return return_value, nil
 }
 
+// Check that the bonus list matches the target item listing
 func checkBonus(bonus_list []uint, target []uint) (found bool) {
 	found = true
 

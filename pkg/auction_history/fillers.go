@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-// Fill in fill_count items into the database
+// Fill in fillCount items into the database
 func FillNItems(fillCount uint) {
 	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
 	if err != nil {

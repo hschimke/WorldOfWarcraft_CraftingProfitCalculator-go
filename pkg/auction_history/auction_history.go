@@ -23,9 +23,8 @@ type ScanRealmsResult struct {
 }
 
 type GetAllBonusesReturn struct {
-	Bonuses [][]uint `json:"bonuses,omitempty"`
-	//Bonuses []map[string]string `json:"bonuses,omitempty"`
-	Item BlizzardApi.Item `json:"item,omitempty"`
+	Bonuses [][]uint         `json:"bonuses,omitempty"`
+	Item    BlizzardApi.Item `json:"item,omitempty"`
 }
 
 type AuctionPriceSummaryRecord struct {
@@ -123,6 +122,7 @@ func ScanRealms(async bool) error {
 	return nil
 }
 
+// Add a realm for historic price data scanning
 func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
 	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
 	if err != nil {
@@ -172,6 +172,7 @@ func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalType
 	return nil
 }
 
+// Remove a realm from the history scan list
 func RemoveScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
 	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
 	if err != nil {

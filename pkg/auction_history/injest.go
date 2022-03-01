@@ -110,6 +110,7 @@ func ingest(region globalTypes.RegionCode, connected_realm globalTypes.Connected
 	return nil
 }
 
+// Add all auction items to the items table if they aren't already there
 func churnAuctionItemsOnInjest(items []localItem) {
 	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
 	if err != nil {

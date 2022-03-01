@@ -27,16 +27,9 @@ func GetScanRealms() ([]ScanRealmsResult, error) {
 
 	var result []ScanRealmsResult
 	for realms.Next() {
-		var (
-			connected_realm_id            uint
-			region, connected_realm_names string
-		)
-		realms.Scan(&connected_realm_id, &region, &connected_realm_names)
-		result = append(result, ScanRealmsResult{
-			RealmNames: connected_realm_names,
-			RealmId:    connected_realm_id,
-			Region:     region,
-		})
+		var scr ScanRealmsResult
+		realms.Scan(&scr.RealmId, &scr.Region, &scr.RealmNames)
+		result = append(result, scr)
 	}
 
 	return result, nil

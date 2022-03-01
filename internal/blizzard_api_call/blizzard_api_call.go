@@ -31,7 +31,6 @@ var (
 	stopClear             chan bool
 )
 
-// Maybe redo with: https://go.dev/tour/concurrency/5
 func blizzardApiFlowManager(stopper chan bool) {
 	cpclog.Info("Starting API Flow Manager")
 	for {
@@ -160,7 +159,6 @@ func GetBlizzardRawUriResponse(data map[string]string, uri string, region global
 		cpclog.Debugf("Waited %v seconds for an available API window.", wait_count)
 	}
 	atomic.AddUint64(&in_use, 1)
-	//built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
 	getAndFillerr := getAndFill(uri, region, data, target)
 	if getAndFillerr != nil {
 		return -1, fmt.Errorf("issue fetching blizzard data: (%s", uri)

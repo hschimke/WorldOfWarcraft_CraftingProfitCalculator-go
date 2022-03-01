@@ -27,7 +27,7 @@ func (at *AccessToken) CheckExpired() (expired bool) {
 	if current_time.Before(expire_time) {
 		expired = false
 	}
-	return
+	return expired
 }
 
 const (
@@ -44,7 +44,7 @@ var (
 
 func GetAuthorizationToken(client_id string, client_secret string, region string) (*AccessToken, error) {
 	if client_id == "" || client_secret == "" || region == "" {
-		return nil, nil
+		return nil, fmt.Errorf("cannot have empty client, secret, or region")
 	}
 
 	authCheckMutex.Lock()

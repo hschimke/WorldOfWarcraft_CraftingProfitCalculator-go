@@ -10,6 +10,17 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 )
 
+const (
+	getItemDetailsUri              string = "/data/wow/item/%d"
+	profession_list_uri            string = "/data/wow/profession/index" // professions.name / professions.id
+	getBlizProfessionDetailUri     string = "/data/wow/profession/%d"
+	getBlizConnectedRealmDetailUri string = "/data/wow/connected-realm/%d"
+	getBlizSkillTierDetailUri      string = "/data/wow/profession/%d/skill-tier/%d"
+	getBlizRecipeDetailUri         string = "/data/wow/recipe/%d"
+	getAuctionHouseUri             string = "/data/wow/connected-realm/%d/auctions"
+)
+
+// Fetch item details from Blizzard API
 func GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (BlizzardApi.Item, error) {
 	var key = fmt.Sprint(item_id)
 
@@ -19,7 +30,7 @@ func GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (
 		return item, fndErr
 	}
 
-	var profession_item_detail_uri string = fmt.Sprintf("/data/wow/item/%d", item_id)
+	var profession_item_detail_uri string = fmt.Sprintf(getItemDetailsUri, item_id)
 	//categories[array].recipes[array].name categories[array].recipes[array].id
 	result := BlizzardApi.Item{}
 
@@ -35,10 +46,10 @@ func GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (
 
 }
 
+// Fetch a list of all professions from Blizzard API
 func GetBlizProfessionsList(region globalTypes.RegionCode) (BlizzardApi.ProfessionsIndex, error) {
 
 	key := region
-	const profession_list_uri string = "/data/wow/profession/index" // professions.name / professions.id
 
 	if found, err := cache_provider.CacheCheck(PROFESSION_LIST_CACHE, key); err == nil && found {
 		item := BlizzardApi.ProfessionsIndex{}
@@ -58,6 +69,7 @@ func GetBlizProfessionsList(region globalTypes.RegionCode) (BlizzardApi.Professi
 	return result, nil
 }
 
+// Fetch Profession details from Blizzard API
 func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) (BlizzardApi.Profession, error) {
 	key := fmt.Sprintf("%s::%d", region, profession_id)
 
@@ -67,7 +79,7 @@ func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) 
 		return item, fndErr
 	}
 
-	profession_detail_uri := fmt.Sprintf("/data/wow/profession/%d", profession_id)
+	profession_detail_uri := fmt.Sprintf(getBlizProfessionDetailUri, profession_id)
 	result := BlizzardApi.Profession{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
 		"namespace": getNamespace(static_ns, region),
@@ -80,6 +92,7 @@ func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) 
 	return result, nil
 }
 
+// Get details about a connected realm from Blizzard API
 func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID, region globalTypes.RegionCode) (BlizzardApi.ConnectedRealm, error) {
 	key := fmt.Sprintf("%s::%d", region, connected_realm_id)
 
@@ -89,7 +102,7 @@ func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID
 		return item, fndErr
 	}
 
-	connected_realm_detail_uri := fmt.Sprintf("/data/wow/connected-realm/%d", connected_realm_id)
+	connected_realm_detail_uri := fmt.Sprintf(getBlizConnectedRealmDetailUri, connected_realm_id)
 	result := BlizzardApi.ConnectedRealm{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
 		"namespace": getNamespace(dynamic_ns, region),
@@ -102,6 +115,7 @@ func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID
 	return result, nil
 }
 
+// Fetch an individual crafting skill tier from Blizzard API
 func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region globalTypes.RegionCode) (BlizzardApi.ProfessionSkillTier, error) {
 	key := fmt.Sprintf("%s::%d::%d", region, profession_id, skillTier_id)
 
@@ -111,7 +125,7 @@ func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region global
 		return item, fndErr
 	}
 
-	profession_skill_tier_detail_uri := fmt.Sprintf("/data/wow/profession/%d/skill-tier/%d", profession_id, skillTier_id)
+	profession_skill_tier_detail_uri := fmt.Sprintf(getBlizSkillTierDetailUri, profession_id, skillTier_id)
 	result := BlizzardApi.ProfessionSkillTier{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
 		"namespace": getNamespace(static_ns, region),
@@ -124,6 +138,7 @@ func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region global
 	return result, nil
 }
 
+// Fetch a recipe detail from Blizzard API
 func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (BlizzardApi.Recipe, error) {
 	key := fmt.Sprintf("%s::%d", region, recipe_id)
 
@@ -133,7 +148,7 @@ func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (Blizzar
 		return item, fndErr
 	}
 
-	profession_recipe_uri := fmt.Sprintf("/data/wow/recipe/%d", recipe_id)
+	profession_recipe_uri := fmt.Sprintf(getBlizRecipeDetailUri, recipe_id)
 	result := BlizzardApi.Recipe{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
 		"namespace": getNamespace(static_ns, region),
@@ -146,6 +161,7 @@ func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (Blizzar
 	return result, nil
 }
 
+// Return an auction house for a given realm and region from the Blizzard API
 func GetAuctionHouse(server_id globalTypes.ConnectedRealmID, server_region globalTypes.RegionCode) (BlizzardApi.Auctions, error) {
 	key := fmt.Sprint(server_id)
 
@@ -155,7 +171,7 @@ func GetAuctionHouse(server_id globalTypes.ConnectedRealmID, server_region globa
 		return item, fndErr
 	}
 
-	auction_house_fetch_uri := fmt.Sprintf("/data/wow/connected-realm/%d/auctions", server_id)
+	auction_house_fetch_uri := fmt.Sprintf(getAuctionHouseUri, server_id)
 	result := BlizzardApi.Auctions{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(server_region, basicDataPackage{
 		"namespace": getNamespace(dynamic_ns, server_region),

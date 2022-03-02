@@ -34,7 +34,7 @@ const formDataReducer = (state: RunCoordinatorFormDataReducerState, action: RunC
         case 'addon_data':
             return { ...state, addon_data: action.value };
         case 'required':
-            return { ...state, required: action.value };
+            return { ...state, required: Number.isNaN(Number.parseInt(action.value)) ? 0 : Number.parseInt(action.value) };
         case 'region':
             return { ...state, region: action.value };
         case 'realm':

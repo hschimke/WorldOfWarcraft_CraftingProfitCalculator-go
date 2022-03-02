@@ -21,14 +21,11 @@ type recipeCost struct {
 	High, Low, Average float64
 }
 
-/**
- * Find the value of an item on the auction house.
- * Items might be for sale on the auction house and be available from vendors.
- * The auction house items have complicated bonus types.
- * @param {number} item_id The id of the item to search for.
- * @param {object} auction_house An auction house to search through.
- * @param {?number} bonus_level_required An optional bonus level for crafted legendary base items.
- */
+/*
+ Find the value of an item on the auction house.
+ Items might be for sale on the auction house and be available from vendors.
+ The auction house items have complicated bonus types.
+*/
 func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions, bonus_level_required uint) globalTypes.AHItemPriceObject {
 	// Find the item and return best, worst, average prices
 	auction_high := float64(0)

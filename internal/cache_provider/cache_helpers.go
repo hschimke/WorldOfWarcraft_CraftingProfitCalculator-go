@@ -13,6 +13,7 @@ const STATIC_WINDOW = 786240      //seconds 1.3 weeks
 const COMPUTED_TIME_BASE = 259200 //seconds 3 days
 const COMPUTED_WINDOW = 46800     //seconds 13 hours
 
+// Get a random expiration window
 func GetRandomWithWindow(base uint64, window uint64) time.Duration {
 	var (
 		high = base + window
@@ -22,14 +23,17 @@ func GetRandomWithWindow(base uint64, window uint64) time.Duration {
 	return time.Duration(time.Millisecond * time.Duration((rand.Uint64()*(high-low) + low)))
 }
 
+// Get a random expiration for a dynamic API result
 func GetDynamicTimeWithShift() time.Duration {
 	return (GetRandomWithWindow(DYNAMIC_TIME_BASE, DYNAMIC_WINDOW))
 }
 
+// Get a random expiration for a static API result
 func GetStaticTimeWithShift() time.Duration {
 	return (GetRandomWithWindow(STATIC_TIME_BASE, STATIC_WINDOW))
 }
 
+// Get a random expiration for a computed result
 func GetComputedTimeWithShift() time.Duration {
 	return (GetRandomWithWindow(COMPUTED_TIME_BASE, COMPUTED_WINDOW))
 }

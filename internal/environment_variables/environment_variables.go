@@ -8,24 +8,21 @@ import (
 )
 
 var (
-	STANDALONE_CONTAINER    string = ""
-	DISABLE_AUCTION_HISTORY bool   = false
-	//DATABASE_TYPE              string = ""
-	//CACHE_DB_FN                string = ""
-	//HISTORY_DB_FN              string = ""
-	CLIENT_ID     string = ""
-	CLIENT_SECRET string = ""
-	USE_REDIS     bool   = false
-	LOG_LEVEL     string = ""
-	//NODE_ENV                   string = ""
-	DOCKERIZED  bool   = false
-	REDIS_URL   string = ""
-	SERVER_PORT uint64 = 0
-	//CLUSTER_SIZE               uint64 = 1
+	STANDALONE_CONTAINER       string = ""
+	DISABLE_AUCTION_HISTORY    bool   = false
+	CLIENT_ID                  string = ""
+	CLIENT_SECRET              string = ""
+	USE_REDIS                  bool   = false
+	LOG_LEVEL                  string = ""
+	DOCKERIZED                 bool   = false
+	REDIS_URL                  string = ""
+	SERVER_PORT                uint64 = 0
 	DATABASE_CONNECTION_STRING string = ""
 	STATIC_DIR_ROOT            string = ""
+	EXCLUDE_BEFORE_SHADOWLANDS bool   = false
 )
 
+// Return a boolean based on a string
 func getBoolean(variable string) (result bool) {
 	switch strings.ToLower(variable) {
 	case "true":
@@ -38,6 +35,7 @@ func getBoolean(variable string) (result bool) {
 	return
 }
 
+// Get an environment variable with a default value
 func getWithDefault(variable string, default_value string) (result string) {
 	result = default_value
 	if val, present := os.LookupEnv(variable); present {
@@ -48,6 +46,7 @@ func getWithDefault(variable string, default_value string) (result string) {
 	return
 }
 
+// Verify that the value in check is one of the acceptable ones available in options
 func validateFromArray(check string, options []string) (found bool) {
 	found = false
 	for _, element := range options {
@@ -110,4 +109,6 @@ func init() {
 	}
 
 	STATIC_DIR_ROOT = os.Getenv("STATIC_DIR_ROOT")
+
+	EXCLUDE_BEFORE_SHADOWLANDS = getBoolean(getWithDefault("SEARCH_BEFORE_SHADOWLANDS", "false"))
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 )
 
+// Represents an access token as returned by Blizzard OATH. Fetched is internal only.
 type AccessToken struct {
 	Access_token string    `json:"access_token"`
 	Token_type   string    `json:"token_type"`
@@ -20,6 +21,7 @@ type AccessToken struct {
 	Fetched      time.Time `json:"-"`
 }
 
+// Check if the given access token needs to be refreshed
 func (at *AccessToken) CheckExpired() (expired bool) {
 	expired = true
 	current_time := time.Now()
@@ -31,7 +33,7 @@ func (at *AccessToken) CheckExpired() (expired bool) {
 }
 
 const (
-	authorization_uri_base string = "battle.net/oauth/token"
+	authorizationUriBase string = "battle.net/oauth/token"
 )
 
 var (
@@ -42,6 +44,7 @@ var (
 	authCheckMutex sync.Mutex
 )
 
+// Return an authorization token for a given region, fetches a new one if an existing token isn't found or has expired.
 func GetAuthorizationToken(client_id string, client_secret string, region string) (*AccessToken, error) {
 	if client_id == "" || client_secret == "" || region == "" {
 		return nil, fmt.Errorf("cannot have empty client, secret, or region")
@@ -62,7 +65,7 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 
 	if token.CheckExpired() {
 		cpclog.Debug("Access token expired, fetching fresh.")
-		uri := fmt.Sprint("https://", region, ".", authorization_uri_base)
+		uri := fmt.Sprint("https://", region, ".", authorizationUriBase)
 
 		form := url.Values{}
 		form.Add("grant_type", "client_credentials")

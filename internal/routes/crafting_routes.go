@@ -37,6 +37,7 @@ type jsonOutputBodyQueueData struct {
 	Region            string   `json:"region,omitempty"`
 }
 
+// Queue up a CPC run
 func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body == nil {
@@ -129,6 +130,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 	//fmt.Fprintf(w, "{ \"job_id\": \"%s\" }", jobUUID)
 }
 
+// Check to see if a queued CPC run has completed
 func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body == nil {

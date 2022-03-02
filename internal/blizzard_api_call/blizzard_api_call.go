@@ -31,13 +31,14 @@ var (
 	stopClear             chan bool
 )
 
+// Control reset windows and connection flow for Blizzard API connections
 func blizzardApiFlowManager(stopper chan bool) {
 	cpclog.Info("Starting API Flow Manager")
 	for {
 		select {
 		case <-clearTicks.C:
 			cpclog.Silly("Reset window ", atomic.LoadUint64(&allowed_during_period))
-			atomic.StoreUint64(&allowed_during_period, 0+atomic.LoadUint64(&in_use))
+			atomic.StoreUint64(&allowed_during_period, atomic.LoadUint64(&in_use))
 		case <-stopper:
 			cpclog.Info("Stopping API Flow Manager")
 			clearTicks.Stop()
@@ -46,6 +47,7 @@ func blizzardApiFlowManager(stopper chan bool) {
 	}
 }
 
+// Stop the flow manager
 func ShutdownApiManager() {
 	stopClear <- true
 }
@@ -63,6 +65,7 @@ func init() {
 	go blizzardApiFlowManager(stopClear)
 }
 
+// Get a response from Blizzard API and fill a struct with the results
 func getAndFill(uri string, region globalTypes.RegionCode, data map[string]string, target BlizzardApi.BlizzardApiReponse) error {
 	token, tokenErr := blizz_oath.GetAuthorizationToken(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, region)
 	if tokenErr != nil {
@@ -117,6 +120,7 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 	return nil
 }
 
+// Fetch a Blizzard API response given only the endpoint
 func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]string, uri string, target BlizzardApi.BlizzardApiReponse) (int, error) {
 	var proceed bool = false
 	var wait_count uint = 0
@@ -143,6 +147,7 @@ func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]
 	return int(wait_count), nil
 }
 
+// Fetch a Blizzard API response given a fully qualified URL
 func GetBlizzardRawUriResponse(data map[string]string, uri string, region globalTypes.RegionCode, target BlizzardApi.BlizzardApiReponse) (int, error) {
 	var proceed bool = false
 	var wait_count uint = 0

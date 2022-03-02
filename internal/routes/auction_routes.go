@@ -42,6 +42,7 @@ type SeenItemBonusesReturn struct {
 	} `json:"collected,omitempty"`
 }
 
+// Return a list of all realms being actively scanned for history
 func ScannedRealms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -54,6 +55,7 @@ func ScannedRealms(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Return a unique list of all items in the items table
 func AllItems(w http.ResponseWriter, r *http.Request) {
 	const (
 		cacheNS  string = "AH-FUNCTIONS"
@@ -90,6 +92,7 @@ func AllItems(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(filterd_names)
 }
 
+// Perform a search for auction history data
 func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 	type expectedBody struct {
 		Item     string   `json:"item"`
@@ -137,6 +140,7 @@ func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(auctionData)
 }
 
+// Return a list of all the bonuses seen for an item
 func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	type seenItemBonusesData struct {
 		Item   string `json:"item,omitempty"`

@@ -10,11 +10,13 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 )
 
+// Download the WOW addon
 func AddonDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/zip")
 	http.ServeFile(w, r, "html/CraftingProfitCalculator_data.zip")
 }
 
+// Internal healthcheck
 func Healthcheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	//	w.WriteHeader(http.StatusOK)
@@ -26,6 +28,7 @@ func Healthcheck(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Get a list of all bonus mappings
 func BonusMappings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -38,6 +41,7 @@ func BonusMappings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Return a list of all realms availble
 func AllRealms(w http.ResponseWriter, r *http.Request) {
 	cpclog.Debug("Getting all realms")
 

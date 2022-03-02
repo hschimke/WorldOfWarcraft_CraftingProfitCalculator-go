@@ -15,10 +15,12 @@ var (
 	ctx         context.Context
 )
 
+// Create a Redis key given a namespace and key
 func getRedisKey(namespace string, key string) string {
 	return fmt.Sprint(namespace, ":->", key)
 }
 
+// Fetch an object from the cache, or fail
 func CacheGet(namespace string, key string, target interface{}) error {
 	data, getErr := redisClient.Get(ctx, getRedisKey(namespace, key)).Result()
 	if getErr != nil {
@@ -30,6 +32,8 @@ func CacheGet(namespace string, key string, target interface{}) error {
 	}
 	return nil
 }
+
+// Set or replace an item in the cache, or fail.
 func CacheSet(namespace string, key string, data interface{}, expiration_period time.Duration) error {
 	json_data, err := json.Marshal(&data)
 	if err != nil {
@@ -41,6 +45,8 @@ func CacheSet(namespace string, key string, data interface{}, expiration_period 
 	}
 	return nil
 }
+
+// Check if a given key exists in a given namespace
 func CacheCheck(namespace string, key string) (bool, error) {
 	//return false, nil
 	fnd, err := redisClient.Exists(ctx, getRedisKey(namespace, key)).Result()

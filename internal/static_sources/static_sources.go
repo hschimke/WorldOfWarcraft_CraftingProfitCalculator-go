@@ -17,7 +17,7 @@ const (
 	rank_mappings_cache_fn            string = "rank-mappings.json"
 	shopping_recipe_exclusion_list_fn string = "shopping-recipe-exclusion-list.json"
 	static_source_dir                 string = "./static_files"
-	raidbots_dl_uri                   string = "https://www.raidbots.com/static/data/live/bonuses.json"
+	raidbots_dl_uri                   string = "https://www.raidbots.com/static/data/live/bonuses.json" // Thank you raidbots
 )
 
 var (
@@ -26,6 +26,7 @@ var (
 	shopping_recipe_exclusion_list *ShoppingRecipeExclusionList
 )
 
+// A simplified version of the data availble for bonus mappings from raidbots
 type BonusesCache map[string]struct {
 	Id      int `json:"id,omitempty"`
 	Level   int `json:"level,omitempty"`
@@ -33,15 +34,18 @@ type BonusesCache map[string]struct {
 	Socket  int `json:"socket,omitempty"`
 }
 
+// Rank mappings between rank and level
 type RankMappingsCache struct {
 	Available_levels []uint
 	Rank_mapping     []uint
 }
 
+// A list of recipes to exclude from shopping searches
 type ShoppingRecipeExclusionList struct {
 	Exclusions []uint
 }
 
+// load a static resource from the filesystem
 func loadStaticResource(fn string, target interface{}) error {
 	file, err := os.Open(fn)
 	if err != nil {
@@ -56,6 +60,7 @@ func loadStaticResource(fn string, target interface{}) error {
 	return nil
 }
 
+// load a static resource from a URI
 func fetchFromUri(uri string, target interface{}) error {
 	cpclog.Debug("Downloading Bonuses from web")
 	httpClient := &http.Client{
@@ -89,6 +94,7 @@ func fetchFromUri(uri string, target interface{}) error {
 	return nil
 }
 
+// Fetch the bonus catch, if it cannot be found locally it will be loaded from raidbots
 func GetBonuses() (*BonusesCache, error) {
 	if bonus_cache == nil {
 		bc := BonusesCache{}
@@ -107,6 +113,7 @@ func GetBonuses() (*BonusesCache, error) {
 	return bonus_cache, nil
 }
 
+// Fetch the rank mappings, if not available locally it will be empty
 func GetRankMappings() *RankMappingsCache {
 	if rank_mapping_cache == nil {
 		rm := RankMappingsCache{}
@@ -121,6 +128,7 @@ func GetRankMappings() *RankMappingsCache {
 	return rank_mapping_cache
 }
 
+// Fetch the shopping list exclusion set, if not available locally it will be empty
 func GetShoppingRecipeExclusionList() *ShoppingRecipeExclusionList {
 	if shopping_recipe_exclusion_list == nil {
 		sre := ShoppingRecipeExclusionList{}

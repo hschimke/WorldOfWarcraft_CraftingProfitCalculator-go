@@ -4,6 +4,7 @@ import (
 	"strings"
 )
 
+// Filter an array of strings to return only those values containing a given partial
 func FilterStringArray(array []string, partial string, logName string) []string {
 	var filteredNames []string
 	if len(partial) > 0 {

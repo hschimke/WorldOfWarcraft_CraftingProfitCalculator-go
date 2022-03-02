@@ -73,6 +73,8 @@ func TextFriendlyOutputFormat(output_data *globalTypes.OutputFormatObject, inden
 		ob.WriteString(GoldFormatter(output_data.Ah.Low))
 		ob.WriteString("/")
 		ob.WriteString(GoldFormatter(output_data.Ah.Average))
+		ob.WriteString("/")
+		ob.WriteString(GoldFormatter(output_data.Ah.Median))
 		ob.WriteString("\n")
 	}
 	if output_data.Vendor > 0 {
@@ -95,6 +97,8 @@ func TextFriendlyOutputFormat(output_data *globalTypes.OutputFormatObject, inden
 			ob.WriteString(GoldFormatter(recipe_option.Low))
 			ob.WriteString("/")
 			ob.WriteString(GoldFormatter(recipe_option.Average))
+			ob.WriteString("/")
+			ob.WriteString(GoldFormatter(recipe_option.Median))
 			ob.WriteString("\n")
 			if recipe_option.Ah.Sales > 0 {
 				ob.WriteString(indentAdder(indent + 2))
@@ -106,6 +110,8 @@ func TextFriendlyOutputFormat(output_data *globalTypes.OutputFormatObject, inden
 				ob.WriteString(GoldFormatter(recipe_option.Ah.Low))
 				ob.WriteString("/")
 				ob.WriteString(GoldFormatter(recipe_option.Ah.Average))
+				ob.WriteString("/")
+				ob.WriteString(GoldFormatter(recipe_option.Ah.Median))
 				ob.WriteString("\n")
 			}
 			ob.WriteString("\n")
@@ -137,6 +143,8 @@ func TextFriendlyOutputFormat(output_data *globalTypes.OutputFormatObject, inden
 			ob.WriteString(GoldFormatter(bonus_price.Ah.Low))
 			ob.WriteString("/")
 			ob.WriteString(GoldFormatter(bonus_price.Ah.Average))
+			ob.WriteString("/")
+			ob.WriteString(GoldFormatter(bonus_price.Ah.Median))
 			ob.WriteString("\n")
 		}
 	}
@@ -176,6 +184,8 @@ func TextFriendlyOutputFormat(output_data *globalTypes.OutputFormatObject, inden
 					ob.WriteString(GoldFormatter(li.Cost.Ah.Low))
 					ob.WriteString("/")
 					ob.WriteString(GoldFormatter(li.Cost.Ah.Average))
+					ob.WriteString("/")
+					ob.WriteString(GoldFormatter(li.Cost.Ah.Median))
 					ob.WriteString("\n")
 				}
 			}

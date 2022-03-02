@@ -227,7 +227,8 @@ interface OutputFormatPrice {
     sales: number,
     high: number,
     low: number,
-    average: number
+    average: number,
+    median: number,
 }
 
 type OutputFormatShoppingList = Record<number | string, ShoppingList[]>;
@@ -249,6 +250,7 @@ interface OutputFormatObject {
         high: number,
         low: number,
         average: number,
+        median: number,
         parts: OutputFormatObject[]
     }[],
     ah: OutputFormatPrice,

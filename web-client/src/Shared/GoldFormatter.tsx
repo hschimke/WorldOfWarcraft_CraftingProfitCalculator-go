@@ -31,7 +31,7 @@ function GoldFormatter(props: GoldFormatterProps) {
 function AHItemPrice(props: { ah: OutputFormatPrice }) {
     return (
         <div className={styles.AHItemPrice}>
-            AH {props.ah.sales}: <GoldFormatter raw_price={props.ah.high} />/<GoldFormatter raw_price={props.ah.low} />/<GoldFormatter raw_price={props.ah.average} />
+            AH {props.ah.sales}: <GoldFormatter raw_price={props.ah.high} />/<GoldFormatter raw_price={props.ah.low} />/<GoldFormatter raw_price={props.ah.average} />/<GoldFormatter raw_price={props.ah.median} />
         </div>
     );
 }

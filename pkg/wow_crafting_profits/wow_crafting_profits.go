@@ -18,7 +18,7 @@ import (
 )
 
 type recipeCost struct {
-	High, Low, Average float64
+	High, Low, Average, Median float64
 }
 
 /*
@@ -33,6 +33,9 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 	auction_average := float64(0)
 	auction_counter := uint(0)
 	auction_average_accumulator := float64(0)
+	auctionMedian := float64(0)
+
+	var meanErr error
 
 	bl_inc := func(array []uint, search uint) (found bool) {
 		found = false
@@ -45,38 +48,51 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 		return
 	}
 
+	var prices []float64
+
 	for _, auction := range auction_house.Auctions {
 		if auction.Item.Id == item_id {
 
 			if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && bl_inc(auction.Item.Bonus_lists, bonus_level_required))) || (bonus_level_required == 0) {
+				var foundPrice float64
 				if auction.Buyout != 0 {
-					if float64(auction.Buyout) > auction_high {
-						auction_high = float64(auction.Buyout)
-					}
-					if float64(auction.Buyout) < auction_low {
-						auction_low = float64(auction.Buyout)
-					}
-					auction_average_accumulator += float64(auction.Buyout * auction.Quantity)
+					foundPrice = float64(auction.Buyout)
 				} else {
-					if float64(auction.Unit_price) > auction_high {
-						auction_high = float64(auction.Unit_price)
-					}
-					if float64(auction.Unit_price) < auction_low {
-						auction_low = float64(auction.Unit_price)
-					}
-					auction_average_accumulator += float64(auction.Unit_price * auction.Quantity)
+					foundPrice = float64(auction.Unit_price)
 				}
+				if foundPrice > auction_high {
+					auction_high = foundPrice
+				}
+				if foundPrice < auction_low {
+					auction_low = foundPrice
+				}
+				auction_average_accumulator += foundPrice * float64(auction.Quantity)
+
+				pricesArrayHold := make([]float64, auction.Quantity)
+				for i := range pricesArrayHold {
+					pricesArrayHold[i] = foundPrice
+				}
+				prices = append(prices, pricesArrayHold...)
+
 				auction_counter += auction.Quantity
 			}
 		}
 	}
 
-	auction_average = auction_average_accumulator / float64(auction_counter)
+	if auction_counter > 0 {
+		auction_average = auction_average_accumulator / float64(auction_counter)
+	}
+
+	auctionMedian, meanErr = util.Median(prices)
+	if meanErr != nil {
+		auctionMedian = auction_high
+	}
 
 	return globalTypes.AHItemPriceObject{
 		High:        auction_high,
 		Low:         auction_low,
 		Average:     auction_average,
+		Median:      auctionMedian,
 		Total_sales: auction_counter,
 	}
 }
@@ -169,18 +185,8 @@ func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Au
  */
 func getLvlModifierForBonus(bonus_id uint) int {
 	raidbots_bonus_lists_ptr, _ := static_sources.GetBonuses()
-	/*
-		if err != nil {
-			log.Fatal("unable to get bonus lists")
-		}
-	*/
 	raidbots_bonus_lists := *raidbots_bonus_lists_ptr
 	if rbl, present := raidbots_bonus_lists[fmt.Sprint(bonus_id)]; present {
-		/*if rbl.Level != nil {
-			return rbl.Level
-		} else {
-			return 0
-		}*/
 		return rbl.Level
 	}
 	return 0
@@ -419,7 +425,8 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 		if component.Vendor_price > 0 {
 			cost.High += component.Vendor_price * component.Item_quantity
 			cost.Low += component.Vendor_price * component.Item_quantity
-			cost.Average += float64(component.Vendor_price * component.Item_quantity)
+			cost.Average += component.Vendor_price * component.Item_quantity
+			cost.Median += component.Vendor_price * component.Item_quantity
 			cpclog.Debug("Use vendor price for ", component.Item_name, " (", component.Item_id, ")")
 		} else if !component.Crafting_status.Craftable {
 
@@ -440,6 +447,7 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 			cost.Average += (average / float64(count)) * float64(component.Item_quantity)
 			cost.High += high * component.Item_quantity
 			cost.Low += low * component.Item_quantity
+			cost.Median += component.Ah_price.Median * component.Item_quantity
 			cpclog.Debugf("Use auction price for uncraftable item %s (%d)", component.Item_name, component.Item_id)
 		} else {
 			cpclog.Debugf("Recursive check for item %s (%d)", component.Item_name, component.Item_id)
@@ -449,8 +457,9 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 			high := float64(0)
 			low := math.MaxFloat64
 
+			var costs []float64
+
 			for _, opt := range component.Recipe_options {
-				//rc_price_promises.push(recipeCostCalculator(opt));
 				recurse_price := recipeCostCalculator(opt)
 
 				if high < recurse_price.High*component.Item_quantity {
@@ -461,6 +470,8 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 					low = recurse_price.Low * component.Item_quantity
 				}
 
+				costs = append(costs, recurse_price.Median*component.Item_quantity)
+
 				ave_acc += recurse_price.Average * float64(component.Item_quantity)
 				ave_cnt++
 			}
@@ -468,6 +479,11 @@ func recipeCostCalculator(recipe_option globalTypes.RecipeOption) recipeCost {
 			cost.Low = low
 			cost.High = high
 			cost.Average += ave_acc / float64(ave_cnt)
+			if med, medErr := util.Median(costs); medErr != nil {
+				cost.Median = high
+			} else {
+				cost.Median = med
+			}
 		}
 	}
 
@@ -493,6 +509,7 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 			High:    price_data.Ah_price.High,
 			Low:     price_data.Ah_price.Low,
 			Average: price_data.Ah_price.Average,
+			Median:  price_data.Ah_price.Median,
 		}
 	}
 	if price_data.Vendor_price > 0 {
@@ -513,6 +530,7 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 				High:    option_price.High,
 				Low:     option_price.Low,
 				Average: option_price.Average,
+				Median:  option_price.Median,
 			}
 			//obj_recipe.parts = [];
 
@@ -522,6 +540,7 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 					High:    recipe_option.Rank_ah.High,
 					Low:     recipe_option.Rank_ah.Low,
 					Average: recipe_option.Rank_ah.Average,
+					Median:  recipe_option.Rank_ah.Median,
 				}
 			}
 			//let prom_list = [];
@@ -544,6 +563,7 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 					High:    bonus_price.Ah.High,
 					Low:     bonus_price.Ah.Low,
 					Average: bonus_price.Ah.Average,
+					Median:  bonus_price.Ah.Median,
 				}})
 		}
 	}

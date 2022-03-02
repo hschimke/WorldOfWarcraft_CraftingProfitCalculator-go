@@ -28,6 +28,7 @@ type OutputFormatPrice struct {
 	High    float64 `json:"high,omitempty"`
 	Low     float64 `json:"low,omitempty"`
 	Average float64 `json:"average,omitempty"`
+	Median  float64 `json:"median,omitempty"`
 }
 
 type ShoppingListCost struct {
@@ -59,6 +60,7 @@ type OutputFormatRecipe struct {
 	High    float64                   `json:"high,omitempty"`
 	Low     float64                   `json:"low,omitempty"`
 	Average float64                   `json:"average,omitempty"`
+	Median  float64                   `json:"median,omitempty"`
 	Parts   []OutputFormatObject      `json:"parts,omitempty"`
 }
 
@@ -81,6 +83,7 @@ type OutputFormatObject struct {
 type AHItemPriceObject struct {
 	Total_sales uint
 	Average     float64
+	Median      float64
 	High        float64
 	Low         float64
 }
@@ -146,6 +149,7 @@ type QueuedJobReturn struct {
 
 var ALL_PROFESSIONS []CharacterProfession = []CharacterProfession{"Blacksmithing", "Leatherworking", "Alchemy", "Herbalism", "Cooking", "Mining", "Tailoring", "Engineering", "Enchanting", "Fishing", "Skinning", "Jewelcrafting", "Inscription", "Archaeology", "Soul Cyphering", "Abominable Stitching", "Ascension Crafting", "Stygia Crafting"}
 
+// constants for CPC job queue needed by server and job runner
 const (
 	CPC_JOB_QUEUE_NAME           = "cpc-job-queue:web-jobs"
 	CPC_JOB_RETURN_FORMAT_STRING = "cpc-job-queue-results:%s"

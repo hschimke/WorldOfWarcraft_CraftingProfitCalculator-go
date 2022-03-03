@@ -35,25 +35,14 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 	auction_average_accumulator := float64(0)
 	auctionMedian := float64(0)
 
-	var meanErr error
-
-	bl_inc := func(array []uint, search uint) (found bool) {
-		found = false
-		for _, element := range array {
-			if element == search {
-				found = true
-				break
-			}
-		}
-		return
-	}
+	var medianErr error
 
 	var prices []float64
 
 	for _, auction := range auction_house.Auctions {
 		if auction.Item.Id == item_id {
 
-			if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && bl_inc(auction.Item.Bonus_lists, bonus_level_required))) || (bonus_level_required == 0) {
+			if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && util.ArrayIncludes(auction.Item.Bonus_lists, bonus_level_required))) || (bonus_level_required == 0) {
 				var foundPrice float64
 				if auction.Buyout != 0 {
 					foundPrice = float64(auction.Buyout)
@@ -83,8 +72,8 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 		auction_average = auction_average_accumulator / float64(auction_counter)
 	}
 
-	auctionMedian, meanErr = util.Median(prices)
-	if meanErr != nil {
+	auctionMedian, medianErr = util.Median(prices)
+	if medianErr != nil {
 		auctionMedian = auction_high
 	}
 
@@ -97,13 +86,11 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 	}
 }
 
-/**
- * Retrieve the value of the item from the vendor price,
- * items that cannot be bought from
- * vendors are given a value of -1.
- * @param {Number} item_id
- * @param {String} region
- */
+/*
+  Retrieve the value of the item from the vendor price,
+  items that cannot be bought from
+  vendors are given a value of -1.
+*/
 func findNoneAHPrice(item_id globalTypes.ItemID, region globalTypes.RegionCode) (float64, error) {
 	// Get the item from blizz and see what the purchase price is
 	// The general method is to get the item and see if the description mentions the auction house,
@@ -131,29 +118,24 @@ func findNoneAHPrice(item_id globalTypes.ItemID, region globalTypes.RegionCode) 
 	return vendor_price, nil
 }
 
-/**
- * Get a list of bonus item values for a given item.
- *
- * Finds all of the bonus-list types associated with a given item id,
- * currently the only way to do that is by pulling an auction house down
- * and then scanning it. If no bonus lists are found an empty array is
- * returned.
- *
- * @param {number} item_id Item ID to scan
- * @param {object} auction_house The auction house data to use as a source.
- */
-func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions) [][]uint {
+/*
+  Get a list of bonus item values for a given item.
 
+  Finds all of the bonus-list types associated with a given item id,
+  currently the only way to do that is by pulling an auction house down
+  and then scanning it. If no bonus lists are found an empty array is
+  returned.
+*/
+func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions) [][]uint {
+	// array_every checks if two arrays are identical
 	array_every := func(array []uint, find []uint) (found bool) {
 		found = true
 		for index, element := range array {
-			found = found || element == find[index]
+			found = found && element == find[index]
 		}
 		return found
 	}
 
-	//bonus_lists := make([][]uint, 0)
-	//bonus_lists_set := make([][]uint, 0)
 	var bonus_lists [][]uint
 	var bonus_lists_set [][]uint
 	for _, auction := range auction_house.Auctions {
@@ -178,13 +160,15 @@ func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Au
 	return bonus_lists_set
 }
 
-/**
- * Bonus levels correspond to a specific increase in item level over base,
- * get the item level delta for that bonus id.
- * @param bonus_id The bonus ID to check.
- */
+/*
+  Bonus levels correspond to a specific increase in item level over base,
+  get the item level delta for that bonus id.
+*/
 func getLvlModifierForBonus(bonus_id uint) int {
-	raidbots_bonus_lists_ptr, _ := static_sources.GetBonuses()
+	raidbots_bonus_lists_ptr, fetchErr := static_sources.GetBonuses()
+	if fetchErr != nil {
+		panic(fetchErr)
+	}
 	raidbots_bonus_lists := *raidbots_bonus_lists_ptr
 	if rbl, present := raidbots_bonus_lists[fmt.Sprint(bonus_id)]; present {
 		return rbl.Level
@@ -203,7 +187,7 @@ func getLvlModifierForBonus(bonus_id uint) int {
  */
 func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.RealmName, character_professions []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, qauntity uint, passed_ah *BlizzardApi.Auctions, passedCyclicLinks *globalTypes.SkillTierCyclicLinks) (globalTypes.ProfitAnalysisObject, error) {
 	// Check if we have to figure out the item id ourselves
-	item_id := uint(0)
+	var item_id uint
 	if item.ItemId != 0 {
 		item_id = item.ItemId
 	} else {
@@ -211,7 +195,6 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 		if (fnd_id <= 0) || err != nil {
 			cpclog.Error("No itemId could be found for ", item)
 			return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("no itemId could be found for %v -> %v", item, err)
-			//throw (new Error(`No itemId could be found for ${item}`));
 		}
 		cpclog.Infof("Found %v for %v", fnd_id, item)
 		item_id = fnd_id
@@ -243,11 +226,13 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 
 	craftable_item_swaps := *passedCyclicLinks
 
-	var price_obj globalTypes.ProfitAnalysisObject
-	price_obj.Item_id = item_id
-	price_obj.Item_name = item_detail.Name
+	price_obj := globalTypes.ProfitAnalysisObject{
+		Item_id:       item_id,
+		Item_name:     item_detail.Name,
+		Item_quantity: float64(qauntity),
+	}
 
-	cpclog.Info("Analyzing profits potential for ", item_detail.Name, " (", item_id, ")")
+	cpclog.Infof("Analyzing profits potential for %s ( %d )", item_detail.Name, item_id)
 
 	// Get the realm id
 	server_id, err := blizzard_api_helpers.GetConnectedRealmId(server, region)
@@ -270,8 +255,6 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 
 	// Get Item AH price
 	price_obj.Ah_price = getAHItemPrice(item_id, auction_house, 0)
-
-	price_obj.Item_quantity = float64(qauntity)
 
 	item_craftable, err := blizzard_api_helpers.CheckIsCrafting(item_id, character_professions, region)
 	if err != nil {
@@ -302,12 +285,11 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	//bl_flat := filterArrayToSet(flattenArray(price_obj.bonus_lists)).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));)
 	fltn_arr := util.FlattenArray(price_obj.Bonus_lists) //Flatten(price_obj.Bonus_lists)
 	bl_flat_hld := util.FilterArrayToSet(fltn_arr)
-	bl_flat := make([]uint, 0)
+	var bl_flat []uint
 	for _, bonus := range bl_flat_hld {
 		bns, rb_b_pres := raidbots_bonus_lists[fmt.Sprint(bonus)]
 		if rb_b_pres {
 			if bns.Level != 0 {
-				//return truedfdf
 				bl_flat = append(bl_flat, bonus)
 			}
 		}
@@ -322,8 +304,6 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 	}
 
 	recipe_id_list := item_craftable.Recipe_ids
-
-	//price_obj.recipe_options = [];
 
 	if item_craftable.Craftable {
 		cpclog.Debug("Item ", item_detail.Name, " (", item_id, ") has ", len(item_craftable.Recipes), " recipes.")

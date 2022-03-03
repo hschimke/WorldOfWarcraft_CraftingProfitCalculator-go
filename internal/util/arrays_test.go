@@ -243,3 +243,119 @@ func TestFilterArrayToSetDouble(t *testing.T) {
 		})
 	}
 }
+
+func TestSlicesEqual(t *testing.T) {
+	type args struct {
+		slice1 []uint
+		slice2 []uint
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "long equal",
+			args: args{
+				slice1: []uint{12, 32, 6454, 75, 65, 768, 68, 68, 8676, 67, 67, 3, 0, 356546475, 57, 457, 547, 57, 55, 5, 5, 55, 5, 5},
+				slice2: []uint{12, 32, 6454, 75, 65, 768, 68, 68, 8676, 67, 67, 3, 0, 356546475, 57, 457, 547, 57, 55, 5, 5, 55, 5, 5},
+			},
+			want: true,
+		},
+		{
+			name: "long not equal",
+			args: args{
+				slice1: []uint{12, 32, 6454, 75, 65, 768, 68, 68, 8676, 67, 67, 3, 0, 356546475, 57, 457, 547, 57, 55, 5, 5, 55, 5, 5},
+				slice2: []uint{12, 32, 6454, 75, 65, 768, 68, 68, 8676, 67, 7, 3, 0, 356546475, 57, 457, 547, 57, 55, 5, 5, 55, 5, 5},
+			},
+			want: false,
+		},
+		{
+			name: "long not equal length miss match 1",
+			args: args{
+				slice1: []uint{12, 32, 6454, 75, 65, 768, 68, 68},
+				slice2: []uint{12, 32, 6454, 75, 65, 768, 68, 68, 8676, 67, 67, 3, 0, 356546475, 57, 457, 547, 57, 55, 5, 5, 55, 5, 5},
+			},
+			want: false,
+		},
+		{
+			name: "long not equal length miss match 2",
+			args: args{
+				slice2: []uint{12, 32, 6454, 75, 65, 768, 68, 68},
+				slice1: []uint{12, 32, 6454, 75, 65, 768, 68, 68, 8676, 67, 67, 3, 0, 356546475, 57, 457, 547, 57, 55, 5, 5, 55, 5, 5},
+			},
+			want: false,
+		},
+		{
+			name: "short equal",
+			args: args{
+				slice1: []uint{12, 32},
+				slice2: []uint{12, 32},
+			},
+			want: true,
+		},
+		{
+			name: "short not equal",
+			args: args{
+				slice1: []uint{12, 2},
+				slice2: []uint{12, 32},
+			},
+			want: false,
+		},
+		{
+			name: "one equal",
+			args: args{
+				slice1: []uint{12},
+				slice2: []uint{12},
+			},
+			want: true,
+		},
+		{
+			name: "one not equal",
+			args: args{
+				slice1: []uint{1},
+				slice2: []uint{12},
+			},
+			want: false,
+		},
+		{
+			name: "one empty",
+			args: args{
+				slice1: []uint{},
+				slice2: []uint{12},
+			},
+			want: false,
+		},
+		{
+			name: "both empty",
+			args: args{
+				slice1: []uint{},
+				slice2: []uint{},
+			},
+			want: true,
+		},
+		{
+			name: "one nil",
+			args: args{
+				slice1: nil,
+				slice2: []uint{12},
+			},
+			want: false,
+		},
+		{
+			name: "both nil",
+			args: args{
+				slice1: nil,
+				slice2: nil,
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SlicesEqual(tt.args.slice1, tt.args.slice2); got != tt.want {
+				t.Errorf("SlicesEqual() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -119,10 +119,8 @@ func GetItemId(region globalTypes.RegionCode, itemName globalTypes.ItemName) (gl
 		}
 	} else {
 		// We didn't get any results, that's an error
-		//await cacheSet(ITEM_SEARCH_CACHE, item_name, -1);
 		cpclog.Error("No items match search ", itemName)
 		return 0, fmt.Errorf("no items match search %s", itemName)
-		//throw (new Error('No Results'));
 	}
 
 	cache_provider.CacheSet(ITEM_SEARCH_CACHE, itemName, item_id, cache_provider.GetStaticTimeWithShift())
@@ -180,9 +178,8 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 			return globalTypes.ConnectedRealmID(0), crErr
 		}
 
-		realm_list := connected_realm_detail.Realms
 		found_realm := false
-		for _, rlm := range realm_list {
+		for _, rlm := range connected_realm_detail.Realms {
 			cpclog.Debugf("Realm %s", rlm.Name)
 			if strings.EqualFold(server_name, rlm.Name) {
 				cpclog.Debugf("Realm %v matches %s", rlm, server_name)
@@ -194,6 +191,10 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 			realm_id = connected_realm_detail.Id
 			break
 		}
+	}
+
+	if realm_id == 0 {
+		return 0, fmt.Errorf("realm %s could not be resolved", server_name)
 	}
 
 	cache_provider.CacheSet(CONNECTED_REALM_ID_CACHE, connected_realm_key, realm_id, cache_provider.GetStaticTimeWithShift())
@@ -578,24 +579,6 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 		return globalTypes.SkillTierCyclicLinks{}, errors[0]
 	}
 
-	/*
-		for _, prof := range profz {
-			last_count := counter
-			cpclog.Debug("Scanning profession: ", prof.Name, " for cyclic relationships.")
-			profession, err := GetBlizProfessionDetail(prof.Id, region)
-			if err != nil {
-				return globalTypes.SkillTierCyclicLinks{}, err
-			}
-			if profession.Skill_tiers != nil {
-				for _, st := range profession.Skill_tiers {
-					links = append(links, buildCyclicLinkforSkillTier(st, profession, region)...)
-				}
-			}
-			cpclog.Debug("Scanned ", counter-last_count, " new recipes.")
-			profession_counter++
-		}
-	*/
-
 	cpclog.Debug("Scanned ", counter, " recipes in ", profession_counter, " professions")
 
 	link_lookup := make(globalTypes.SkillTierCyclicLinks)
@@ -673,53 +656,51 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 	if err != nil {
 		return SkillTierCyclicLinksBuild{}
 	}
-	if skill_tier_detail.Categories != nil {
-		for _, sk_category := range skill_tier_detail.Categories {
-			for _, sk_recipe := range sk_category.Recipes {
-				recipe, err := GetBlizRecipeDetail(sk_recipe.Id, region)
-				if err != nil {
-					return SkillTierCyclicLinksBuild{}
-				}
-				if !checked_set.Has(recipe.Id) {
-					checked_set.Add(recipe.Id)
-					//counter++
-					if recipe.Reagents != nil && len(recipe.Reagents) == 1 {
-						// Go through them all again
-						for _, sk_recheck_category := range skill_tier_detail.Categories {
-							for _, sk_recheck_recipe := range sk_recheck_category.Recipes {
-								recheck_recipe, err := GetBlizRecipeDetail(sk_recheck_recipe.Id, region)
-								if err != nil {
-									return SkillTierCyclicLinksBuild{}
-								}
-								if recheck_recipe.Reagents != nil && len(recheck_recipe.Reagents) == 1 && !checked_set.Has(recheck_recipe.Id) {
-									r_ids := getRecipeCraftedItemID(recipe)
+	for _, sk_category := range skill_tier_detail.Categories {
+		for _, sk_recipe := range sk_category.Recipes {
+			recipe, err := GetBlizRecipeDetail(sk_recipe.Id, region)
+			if err != nil {
+				return SkillTierCyclicLinksBuild{}
+			}
+			if !checked_set.Has(recipe.Id) {
+				checked_set.Add(recipe.Id)
+				//counter++
+				if len(recipe.Reagents) == 1 {
+					// Go through them all again
+					for _, sk_recheck_category := range skill_tier_detail.Categories {
+						for _, sk_recheck_recipe := range sk_recheck_category.Recipes {
+							recheck_recipe, err := GetBlizRecipeDetail(sk_recheck_recipe.Id, region)
+							if err != nil {
+								return SkillTierCyclicLinksBuild{}
+							}
+							if len(recheck_recipe.Reagents) == 1 && !checked_set.Has(recheck_recipe.Id) {
+								r_ids := getRecipeCraftedItemID(recipe)
 
-									rc_ids := getRecipeCraftedItemID(recheck_recipe)
+								rc_ids := getRecipeCraftedItemID(recheck_recipe)
 
-									if util.UintSliceHas(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
-										if util.UintSliceHas(rc_ids, recipe.Reagents[0].Reagent.Id) {
-											cpclog.Debugf("Found cyclic link for %s (%d) and %s (%d)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
-											p1 := getRecipeCraftedItemID(recipe)
-											p2 := getRecipeCraftedItemID(recheck_recipe)
-											found_links = append(found_links, []struct {
-												Id       []uint
-												Quantity uint
-											}{
-												{
-													Id:       p1,
-													Quantity: recheck_recipe.Reagents[0].Quantity,
-												},
-												{
-													Id:       p2,
-													Quantity: recipe.Reagents[0].Quantity,
-												},
-											})
-											checked_set.Add(recheck_recipe.Id)
-										}
+								if util.UintSliceHas(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
+									if util.UintSliceHas(rc_ids, recipe.Reagents[0].Reagent.Id) {
+										cpclog.Debugf("Found cyclic link for %s (%d) and %s (%d)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
+										p1 := getRecipeCraftedItemID(recipe)
+										p2 := getRecipeCraftedItemID(recheck_recipe)
+										found_links = append(found_links, []struct {
+											Id       []uint
+											Quantity uint
+										}{
+											{
+												Id:       p1,
+												Quantity: recheck_recipe.Reagents[0].Quantity,
+											},
+											{
+												Id:       p2,
+												Quantity: recipe.Reagents[0].Quantity,
+											},
+										})
+										checked_set.Add(recheck_recipe.Id)
 									}
-								} else {
-									checked_set.Add(recheck_recipe.Id)
 								}
+							} else {
+								checked_set.Add(recheck_recipe.Id)
 							}
 						}
 					}
@@ -729,11 +710,6 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 	}
 	cache_provider.CacheSet(CYCLIC_LINK_CACHE, cache_key, found_links, cache_provider.GetStaticTimeWithShift())
 	return found_links
-}
-
-// Fetch a recipe detail
-func GetCraftingRecipe(recipe_id uint, region globalTypes.RegionCode) (BlizzardApi.Recipe, error) {
-	return GetBlizRecipeDetail(recipe_id, region)
 }
 
 // Construct the blizzard namespace for a given region and type (static or dynamic)

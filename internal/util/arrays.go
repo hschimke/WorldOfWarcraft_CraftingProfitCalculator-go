@@ -61,6 +61,18 @@ func ParseStringArrayToUint(array []string) []uint {
 	return r
 }
 
+// SliceEqual checks that two slices are exactly equal, including order
+func SlicesEqual(slice1 []uint, slice2 []uint) bool {
+	found := true
+	if len(slice1) != len(slice2) {
+		return false
+	}
+	for index, element := range slice1 {
+		found = found && element == slice2[index]
+	}
+	return found
+}
+
 // Check if a uint slice contains a value
 func UintSliceHas(arr []uint, value uint) (found bool) {
 	return ArrayContains(arr, value)

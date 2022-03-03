@@ -127,15 +127,6 @@ func findNoneAHPrice(item_id globalTypes.ItemID, region globalTypes.RegionCode) 
   returned.
 */
 func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions) [][]uint {
-	// array_every checks if two arrays are identical
-	array_every := func(array []uint, find []uint) (found bool) {
-		found = true
-		for index, element := range array {
-			found = found && element == find[index]
-		}
-		return found
-	}
-
 	var bonus_lists [][]uint
 	var bonus_lists_set [][]uint
 	for _, auction := range auction_house.Auctions {
@@ -148,7 +139,7 @@ func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Au
 	for _, list := range bonus_lists {
 		found := false
 		for _, i := range bonus_lists_set {
-			if len(i) == len(list) && array_every(i, list) {
+			if len(i) == len(list) && util.SlicesEqual(i, list) {
 				found = true
 			}
 		}
@@ -169,8 +160,7 @@ func getLvlModifierForBonus(bonus_id uint) int {
 	if fetchErr != nil {
 		panic(fetchErr)
 	}
-	raidbots_bonus_lists := *raidbots_bonus_lists_ptr
-	if rbl, present := raidbots_bonus_lists[fmt.Sprint(bonus_id)]; present {
+	if rbl, present := (*raidbots_bonus_lists_ptr)[fmt.Sprint(bonus_id)]; present {
 		return rbl.Level
 	}
 	return 0
@@ -309,7 +299,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 		cpclog.Debug("Item ", item_detail.Name, " (", item_id, ") has ", len(item_craftable.Recipes), " recipes.")
 		for _, recipe := range item_craftable.Recipes {
 			// Get Reagents
-			item_bom, err := blizzard_api_helpers.GetCraftingRecipe(recipe.Recipe_id, region)
+			item_bom, err := blizzard_api_helpers.GetBlizRecipeDetail(recipe.Recipe_id, region)
 			if err != nil {
 				return globalTypes.ProfitAnalysisObject{}, err
 			}
@@ -317,7 +307,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 			price_obj.Item_quantity = float64(qauntity) / float64(getRecipeOutputValues(item_bom).Min)
 
 			// Get prices for BOM
-			bom_prices := make([]globalTypes.ProfitAnalysisObject, 0)
+			var bom_prices []globalTypes.ProfitAnalysisObject
 
 			cpclog.Debug("Recipe ", item_bom.Name, " (", recipe.Recipe_id, ") has ", len(item_bom.Reagents), " reagents")
 
@@ -495,74 +485,57 @@ func generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region gl
 	if price_data.Vendor_price > 0 {
 		object_output.Vendor = price_data.Vendor_price
 	}
-	if len(price_data.Recipe_options) > 0 {
-		for _, recipe_option := range price_data.Recipe_options {
-			option_price := recipeCostCalculator(recipe_option)
-			recipe, err := blizzard_api_helpers.GetBlizRecipeDetail(recipe_option.Recipe.Recipe_id, region)
-			if err != nil {
-				return globalTypes.OutputFormatObject{}
-			}
-			obj_recipe := globalTypes.OutputFormatRecipe{
-				Name:    recipe.Name,
-				Rank:    recipe_option.Rank,
-				Id:      recipe_option.Recipe.Recipe_id,
-				Output:  getRecipeOutputValues(recipe),
-				High:    option_price.High,
-				Low:     option_price.Low,
-				Average: option_price.Average,
-				Median:  option_price.Median,
-			}
-			//obj_recipe.parts = [];
 
-			if (recipe_option.Rank_ah.Total_sales != 0) && (recipe_option.Rank_ah.Total_sales > 0) {
-				obj_recipe.Ah = globalTypes.OutputFormatPrice{
-					Sales:   recipe_option.Rank_ah.Total_sales,
-					High:    recipe_option.Rank_ah.High,
-					Low:     recipe_option.Rank_ah.Low,
-					Average: recipe_option.Rank_ah.Average,
-					Median:  recipe_option.Rank_ah.Median,
-				}
-			}
-			//let prom_list = [];
-			if len(recipe_option.Prices) > 0 {
-				for _, opt := range recipe_option.Prices {
-					obj_recipe.Parts = append(obj_recipe.Parts, generateOutputFormat(opt, region))
-				}
-			}
-
-			object_output.Recipes = append(object_output.Recipes, obj_recipe)
+	for _, recipe_option := range price_data.Recipe_options {
+		option_price := recipeCostCalculator(recipe_option)
+		recipe, err := blizzard_api_helpers.GetBlizRecipeDetail(recipe_option.Recipe.Recipe_id, region)
+		if err != nil {
+			return globalTypes.OutputFormatObject{}
 		}
+		obj_recipe := globalTypes.OutputFormatRecipe{
+			Name:    recipe.Name,
+			Rank:    recipe_option.Rank,
+			Id:      recipe_option.Recipe.Recipe_id,
+			Output:  getRecipeOutputValues(recipe),
+			High:    option_price.High,
+			Low:     option_price.Low,
+			Average: option_price.Average,
+			Median:  option_price.Median,
+		}
+		//obj_recipe.parts = [];
+
+		if (recipe_option.Rank_ah.Total_sales != 0) && (recipe_option.Rank_ah.Total_sales > 0) {
+			obj_recipe.Ah = globalTypes.OutputFormatPrice{
+				Sales:   recipe_option.Rank_ah.Total_sales,
+				High:    recipe_option.Rank_ah.High,
+				Low:     recipe_option.Rank_ah.Low,
+				Average: recipe_option.Rank_ah.Average,
+				Median:  recipe_option.Rank_ah.Median,
+			}
+		}
+		//let prom_list = [];
+
+		for _, opt := range recipe_option.Prices {
+			obj_recipe.Parts = append(obj_recipe.Parts, generateOutputFormat(opt, region))
+		}
+
+		object_output.Recipes = append(object_output.Recipes, obj_recipe)
 	}
 
-	if len(price_data.Bonus_prices) > 0 {
-		for _, bonus_price := range price_data.Bonus_prices {
-			object_output.Bonus_prices = append(object_output.Bonus_prices, globalTypes.OutputFormatBonusPrices{
-				Level: bonus_price.Level,
-				Ah: globalTypes.OutputFormatPrice{
-					Sales:   bonus_price.Ah.Total_sales,
-					High:    bonus_price.Ah.High,
-					Low:     bonus_price.Ah.Low,
-					Average: bonus_price.Ah.Average,
-					Median:  bonus_price.Ah.Median,
-				}})
-		}
+	for _, bonus_price := range price_data.Bonus_prices {
+		object_output.Bonus_prices = append(object_output.Bonus_prices, globalTypes.OutputFormatBonusPrices{
+			Level: bonus_price.Level,
+			Ah: globalTypes.OutputFormatPrice{
+				Sales:   bonus_price.Ah.Total_sales,
+				High:    bonus_price.Ah.High,
+				Low:     bonus_price.Ah.Low,
+				Average: bonus_price.Ah.Average,
+				Median:  bonus_price.Ah.Median,
+			}})
 	}
 
 	return object_output
 }
-
-/*
-       "crafted_quantity": {
-           "minimum": 1,
-           "maximum": 1
-       }
-
-   OR
-
-       "crafted_quantity": {
-           "value": 3
-       }
-*/
 
 func getRecipeOutputValues(recipe BlizzardApi.Recipe) globalTypes.OutpoutFormatRecipeOutput {
 	var min, max, value float64
@@ -707,14 +680,6 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 	ret_list := make([]globalTypes.ShoppingList, 0)
 	//logger.debug(shopping_list);
 	for _, list_element := range shopping_list {
-		/*if (!(list_element.id in tmp)) {
-		    tmp[list_element.id] = {
-		        id: list_element.id,
-		        name: list_element.name,
-		        quantity: 0,
-		        cost: list_element.cost,
-		    };
-		}*/
 		hld, present := tmp[list_element.Id]
 		if !present {
 			hld.Id = list_element.Id
@@ -725,6 +690,7 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 		hld.Quantity += list_element.Quantity
 		tmp[list_element.Id] = hld
 	}
+
 	for _, list := range tmp {
 		ret_list = append(ret_list, list)
 	}

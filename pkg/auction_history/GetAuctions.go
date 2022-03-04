@@ -256,7 +256,7 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 		return AuctionPriceSummaryRecord{}, fmt.Errorf("could not find item for %v", item)
 	}
 
-	auction_set := make([]BlizzardApi.Auction, 0)
+	var auction_set []BlizzardApi.Auction
 	for _, auction := range ah.Auctions {
 		found_item, found_bonus := false, false
 		if auction.Item.Id == item_id {

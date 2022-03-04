@@ -22,7 +22,7 @@ func main() {
 
 	uri := environment_variables.REDIS_URL
 
-	ctx := context.Background()
+	ctx, cancelContext := context.WithCancel(context.Background())
 
 	closeRequested := make(chan os.Signal, 1)
 	signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -38,6 +38,7 @@ func main() {
 	go func() {
 		<-closeRequested
 		running = false
+		cancelContext()
 	}()
 
 	job_error_return, err := json.Marshal(&globalTypes.ReturnError{
@@ -49,18 +50,20 @@ func main() {
 
 	for running {
 		cpclog.Debug("Trying to get job")
-		job_json, popErr := redisClient.BRPop(ctx, time.Second*30, globalTypes.CPC_JOB_QUEUE_NAME).Result()
+		job_json, popErr := redisClient.BRPop(ctx, time.Minute, globalTypes.CPC_JOB_QUEUE_NAME).Result()
 
 		cpclog.Sillyf("Got \"%v\" from json : %v.", job_json, popErr)
 
+		//go func() {
 		if len(job_json) == 0 {
-			continue
+			return
 		}
 
 		job := globalTypes.RunJob{}
 		err := json.Unmarshal([]byte(job_json[1]), &job)
 		if err != nil {
 			cpclog.Error("Error decoding job", err)
+			return
 		}
 
 		run_id := job.JobId
@@ -74,7 +77,7 @@ func main() {
 		if err != nil {
 			cpclog.Info(`Invalid item search`, err)
 			redisClient.SetEX(ctx, job_key, job_error_return, time.Hour)
-			continue
+			return
 		}
 
 		job_save, err := json.Marshal(&data.Intermediate)
@@ -83,6 +86,7 @@ func main() {
 		}
 
 		redisClient.SetEX(ctx, job_key, job_save, time.Hour)
+		//}()
 
 	}
 

@@ -56,17 +56,18 @@ func main() {
 			nameFetchTick := time.NewTicker(time.Minute * 5)
 			injestFetchTick := time.NewTicker(time.Hour * 1)
 
+			ctx, cancel := context.WithCancel(context.Background())
+
 			go func() {
 				for range nameFetchTick.C {
-					fillNames(context.Background())
+					fillNames(ctx)
 				}
 			}()
 
 			go func() {
 				for range injestFetchTick.C {
-
 					if time.Now().Hour()%3 == 0 {
-						job(context.Background(), true)
+						job(ctx, true)
 					}
 				}
 			}()
@@ -75,6 +76,9 @@ func main() {
 			signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 			<-closeRequested
+			cancel()
+			nameFetchTick.Stop()
+			injestFetchTick.Stop()
 			cpclog.Info("Shutting down")
 
 		case "normal":

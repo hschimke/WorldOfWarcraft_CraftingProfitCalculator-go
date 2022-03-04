@@ -16,3 +16,7 @@
 
 # Helpful .env files
 .env*
+
+cmd/WorldOfWarcraft_CraftingProfitCalculator-go/formatted_output
+cmd/WorldOfWarcraft_CraftingProfitCalculator-go/intermediate_output.json
+cmd/WorldOfWarcraft_CraftingProfitCalculator-go/raw_output.json

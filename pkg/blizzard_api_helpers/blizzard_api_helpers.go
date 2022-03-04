@@ -554,15 +554,16 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 					region := region
 					go func() {
 						defer buildCLSkillTierWG.Done()
-						data := buildCyclicLinkforSkillTier(st, profession, region)
+						data, new_count := buildCyclicLinkforSkillTier(st, profession, region)
 						appendMutex.Lock()
 						return_data.ret = append(return_data.ret, data...)
+						counter += int(new_count)
 						appendMutex.Unlock()
 					}()
 				}
 				buildCLSkillTierWG.Wait()
 			}
-			cpclog.Debug("Scanned ", counter-last_count, " new recipes.")
+			cpclog.Debug("Scanned ", counter-last_count, " new recipes in ", prof.Name, ".")
 			profession_counter++
 			output <- return_data
 		}
@@ -653,38 +654,38 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 }
 
 // Check of cyclic links within a single skill tier
-func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode) SkillTierCyclicLinksBuild {
+func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode) (SkillTierCyclicLinksBuild, uint64) {
 	cache_key := fmt.Sprintf("%s::%s::%d", region, skill_tier.Name, profession.Id)
 
 	if found, err := cache_provider.CacheCheck(CYCLIC_LINK_CACHE, cache_key); err == nil && found {
 		var item SkillTierCyclicLinksBuild
 		cache_provider.CacheGet(CYCLIC_LINK_CACHE, cache_key, &item)
-		return item
+		return item, 0
 	}
-
+	var counter uint64
 	cpclog.Debug("Scanning st: ", skill_tier.Name)
 	checked_set := util.UintSet{}
 	var found_links SkillTierCyclicLinksBuild
 	skill_tier_detail, err := GetBlizSkillTierDetail(profession.Id, skill_tier.Id, region)
 	if err != nil {
-		return SkillTierCyclicLinksBuild{}
+		return SkillTierCyclicLinksBuild{}, 0
 	}
 	for _, sk_category := range skill_tier_detail.Categories {
 		for _, sk_recipe := range sk_category.Recipes {
 			recipe, err := GetBlizRecipeDetail(sk_recipe.Id, region)
 			if err != nil {
-				return SkillTierCyclicLinksBuild{}
+				return SkillTierCyclicLinksBuild{}, 0
 			}
 			if !checked_set.Has(recipe.Id) {
 				checked_set.Add(recipe.Id)
-				//counter++
+				counter++
 				if len(recipe.Reagents) == 1 {
 					// Go through them all again
 					for _, sk_recheck_category := range skill_tier_detail.Categories {
 						for _, sk_recheck_recipe := range sk_recheck_category.Recipes {
 							recheck_recipe, err := GetBlizRecipeDetail(sk_recheck_recipe.Id, region)
 							if err != nil {
-								return SkillTierCyclicLinksBuild{}
+								return SkillTierCyclicLinksBuild{}, 0
 							}
 							if len(recheck_recipe.Reagents) == 1 && !checked_set.Has(recheck_recipe.Id) {
 								r_ids := getRecipeCraftedItemID(recipe)
@@ -722,7 +723,7 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 		}
 	}
 	cache_provider.CacheSet(CYCLIC_LINK_CACHE, cache_key, found_links, cache_provider.GetStaticTimeWithShift())
-	return found_links
+	return found_links, counter
 }
 
 // Construct the blizzard namespace for a given region and type (static or dynamic)

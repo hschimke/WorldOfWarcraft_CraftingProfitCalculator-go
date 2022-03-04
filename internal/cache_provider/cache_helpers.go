@@ -5,22 +5,24 @@ import (
 	"time"
 )
 
-const DYNAMIC_TIME_BASE = 604800  //seconds 1 week
-const STATIC_TIME_BASE = 2.419e+6 //seconds 4 weeks
-const DYNAMIC_WINDOW = 259200     //seconds 3 days
-const STATIC_WINDOW = 786240      //seconds 1.3 weeks
+const DYNAMIC_TIME_BASE = time.Hour * 24 * 7                    //604800  //seconds 1 week
+const STATIC_TIME_BASE = DYNAMIC_TIME_BASE * 4                  //2.419e+6            //seconds 4 weeks
+const DYNAMIC_WINDOW = time.Hour * 24 * 3                       //259200                  //seconds 3 days
+const STATIC_WINDOW = (time.Hour * 24 * 7) + (time.Hour*24 + 3) //786240                   //seconds 1.3 weeks
 
-const COMPUTED_TIME_BASE = 259200 //seconds 3 days
-const COMPUTED_WINDOW = 46800     //seconds 13 hours
+const COMPUTED_TIME_BASE = time.Hour * 24 * 3 //259200 //seconds 3 days
+const COMPUTED_WINDOW = time.Hour * 13        //46800     //seconds 13 hours
 
 // Get a random expiration window
-func GetRandomWithWindow(base uint64, window uint64) time.Duration {
+func GetRandomWithWindow(base time.Duration, window time.Duration) time.Duration {
 	var (
 		high = base + window
 		low  = base - window
 	)
-
-	return time.Duration(time.Millisecond * time.Duration((rand.Uint64()*(high-low) + low)))
+	hms := high.Microseconds()
+	lms := low.Microseconds()
+	microsec_window := rand.Int63n(hms-lms) + lms
+	return time.Duration(time.Microsecond * time.Duration(microsec_window))
 }
 
 // Get a random expiration for a dynamic API result

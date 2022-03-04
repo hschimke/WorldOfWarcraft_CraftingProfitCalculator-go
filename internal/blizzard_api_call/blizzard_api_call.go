@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	allowed_connections_per_period = 95
-	period_reset_window            = 1
+	allowed_connections_per_period = 100
+	period_reset_window            = 2
 	base_uri                       = "api.blizzard.com"
 	max_retries                    = 15
 	sleep_seconds_between_tries    = 3
@@ -133,14 +133,18 @@ func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]
 		}
 	}
 	if wait_count > 0 {
-		cpclog.Debugf("Waited %v seconds for an available API window.", wait_count)
+		if wait_count > 10 {
+			cpclog.Debugf("Waited %v seconds for an available API window.", wait_count)
+		} else {
+			cpclog.Sillyf("Waited %v seconds for an available API window.", wait_count)
+		}
 	}
 	atomic.AddUint64(&in_use, 1)
 	built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
 	getAndFillerr := getAndFill(built_uri, region_code, data, target)
 	if getAndFillerr != nil {
 		atomic.AddUint64(&in_use, ^uint64(0))
-		cpclog.Error("issue fetching blizzard data: (https://%s.%s%s)", region_code, base_uri, uri)
+		cpclog.Errorf("issue fetching blizzard data: (https://%s.%s%s)", region_code, base_uri, uri)
 		return -1, fmt.Errorf("issue fetching blizzard data: (https://%s.%s%s)", region_code, base_uri, uri)
 	}
 	atomic.AddUint64(&in_use, ^uint64(0))

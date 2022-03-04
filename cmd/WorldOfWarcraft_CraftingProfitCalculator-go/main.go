@@ -12,7 +12,12 @@ import (
 )
 
 func main() {
-
+	//http.ListenAndServe("localhost:8080", nil)
+	//defer profile.Start(profile.ProfilePath("."), profile.CPUProfile, profile.MemProfileHeap).Stop()
+	//defer profile.Start(profile.BlockProfile).Stop()
+	//defer profile.Start(profile.MemProfileHeap).Stop()
+	//defer profile.Start(profile.MemProfileAllocs).Stop()
+	//defer profile.Start(profile.MutexProfile).Stop()
 	//allProfessions, _ := json.Marshal(globalTypes.ALL_PROFESSIONS)
 
 	fRegion := flag.String("region", "us", "Region")
@@ -66,4 +71,11 @@ func main() {
 	if runErr != nil {
 		cpclog.Error(runErr.Error())
 	}
+
+	//fl, _ := os.Create("memprof.pprof")
+	//fl2, _ := os.Create("allocs.pprof")
+	//defer fl2.Close()
+	//defer fl.Close()
+	//pprof.WriteHeapProfile(fl)
+	//pprof.Lookup("allocs").WriteTo(fl2, 0)
 }

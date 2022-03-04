@@ -3,7 +3,6 @@ package blizzard_api_call
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -16,11 +15,11 @@ import (
 )
 
 const (
-	allowed_connections_per_period = 100
-	period_reset_window            = 5
+	allowed_connections_per_period = 95
+	period_reset_window            = 1
 	base_uri                       = "api.blizzard.com"
-	max_retries                    = 10
-	sleep_seconds_between_tries    = 2
+	max_retries                    = 15
+	sleep_seconds_between_tries    = 3
 )
 
 var (
@@ -113,7 +112,7 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 
 	parseErr := json.NewDecoder(res.Body).Decode(&target)
 	if parseErr != nil {
-		fmt.Println(io.ReadAll(res.Body))
+		//fmt.Println(io.ReadAll(res.Body))
 		cpclog.Error("An error was encountered while parsing response: ", parseErr)
 		return fmt.Errorf("error parsing api response for: %s, err: %s", uri, parseErr)
 	}
@@ -140,6 +139,8 @@ func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]
 	built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
 	getAndFillerr := getAndFill(built_uri, region_code, data, target)
 	if getAndFillerr != nil {
+		atomic.AddUint64(&in_use, ^uint64(0))
+		cpclog.Error("issue fetching blizzard data: (https://%s.%s%s)", region_code, base_uri, uri)
 		return -1, fmt.Errorf("issue fetching blizzard data: (https://%s.%s%s)", region_code, base_uri, uri)
 	}
 	atomic.AddUint64(&in_use, ^uint64(0))
@@ -166,6 +167,7 @@ func GetBlizzardRawUriResponse(data map[string]string, uri string, region global
 	atomic.AddUint64(&in_use, 1)
 	getAndFillerr := getAndFill(uri, region, data, target)
 	if getAndFillerr != nil {
+		atomic.AddUint64(&in_use, ^uint64(0))
 		return -1, fmt.Errorf("issue fetching blizzard data: (%s", uri)
 	}
 

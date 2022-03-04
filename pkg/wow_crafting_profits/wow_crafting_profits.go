@@ -37,7 +37,7 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 
 	var medianErr error
 
-	var prices []float64
+	prices := make([]float64, 0, len(auction_house.Auctions)*3)
 
 	for _, auction := range auction_house.Auctions {
 		if auction.Item.Id == item_id {

@@ -261,10 +261,9 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 		}
 	}
 
-	go workerFunc(inputData, outputData)
-	go workerFunc(inputData, outputData)
-	go workerFunc(inputData, outputData)
-	go workerFunc(inputData, outputData)
+	for i := 0; i < len(character_professions); i++ {
+		go workerFunc(inputData, outputData)
+	}
 
 	for _, prof := range character_professions {
 		inputData <- iData{profession_list, prof, region, item_id, item_detail}
@@ -535,6 +534,10 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 	outputData := make(chan oData, len(profz))
 
 	workerFunc := func(input chan BlizzardApi.Profession, output chan oData) {
+		var (
+			appendMutex        sync.Mutex
+			buildCLSkillTierWG sync.WaitGroup
+		)
 		for prof := range input {
 			//var collectLinks SkillTierCyclicLinksBuild
 			return_data := oData{}
@@ -545,8 +548,19 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 				return_data.err = err
 			} else if profession.Skill_tiers != nil {
 				for _, st := range profession.Skill_tiers {
-					return_data.ret = append(return_data.ret, buildCyclicLinkforSkillTier(st, profession, region)...)
+					buildCLSkillTierWG.Add(1)
+					st := st
+					profession := profession
+					region := region
+					go func() {
+						defer buildCLSkillTierWG.Done()
+						data := buildCyclicLinkforSkillTier(st, profession, region)
+						appendMutex.Lock()
+						return_data.ret = append(return_data.ret, data...)
+						appendMutex.Unlock()
+					}()
 				}
+				buildCLSkillTierWG.Wait()
 			}
 			cpclog.Debug("Scanned ", counter-last_count, " new recipes.")
 			profession_counter++
@@ -554,10 +568,9 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 		}
 	}
 
-	go workerFunc(inputData, outputData)
-	go workerFunc(inputData, outputData)
-	go workerFunc(inputData, outputData)
-	go workerFunc(inputData, outputData)
+	for i := 0; i < len(profz); i++ {
+		go workerFunc(inputData, outputData)
+	}
 
 	for _, prof := range profz {
 		inputData <- prof

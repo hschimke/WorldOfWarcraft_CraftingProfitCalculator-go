@@ -19,7 +19,7 @@ const (
 	static_ns                            string = "static"
 	dynamic_ns                           string = "dynamic"
 	locale_us                            string = "en_US"
-	searchPageSize                       string = "600"
+	searchPageSize                       string = "1000"
 	ITEM_SEARCH_CACHE                    string = "item_search_cache"
 	CONNECTED_REALM_ID_CACHE             string = "connected_realm_data"
 	ITEM_DATA_CACHE                      string = "fetched_item_data"

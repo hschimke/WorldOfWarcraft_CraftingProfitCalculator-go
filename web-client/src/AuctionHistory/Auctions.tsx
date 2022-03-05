@@ -7,7 +7,7 @@ import { BonusListDropdown } from './BonusListDropdown';
 import { RegionSelector } from '../Shared/RegionSelector';
 import { AuctionHistoryDispatch } from './Shared';
 import { ScanRealms } from './ScanRealms';
-import {AutoCompleteBox} from '../Shared/AutoCompleteBox';
+import { AutoCompleteBox } from '../Shared/AutoCompleteBox';
 
 export interface AuctionsFormDataReducerAction {
     fieldName: string,
@@ -111,7 +111,7 @@ function Auctions(props: AuctionsProps) {
         });
     };
 
-    const handleAutoCompleteClick: (field:string,value:string) => void = (field,value) => {
+    const handleAutoCompleteClick: (field: string, value: string) => void = (field, value) => {
         if (dispatchFormUpdate !== undefined) {
             dispatchFormUpdate({ fieldName: field, value: value });
         }
@@ -349,7 +349,9 @@ function PriceChart(props: PriceChartProps) {
                 <tbody>
                     {
                         (props.rows !== undefined) &&
-                        props.rows.map(row => {
+                        props.rows?.sort((a, b) => {
+                            return a.price - b.price
+                        }).map(row => {
                             return (
                                 <tr key={row.price}>
                                     <td>

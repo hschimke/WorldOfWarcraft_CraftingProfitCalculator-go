@@ -37,7 +37,8 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 
 	var medianErr error
 
-	prices := make([]float64, 0, len(auction_house.Auctions)*3)
+	//prices := make([]float64, 0, len(auction_house.Auctions)*3)
+	prices := make(map[float64]uint64)
 
 	for _, auction := range auction_house.Auctions {
 		if auction.Item.Id == item_id {
@@ -57,11 +58,10 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 				}
 				auction_average_accumulator += foundPrice * float64(auction.Quantity)
 
-				pricesArrayHold := make([]float64, auction.Quantity)
-				for i := range pricesArrayHold {
-					pricesArrayHold[i] = foundPrice
+				if _, priceFound := prices[foundPrice]; !priceFound {
+					prices[foundPrice] = 0
 				}
-				prices = append(prices, pricesArrayHold...)
+				prices[foundPrice] = prices[foundPrice] + uint64(auction.Quantity)
 
 				auction_counter += auction.Quantity
 			}
@@ -72,7 +72,7 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 		auction_average = auction_average_accumulator / float64(auction_counter)
 	}
 
-	auctionMedian, medianErr = util.Median(prices)
+	auctionMedian, medianErr = util.MedianFromMap(prices)
 	if medianErr != nil {
 		auctionMedian = auction_high
 	}

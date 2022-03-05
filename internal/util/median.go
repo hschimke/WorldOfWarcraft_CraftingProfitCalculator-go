@@ -20,3 +20,57 @@ func Median(array []float64) (float64, error) {
 	}
 	return median, nil
 }
+
+func MedianFromMap(source map[float64]uint64) (float64, error) {
+	if len(source) == 0 {
+		return math.NaN(), fmt.Errorf("array cannot be empty")
+	}
+	sum := uint64(0)
+	for _, value := range source {
+		sum += value
+	}
+	useMiddle := sum%2 != 0
+
+	var returnValue float64
+
+	if useMiddle {
+		target1 := sum/2 - 1
+		target2 := sum/2 + 1
+
+		pickup1 := float64(0)
+		pickup2 := float64(0)
+
+		found1 := false
+		found2 := false
+
+		runningTotal := uint64(0)
+		for key, value := range source {
+			runningTotal += value
+			if runningTotal >= target1 {
+				pickup1 = key
+				found1 = true
+			}
+			if runningTotal >= target2 {
+				pickup2 = key
+				found2 = true
+			}
+			if found1 && found2 {
+				returnValue = (pickup1 + pickup2) / 2
+				break
+			}
+		}
+	} else {
+		target := sum / 2
+
+		runningTotal := uint64(0)
+		for key, value := range source {
+			runningTotal += value
+			if runningTotal >= target {
+				returnValue = key
+				break
+			}
+		}
+	}
+
+	return returnValue, nil
+}

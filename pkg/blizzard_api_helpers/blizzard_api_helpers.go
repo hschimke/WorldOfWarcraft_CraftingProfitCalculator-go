@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
@@ -18,7 +19,7 @@ const (
 	static_ns                            string = "static"
 	dynamic_ns                           string = "dynamic"
 	locale_us                            string = "en_US"
-	searchPageSize                       string = "1000"
+	searchPageSize                       string = "600"
 	ITEM_SEARCH_CACHE                    string = "item_search_cache"
 	CONNECTED_REALM_ID_CACHE             string = "connected_realm_data"
 	ITEM_DATA_CACHE                      string = "fetched_item_data"
@@ -522,8 +523,8 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 		profz = append(profz, profDetail)
 	}
 
-	counter := 0
-	profession_counter := 0
+	counter := uint64(0)
+	profession_counter := int64(0)
 
 	type oData struct {
 		ret SkillTierCyclicLinksBuild
@@ -541,7 +542,7 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 		for prof := range input {
 			//var collectLinks SkillTierCyclicLinksBuild
 			return_data := oData{}
-			last_count := counter
+			last_count := atomic.LoadUint64(&counter)
 			cpclog.Debug("Scanning profession: ", prof.Name, " for cyclic relationships.")
 			profession, err := GetBlizProfessionDetail(prof.Id, region)
 			if err != nil {
@@ -557,14 +558,14 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 						data, new_count := buildCyclicLinkforSkillTier(st, profession, region)
 						appendMutex.Lock()
 						return_data.ret = append(return_data.ret, data...)
-						counter += int(new_count)
+						atomic.AddUint64(&counter, new_count)
 						appendMutex.Unlock()
 					}()
 				}
 				buildCLSkillTierWG.Wait()
 			}
-			cpclog.Debug("Scanned ", counter-last_count, " new recipes in ", prof.Name, ".")
-			profession_counter++
+			cpclog.Debug("Scanned ", atomic.LoadUint64(&counter)-last_count, " new recipes in ", prof.Name, ".")
+			atomic.AddInt64(&profession_counter, 1)
 			output <- return_data
 		}
 	}
@@ -593,7 +594,7 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 		return globalTypes.SkillTierCyclicLinks{}, errors[0]
 	}
 
-	cpclog.Debug("Scanned ", counter, " recipes in ", profession_counter, " professions")
+	cpclog.Debug("Scanned ", counter, " recipes in ", atomic.LoadInt64(&profession_counter), " professions")
 
 	link_lookup := make(globalTypes.SkillTierCyclicLinks)
 

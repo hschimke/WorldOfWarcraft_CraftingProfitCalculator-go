@@ -55,7 +55,6 @@ func init() {
 	httpClient = &http.Client{
 		Timeout: 20 * time.Second,
 		Transport: &http.Transport{
-			ForceAttemptHTTP2:  true,
 			DisableCompression: false,
 		},
 	}

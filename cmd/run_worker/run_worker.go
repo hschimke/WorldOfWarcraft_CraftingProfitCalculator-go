@@ -54,39 +54,39 @@ func main() {
 
 		cpclog.Sillyf("Got \"%v\" from json : %v.", job_json, popErr)
 
-		//go func() {
-		if len(job_json) == 0 {
-			return
-		}
+		go func() {
+			if len(job_json) == 0 {
+				return
+			}
 
-		job := globalTypes.RunJob{}
-		err := json.Unmarshal([]byte(job_json[1]), &job)
-		if err != nil {
-			cpclog.Error("Error decoding job", err)
-			return
-		}
+			job := globalTypes.RunJob{}
+			err := json.Unmarshal([]byte(job_json[1]), &job)
+			if err != nil {
+				cpclog.Error("Error decoding job", err)
+				return
+			}
 
-		run_id := job.JobId
-		run_config := job.JobConfig
+			run_id := job.JobId
+			run_config := job.JobConfig
 
-		cpclog.Infof(`Got new job with id %d -> %v`, run_id, run_config)
-		config := globalTypes.NewRunConfig(&run_config.AddonData, run_config.Item, run_config.Count)
-		job_key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, run_id)
+			cpclog.Infof(`Got new job with id %d -> %v`, run_id, run_config)
+			config := globalTypes.NewRunConfig(&run_config.AddonData, run_config.Item, run_config.Count)
+			job_key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, run_id)
 
-		data, err := wow_crafting_profits.RunWithJSONConfig(config)
-		if err != nil {
-			cpclog.Info(`Invalid item search`, err)
-			redisClient.SetEX(ctx, job_key, job_error_return, time.Hour)
-			return
-		}
+			data, err := wow_crafting_profits.RunWithJSONConfig(config)
+			if err != nil {
+				cpclog.Info(`Invalid item search`, err)
+				redisClient.SetEX(ctx, job_key, job_error_return, time.Hour)
+				return
+			}
 
-		job_save, err := json.Marshal(&data)
-		if err != nil {
-			cpclog.Error("Issue marshaling js ", err)
-		}
+			job_save, err := json.Marshal(&data)
+			if err != nil {
+				cpclog.Error("Issue marshaling js ", err)
+			}
 
-		redisClient.SetEX(ctx, job_key, job_save, time.Hour)
-		//}()
+			redisClient.SetEX(ctx, job_key, job_save, time.Hour)
+		}()
 
 	}
 

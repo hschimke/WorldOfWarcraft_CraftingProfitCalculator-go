@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	allowed_connections_per_period = 50
+	allowed_connections_per_period = 25
 	period_reset_window            = 1
 	base_uri                       = "api.blizzard.com"
 	max_retries                    = 15

@@ -24,60 +24,60 @@ type SkillTierCyclicLinks map[uint][]struct {
 }
 
 type OutputFormatPrice struct {
-	Sales   uint    `json:"sales,omitempty"`
-	High    float64 `json:"high,omitempty"`
-	Low     float64 `json:"low,omitempty"`
-	Average float64 `json:"average,omitempty"`
-	Median  float64 `json:"median,omitempty"`
+	Sales   uint    `json:"sales"`
+	High    float64 `json:"high"`
+	Low     float64 `json:"low"`
+	Average float64 `json:"average"`
+	Median  float64 `json:"median"`
 }
 
 type ShoppingListCost struct {
-	Vendor float64           `json:"vendor,omitempty"`
-	Ah     OutputFormatPrice `json:"ah,omitempty"`
+	Vendor float64           `json:"vendor"`
+	Ah     OutputFormatPrice `json:"ah"`
 }
 
 type ShoppingList struct {
-	Quantity float64          `json:"quantity,omitempty"`
-	Id       ItemID           `json:"id,omitempty"`
-	Name     ItemName         `json:"name,omitempty"`
-	Cost     ShoppingListCost `json:"cost,omitempty"`
+	Quantity float64          `json:"quantity"`
+	Id       ItemID           `json:"id"`
+	Name     ItemName         `json:"name"`
+	Cost     ShoppingListCost `json:"cost"`
 }
 
 type OutputFormatShoppingList = map[uint][]ShoppingList
 
 type OutpoutFormatRecipeOutput struct {
-	Min   float64 `json:"min,omitempty"`
-	Max   float64 `json:"max,omitempty"`
-	Value float64 `json:"value,omitempty"`
+	Min   float64 `json:"min"`
+	Max   float64 `json:"max"`
+	Value float64 `json:"value"`
 }
 
 type OutputFormatRecipe struct {
-	Name    string                    `json:"name,omitempty"`
-	Rank    uint                      `json:"rank,omitempty"`
-	Id      uint                      `json:"id,omitempty"`
-	Output  OutpoutFormatRecipeOutput `json:"output,omitempty"`
-	Ah      OutputFormatPrice         `json:"ah,omitempty"`
-	High    float64                   `json:"high,omitempty"`
-	Low     float64                   `json:"low,omitempty"`
-	Average float64                   `json:"average,omitempty"`
-	Median  float64                   `json:"median,omitempty"`
-	Parts   []OutputFormatObject      `json:"parts,omitempty"`
+	Name    string                    `json:"name"`
+	Rank    uint                      `json:"rank"`
+	Id      uint                      `json:"id"`
+	Output  OutpoutFormatRecipeOutput `json:"output"`
+	Ah      OutputFormatPrice         `json:"ah"`
+	High    float64                   `json:"high"`
+	Low     float64                   `json:"low"`
+	Average float64                   `json:"average"`
+	Median  float64                   `json:"median"`
+	Parts   []OutputFormatObject      `json:"parts"`
 }
 
 type OutputFormatBonusPrices struct {
-	Level uint              `json:"level,omitempty"`
-	Ah    OutputFormatPrice `json:"ah,omitempty"`
+	Level uint              `json:"level"`
+	Ah    OutputFormatPrice `json:"ah"`
 }
 
 type OutputFormatObject struct {
-	Name           string                    `json:"name,omitempty"`
-	Id             uint                      `json:"id,omitempty"`
-	Required       float64                   `json:"required,omitempty"`
+	Name           string                    `json:"name"`
+	Id             uint                      `json:"id"`
+	Required       float64                   `json:"required"`
 	Recipes        []OutputFormatRecipe      `json:"recipes"`
-	Ah             OutputFormatPrice         `json:"ah,omitempty"`
-	Vendor         float64                   `json:"vendor,omitempty"`
-	Bonus_prices   []OutputFormatBonusPrices `json:"bonus_prices,omitempty"`
-	Shopping_lists OutputFormatShoppingList  `json:"shopping_lists,omitempty"`
+	Ah             OutputFormatPrice         `json:"ah"`
+	Vendor         float64                   `json:"vendor"`
+	Bonus_prices   []OutputFormatBonusPrices `json:"bonus_prices"`
+	Shopping_lists OutputFormatShoppingList  `json:"shopping_lists"`
 }
 
 type AHItemPriceObject struct {
@@ -114,7 +114,7 @@ type ProfitAnalysisObject struct {
 }
 
 type RunReturn struct {
-	Price        ProfitAnalysisObject `json:"-"`
+	Price        ProfitAnalysisObject `json:"price,omitempty"`
 	Intermediate OutputFormatObject   `json:"intermediate,omitempty"`
 	Formatted    string               `json:"formatted,omitempty"`
 }

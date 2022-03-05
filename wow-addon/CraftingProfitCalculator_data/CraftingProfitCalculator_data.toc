@@ -1,4 +1,4 @@
-## Interface: 90002
+## Interface: 90200
 ## Title: CraftingProfitCalculator_data
 ## Notes: Constructs CraftingProfitCalculator export strings
 ## Author: hschimke

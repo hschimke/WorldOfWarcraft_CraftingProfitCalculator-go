@@ -28,10 +28,11 @@ type GetAllBonusesReturn struct {
 }
 
 type AuctionPriceSummaryRecord struct {
-	Data     []SalesCountSummary `json:"data,omitempty"`
-	MinValue uint                `json:"min_value,omitempty"`
-	MaxValue uint                `json:"max_value,omitempty"`
-	AvgValue float64             `json:"avg_value,omitempty"`
+	Data        []SalesCountSummary `json:"data,omitempty"`
+	MinValue    uint                `json:"min_value,omitempty"`
+	MaxValue    uint                `json:"max_value,omitempty"`
+	AvgValue    float64             `json:"avg_value,omitempty"`
+	MedianValue float64             `json:"med_value,omitempty"`
 }
 
 type SalesCountSummary struct {
@@ -44,14 +45,16 @@ type AuctionSummaryData struct {
 	Min      uint                                    `json:"min,omitempty"`
 	Max      uint                                    `json:"max,omitempty"`
 	Avg      float64                                 `json:"avg,omitempty"`
+	Med      float64                                 `json:"med,omitempty"`
 	Latest   time.Time                               `json:"latest,omitempty"`
 	PriceMap map[time.Time]AuctionPriceSummaryRecord `json:"price_map,omitempty"`
 	Archives []struct {
-		Timestamp time.Time           `json:"timestamp,omitempty"`
-		Data      []SalesCountSummary `json:"data,omitempty"`
-		MinValue  uint                `json:"min_value,omitempty"`
-		MaxValue  uint                `json:"max_value,omitempty"`
-		AvgValue  float64             `json:"avg_value,omitempty"`
+		Timestamp   time.Time           `json:"timestamp,omitempty"`
+		Data        []SalesCountSummary `json:"data,omitempty"`
+		MinValue    uint                `json:"min_value,omitempty"`
+		MaxValue    uint                `json:"max_value,omitempty"`
+		AvgValue    float64             `json:"avg_value,omitempty"`
+		MedianValue float64             `json:"median_value,omitempty"`
 	} `json:"archives"`
 }
 

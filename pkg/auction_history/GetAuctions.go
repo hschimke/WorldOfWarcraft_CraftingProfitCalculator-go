@@ -175,6 +175,8 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	}
 	defer prcMapRows.Close()
 
+	overallMedianMap := make(map[float64]uint64)
+
 	for prcMapRows.Next() {
 		var (
 			scSum      SalesCountSummary
@@ -184,6 +186,25 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 		hldPDBD := price_data_by_download[downloaded]
 		hldPDBD.Data = append(hldPDBD.Data, scSum)
 		price_data_by_download[downloaded] = hldPDBD
+
+		if _, present := overallMedianMap[float64(scSum.Price)]; !present {
+			overallMedianMap[float64(scSum.Price)] = 0
+		}
+		overallMedianMap[float64(scSum.Price)] = overallMedianMap[float64(scSum.Price)] + uint64(scSum.QuantityAtPrice)
+	}
+
+	for key, value := range price_data_by_download {
+		vHld := value
+		medianMap := make(map[float64]uint64)
+		for _, item := range value.Data {
+			medianMap[float64(item.Price)] = uint64(item.QuantityAtPrice)
+		}
+		if median, medianErr := util.MedianFromMap(medianMap); medianErr != nil {
+			vHld.MedianValue = 0
+		} else {
+			vHld.MedianValue = median
+		}
+		price_data_by_download[key] = vHld
 	}
 
 	var return_value AuctionSummaryData
@@ -210,16 +231,30 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 		if spotSummary.MaxValue > return_value.Max {
 			return_value.Max = spotSummary.MaxValue
 		}
+
+		for _, value := range spotSummary.Data {
+			if _, present := overallMedianMap[float64(value.Price)]; !present {
+				overallMedianMap[float64(value.Price)] = 0
+			}
+			overallMedianMap[float64(value.Price)] = overallMedianMap[float64(value.Price)] + uint64(value.QuantityAtPrice)
+		}
 	} else {
 		return_value.Latest = latest_dl_value
 	}
 
+	if median, medianErr := util.MedianFromMap(overallMedianMap); medianErr != nil {
+		return_value.Med = 0
+	} else {
+		return_value.Med = median
+	}
+
 	return_value.Archives = make([]struct {
-		Timestamp time.Time           `json:"timestamp,omitempty"`
-		Data      []SalesCountSummary `json:"data,omitempty"`
-		MinValue  uint                `json:"min_value,omitempty"`
-		MaxValue  uint                `json:"max_value,omitempty"`
-		AvgValue  float64             `json:"avg_value,omitempty"`
+		Timestamp   time.Time           "json:\"timestamp,omitempty\""
+		Data        []SalesCountSummary "json:\"data,omitempty\""
+		MinValue    uint                "json:\"min_value,omitempty\""
+		MaxValue    uint                "json:\"max_value,omitempty\""
+		AvgValue    float64             "json:\"avg_value,omitempty\""
+		MedianValue float64             "json:\"median_value,omitempty\""
 	}, 0)
 
 	return return_value, nil
@@ -321,6 +356,8 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 		price_map[price] = pmh
 	}
 
+	medianCollect := make(map[float64]uint64)
+
 	return_value.AvgValue = float64(total_price) / float64(total_sales)
 	for price, price_lu := range price_map {
 		//const p_lookup = Number(price);
@@ -329,6 +366,13 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 			QuantityAtPrice: price_lu.Quantity,
 			SalesAtPrice:    price_lu.Sales,
 		})
+		medianCollect[float64(price)] = uint64(price_lu.Quantity)
+	}
+
+	if median, medErr := util.MedianFromMap(medianCollect); medErr != nil {
+		return_value.MedianValue = 0
+	} else {
+		return_value.MedianValue = median
 	}
 
 	return return_value, nil

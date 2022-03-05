@@ -217,8 +217,8 @@ function AuctionReturnDisplay({ resource }: { resource: AuctionSummaryDataRespon
             <div className="DataReturnDisplay">
                 {(data !== undefined) &&
                     <span>
-                        <PriceSummary title="Current Spot" high={data.price_map[data.latest].max_value} low={data.price_map[data.latest].min_value} average={data.price_map[data.latest].avg_value} />
-                        <PriceSummary title="Historical" high={data.max} low={data.min} average={data.avg} />
+                        <PriceSummary title="Current Spot" high={data.price_map[data.latest].max_value} low={data.price_map[data.latest].min_value} average={data.price_map[data.latest].avg_value} med={data.price_map[data.latest].med_value} />
+                        <PriceSummary title="Historical" high={data.max} low={data.min} average={data.avg} med={data.med} />
                         <PriceChart title="Current Breakdown" rows={data.price_map[data.latest].data} />
                     </span>
                 }
@@ -299,7 +299,8 @@ export interface PriceSummaryProps {
     title: string,
     high: number,
     average: number,
-    low: number
+    low: number,
+    med: number
 }
 
 function PriceSummary(props: PriceSummaryProps) {
@@ -317,6 +318,10 @@ function PriceSummary(props: PriceSummaryProps) {
             <div>
                 <span className="PriceSummarySection">Low:</span>
                 <GoldFormatter raw_price={props.low} />
+            </div>
+            <div>
+                <span className="PriceSummarySection">Median:</span>
+                <GoldFormatter raw_price={props.med} />
             </div>
         </div>
     );

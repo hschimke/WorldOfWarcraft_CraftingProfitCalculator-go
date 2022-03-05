@@ -29,7 +29,8 @@ interface AuctionPriceSummaryRecord {
     data?: SalesCountSummaryPrice[],
     min_value: number,
     max_value: number,
-    avg_value: number
+    avg_value: number,
+    med_value: number
 }
 
 interface SalesCountSummary {
@@ -45,6 +46,7 @@ interface AuctionSummaryData {
     min: number;
     max: number;
     avg: number;
+    med: number;
     latest: number;
     price_map: Record<string | number, AuctionPriceSummaryRecord>;
     archives: {

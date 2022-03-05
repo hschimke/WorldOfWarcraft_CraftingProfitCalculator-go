@@ -46,11 +46,11 @@ func MedianFromMap(source map[float64]uint64) (float64, error) {
 		runningTotal := uint64(0)
 		for key, value := range source {
 			runningTotal += value
-			if runningTotal >= target1 {
+			if runningTotal >= target1 && !found1 {
 				pickup1 = key
 				found1 = true
 			}
-			if runningTotal >= target2 {
+			if runningTotal >= target2 && !found2 {
 				pickup2 = key
 				found2 = true
 			}

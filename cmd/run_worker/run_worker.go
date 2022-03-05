@@ -80,7 +80,7 @@ func main() {
 			return
 		}
 
-		job_save, err := json.Marshal(&data.Intermediate)
+		job_save, err := json.Marshal(&data)
 		if err != nil {
 			cpclog.Error("Issue marshaling js ", err)
 		}

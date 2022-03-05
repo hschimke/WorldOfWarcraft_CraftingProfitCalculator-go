@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { textFriendlyOutputFormat } from '../Shared/text-output-helpers';
 import './RunResultDisplay.css';
 import { GoldFormatter, VendorItemPrice, AHItemPrice } from '../Shared/GoldFormatter';
 import { ShoppingLists } from './ShoppingLists';
@@ -167,7 +166,7 @@ function RunResultDisplay(props: RunResultDisplayProps) {
     const raw_run = props.raw_run.read();
     let res;
     if (raw_run !== undefined) {
-        res = textFriendlyOutputFormat(raw_run, 1);
+        res = raw_run.formatted
     }
     return (
         <div className="RunResultDisplay">
@@ -184,7 +183,7 @@ function RunResultDisplay(props: RunResultDisplayProps) {
                 </div>
             }
             <div className="WebResult">
-                <RunResultItem raw_run={raw_run} />
+                <RunResultItem raw_run={raw_run?.intermediate} />
             </div>
         </div>
     );
@@ -196,7 +195,7 @@ function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE){
 
     const job_id = (raw_run as any)?.job_id;
 
-    const [st, setSt] = useState(undefined as (OutputFormatObject & ServerErrorReturn) | undefined);
+    const [st, setSt] = useState(undefined as (RunReturn & ServerErrorReturn) | undefined);
 
     useEffect(() => {
         let timer = setTimeout(() => {
@@ -233,7 +232,7 @@ function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE){
 
     let res;
     if (st !== undefined) {
-        res = textFriendlyOutputFormat(st, 1);
+        res = st.formatted
     }
     return (
         <div className="RunResultDisplay">
@@ -250,7 +249,7 @@ function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE){
                 </div>
             }
             <div className="WebResult">
-                <RunResultItem raw_run={st} />
+                <RunResultItem raw_run={st?.intermediate} />
             </div>
         </div>
     );

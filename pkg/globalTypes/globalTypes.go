@@ -114,9 +114,9 @@ type ProfitAnalysisObject struct {
 }
 
 type RunReturn struct {
-	Price        ProfitAnalysisObject
-	Intermediate OutputFormatObject
-	Formatted    string
+	Price        ProfitAnalysisObject `json:"-"`
+	Intermediate OutputFormatObject   `json:"intermediate,omitempty"`
+	Formatted    string               `json:"formatted,omitempty"`
 }
 
 type ItemSoftIdentity struct {

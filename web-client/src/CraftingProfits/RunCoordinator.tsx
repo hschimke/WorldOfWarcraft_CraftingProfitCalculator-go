@@ -24,7 +24,7 @@ export interface RunCoordinatorFormDataReducerAction {
 
 export interface RunCoordinatorProps { }
 
-export type RunResultDataResponseAggregate = { read: () => OutputFormatObject & ServerErrorReturn | undefined };
+export type RunResultDataResponseAggregate = { read: () => RunReturn & ServerErrorReturn | undefined };
 export type RunResultDataResponseAggregateQUEUE = { read: () => { job_id: string } | undefined };
 
 const formDataReducer = (state: RunCoordinatorFormDataReducerState, action: RunCoordinatorFormDataReducerAction): RunCoordinatorFormDataReducerState => {

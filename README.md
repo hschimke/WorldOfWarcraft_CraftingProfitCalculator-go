@@ -73,7 +73,7 @@ To use the inventory for a character (or set of characters) when computing the s
 The AddOn provides three slash commands within World of Warcraft.
 * `/cpcr`: To run the inventory scan in the background. This should be done for each character.
 * `/cpcc`: Runs an inventory scan and outputs the json data for the currently logged in character.
-* `/cpca`: RUns an inventory scan and outputs the json data for all scanned characters.
+* `/cpca`: Runs an inventory scan and outputs the json data for all scanned characters.
 
 Once the json data is collected, it can be coppied into the web page provided by the server or into an option in the CLI program. JSON data is only refreshed when one of the above commands is written, so if a character has changed the contents of their inventory since the last run it will not be reflected.
 

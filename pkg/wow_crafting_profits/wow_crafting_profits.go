@@ -584,7 +584,7 @@ func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_
 		cpclog.Debug("Resetting inventory for rank shopping list.")
 		on_hand.ResetInventoryAdjustments()
 		shopping_list := build_shopping_list(intermediate_data, rank)
-		for _, li := range shopping_list {
+		for listIndex, li := range shopping_list {
 			needed := li.Quantity
 			available := on_hand.ItemCount(li.Id)
 
@@ -610,6 +610,8 @@ func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_
 				li.Cost.Ah.Low *= li.Quantity
 				li.Cost.Ah.Average *= float64(li.Quantity)
 			}
+
+			shopping_list[listIndex] = li
 		}
 		shopping_lists[rank] = shopping_list
 	}

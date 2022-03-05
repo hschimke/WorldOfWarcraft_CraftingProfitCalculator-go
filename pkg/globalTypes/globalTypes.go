@@ -70,14 +70,14 @@ type OutputFormatBonusPrices struct {
 }
 
 type OutputFormatObject struct {
-	Name           string                    `json:"name"`
-	Id             uint                      `json:"id"`
-	Required       float64                   `json:"required"`
+	Name           string                    `json:"name,omitempty"`
+	Id             uint                      `json:"id,omitempty"`
+	Required       float64                   `json:"required,omitempty"`
 	Recipes        []OutputFormatRecipe      `json:"recipes"`
-	Ah             OutputFormatPrice         `json:"ah"`
-	Vendor         float64                   `json:"vendor"`
-	Bonus_prices   []OutputFormatBonusPrices `json:"bonus_prices"`
-	Shopping_lists OutputFormatShoppingList  `json:"shopping_lists"`
+	Ah             OutputFormatPrice         `json:"ah,omitempty"`
+	Vendor         float64                   `json:"vendor,omitempty"`
+	Bonus_prices   []OutputFormatBonusPrices `json:"bonus_prices,omitempty"`
+	Shopping_lists OutputFormatShoppingList  `json:"shopping_lists,omitempty"`
 }
 
 type AHItemPriceObject struct {
@@ -114,7 +114,7 @@ type ProfitAnalysisObject struct {
 }
 
 type RunReturn struct {
-	Price        ProfitAnalysisObject `json:"price,omitempty"`
+	Price        ProfitAnalysisObject `json:"-,omitempty"`
 	Intermediate OutputFormatObject   `json:"intermediate,omitempty"`
 	Formatted    string               `json:"formatted,omitempty"`
 }

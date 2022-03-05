@@ -332,7 +332,11 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 				if util.ArrayContains(recipe_id_list, recipe.Recipe_id) {
 					for loc, el := range recipe_id_list {
 						if el == recipe.Recipe_id {
-							rank_level = rankings.Available_levels[rankings.Rank_mapping[loc]]
+							if loc < len(rankings.Rank_mapping) {
+								rank_level = rankings.Available_levels[rankings.Rank_mapping[loc]]
+							} else {
+								rank_level = 0
+							}
 							break
 						}
 					}

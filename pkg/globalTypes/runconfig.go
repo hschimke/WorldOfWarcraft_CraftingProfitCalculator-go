@@ -27,6 +27,8 @@ type RunConfiguration struct {
 
 func NewRunConfig(raw_configuration_data *AddonData, item ItemSoftIdentity, count uint) (new_conf *RunConfiguration) {
 	new_conf = &RunConfiguration{}
+	new_conf.internal_inventory = make(map[uint]uint)
+	new_conf.inventory_overlay = make(map[uint]int)
 	if raw_configuration_data != nil {
 		for _, item := range raw_configuration_data.Inventory {
 			new_conf.internal_inventory[item.Id] = item.Quantity

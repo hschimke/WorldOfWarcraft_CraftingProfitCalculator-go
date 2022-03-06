@@ -25,6 +25,22 @@ const (
 	sleep_seconds_between_tries    = 3
 )
 
+// Locale constants for API useage
+const (
+	ENGLISH_US          string = "en_US" // US English
+	SPANISH_MEXICO      string = "es_MX" // Spanish - Mexico
+	PORTUGUESE          string = "pt_BR" // Portuguese
+	GERMAN              string = "de_DE" // German
+	ENGLISH_GB          string = "en_GB" // English - Great Britain
+	SPANISH_SPAIN       string = "es_ES" // Spanish - Spain
+	FRENCH              string = "fr_FR" // French
+	ITALIAN             string = "it_IT" // Italian
+	RUSSIAN             string = "ru_RU" // Russian
+	KOREAN              string = "ko_KR" // Korean
+	CHINESE_TRADITIONAL string = "zh_TW" // Chinese (Traditional)
+	CHINESE_SIMPLIFIED  string = "zh_CN" // Chinese (Simplified)
+)
+
 var (
 	allowed_during_period uint64 = 0
 	in_use                uint64 = 0
@@ -75,7 +91,7 @@ func init() {
 }
 
 // Get a response from Blizzard API and fill a struct with the results
-func getAndFill(uri string, region globalTypes.RegionCode, data map[string]string, target BlizzardApi.BlizzardApiReponse) error {
+func getAndFill(uri string, region globalTypes.RegionCode, data map[string]string, namespace string, target BlizzardApi.BlizzardApiReponse) error {
 	token, tokenErr := blizz_oath.GetAuthorizationToken(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, region)
 	if tokenErr != nil {
 		return tokenErr
@@ -89,6 +105,7 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 	req.Header.Set("User-Agent", "WorldOfWarcraft_CraftingProfitCalculator-go")
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("Authorization", fmt.Sprint("Bearer ", token.Access_token))
+	req.Header.Set("Battlenet-Namespace", namespace)
 
 	queryParams := req.URL.Query()
 	for key, value := range data {
@@ -129,7 +146,7 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 	return nil
 }
 
-func getBlizzardAPIResponse(data map[string]string, uri string, region globalTypes.RegionCode, target BlizzardApi.BlizzardApiReponse) (int, error) {
+func getBlizzardAPIResponse(data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target BlizzardApi.BlizzardApiReponse) (int, error) {
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {
@@ -147,7 +164,7 @@ func getBlizzardAPIResponse(data map[string]string, uri string, region globalTyp
 		cpclog.Sillyf("Waited %v seconds for an available API window.", wait_count)
 	}
 	atomic.AddUint64(&in_use, 1)
-	getAndFillerr := getAndFill(uri, region, data, target)
+	getAndFillerr := getAndFill(uri, region, data, namespace, target)
 	if getAndFillerr != nil {
 		atomic.AddUint64(&in_use, ^uint64(0))
 		cpclog.Errorf("issue fetching blizzard data: (%s)", uri)
@@ -160,12 +177,12 @@ func getBlizzardAPIResponse(data map[string]string, uri string, region globalTyp
 }
 
 // Fetch a Blizzard API response given only the endpoint
-func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]string, uri string, target BlizzardApi.BlizzardApiReponse) (int, error) {
+func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]string, uri string, namespace string, target BlizzardApi.BlizzardApiReponse) (int, error) {
 	built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
-	return getBlizzardAPIResponse(data, built_uri, region_code, target)
+	return getBlizzardAPIResponse(data, built_uri, region_code, namespace, target)
 }
 
 // Fetch a Blizzard API response given a fully qualified URL
-func GetBlizzardRawUriResponse(data map[string]string, uri string, region globalTypes.RegionCode, target BlizzardApi.BlizzardApiReponse) (int, error) {
-	return getBlizzardAPIResponse(data, uri, region, target)
+func GetBlizzardRawUriResponse(data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target BlizzardApi.BlizzardApiReponse) (int, error) {
+	return getBlizzardAPIResponse(data, uri, region, namespace, target)
 }

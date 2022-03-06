@@ -35,9 +35,8 @@ func GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (
 	result := BlizzardApi.Item{}
 
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
-		"namespace": getNamespace(static_ns, region),
-		"locale":    locale_us,
-	}, profession_item_detail_uri, &result)
+		"locale": blizzard_api_call.ENGLISH_US,
+	}, profession_item_detail_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.Item{}, fetchErr
 	}
@@ -59,9 +58,8 @@ func GetBlizProfessionsList(region globalTypes.RegionCode) (BlizzardApi.Professi
 
 	result := BlizzardApi.ProfessionsIndex{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
-		"namespace": getNamespace(static_ns, region),
-		"locale":    locale_us,
-	}, profession_list_uri, &result)
+		"locale": blizzard_api_call.ENGLISH_US,
+	}, profession_list_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.ProfessionsIndex{}, fetchErr
 	}
@@ -82,9 +80,8 @@ func GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) 
 	profession_detail_uri := fmt.Sprintf(getBlizProfessionDetailUri, profession_id)
 	result := BlizzardApi.Profession{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
-		"namespace": getNamespace(static_ns, region),
-		"locale":    locale_us,
-	}, profession_detail_uri, &result)
+		"locale": blizzard_api_call.ENGLISH_US,
+	}, profession_detail_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.Profession{}, fetchErr
 	}
@@ -105,9 +102,8 @@ func GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID
 	connected_realm_detail_uri := fmt.Sprintf(getBlizConnectedRealmDetailUri, connected_realm_id)
 	result := BlizzardApi.ConnectedRealm{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
-		"namespace": getNamespace(dynamic_ns, region),
-		"locale":    locale_us,
-	}, connected_realm_detail_uri, &result)
+		"locale": blizzard_api_call.ENGLISH_US,
+	}, connected_realm_detail_uri, getNamespace(dynamic_ns, region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.ConnectedRealm{}, fetchErr
 	}
@@ -128,9 +124,8 @@ func GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region global
 	profession_skill_tier_detail_uri := fmt.Sprintf(getBlizSkillTierDetailUri, profession_id, skillTier_id)
 	result := BlizzardApi.ProfessionSkillTier{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
-		"namespace": getNamespace(static_ns, region),
-		"locale":    locale_us,
-	}, profession_skill_tier_detail_uri, &result)
+		"locale": blizzard_api_call.ENGLISH_US,
+	}, profession_skill_tier_detail_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.ProfessionSkillTier{}, fetchErr
 	}
@@ -151,9 +146,8 @@ func GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (Blizzar
 	profession_recipe_uri := fmt.Sprintf(getBlizRecipeDetailUri, recipe_id)
 	result := BlizzardApi.Recipe{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(region, basicDataPackage{
-		"namespace": getNamespace(static_ns, region),
-		"locale":    locale_us,
-	}, profession_recipe_uri, &result)
+		"locale": blizzard_api_call.ENGLISH_US,
+	}, profession_recipe_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.Recipe{}, fetchErr
 	}
@@ -173,9 +167,7 @@ func GetAuctionHouse(server_id globalTypes.ConnectedRealmID, server_region globa
 
 	auction_house_fetch_uri := fmt.Sprintf(getAuctionHouseUri, server_id)
 	result := BlizzardApi.Auctions{}
-	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(server_region, basicDataPackage{
-		"namespace": getNamespace(dynamic_ns, server_region),
-	}, auction_house_fetch_uri, &result)
+	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(server_region, basicDataPackage{}, auction_house_fetch_uri, getNamespace(dynamic_ns, server_region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.Auctions{}, fetchErr
 	}

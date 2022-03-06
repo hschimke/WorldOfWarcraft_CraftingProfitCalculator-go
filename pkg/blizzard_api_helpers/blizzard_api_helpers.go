@@ -18,7 +18,6 @@ const (
 	exclude_before_shadowlands           bool   = false
 	static_ns                            string = "static"
 	dynamic_ns                           string = "dynamic"
-	locale_us                            string = "en_US"
 	searchPageSize                       string = "1000"
 	ITEM_SEARCH_CACHE                    string = "item_search_cache"
 	CONNECTED_REALM_ID_CACHE             string = "connected_realm_data"
@@ -54,7 +53,7 @@ func checkPageSearchResults(page BlizzardApi.ItemSearch, itemName globalTypes.It
 	foundItemId = 0
 	found = false
 	for _, result := range page.Results {
-		if strings.EqualFold(itemName, result.Data.Name[locale_us]) {
+		if strings.EqualFold(itemName, result.Data.Name[blizzard_api_call.ENGLISH_US]) {
 			foundItemId = result.Data.Id
 			found = true
 			break
@@ -79,12 +78,11 @@ func GetItemId(region globalTypes.RegionCode, itemName globalTypes.ItemName) (gl
 
 	fetchPage := BlizzardApi.ItemSearch{}
 	_, err := blizzard_api_call.GetBlizzardAPIResponse(region, searchDataPackage{
-		"namespace":  getNamespace(static_ns, region),
-		"locale":     locale_us,
+		"locale":     blizzard_api_call.ENGLISH_US,
 		"name.en_US": itemName,
 		"orderby":    "id:desc",
 		"_pageSize":  searchPageSize,
-	}, search_api_uri, &fetchPage)
+	}, search_api_uri, getNamespace(static_ns, region), &fetchPage)
 	//current_page = fetchPage.Page
 	if err != nil && fetchPage.PageCount <= 0 {
 		return 0, fmt.Errorf("no results for %s", itemName)
@@ -101,13 +99,12 @@ func GetItemId(region globalTypes.RegionCode, itemName globalTypes.ItemName) (gl
 				cpclog.Silly("Checking page ", cp, " for ", itemName)
 				getPage := BlizzardApi.ItemSearch{}
 				_, err := blizzard_api_call.GetBlizzardAPIResponse(region, searchPageDataPackage{
-					"namespace":  getNamespace(static_ns, region),
-					"locale":     locale_us,
+					"locale":     blizzard_api_call.ENGLISH_US,
 					"name.en_US": itemName,
 					"orderby":    "id:desc",
 					"_pageSize":  searchPageSize,
 					"_page":      fmt.Sprint(cp),
-				}, search_api_uri, &getPage)
+				}, search_api_uri, getNamespace(static_ns, region), &getPage)
 				if err != nil {
 					return 0, err
 				}
@@ -134,12 +131,11 @@ func getAllConnectedRealms(region globalTypes.RegionCode) (BlizzardApi.Connected
 
 	const list_connected_realms_api string = "/data/wow/connected-realm/index"
 	list_connected_realms_form := basicDataPackage{
-		"namespace": getNamespace(dynamic_ns, region),
-		"locale":    locale_us,
+		"locale": blizzard_api_call.ENGLISH_US,
 	}
 
 	var realm_index BlizzardApi.ConnectedRealmIndex
-	_, fetchError := blizzard_api_call.GetBlizzardAPIResponse(region, list_connected_realms_form, list_connected_realms_api, &realm_index)
+	_, fetchError := blizzard_api_call.GetBlizzardAPIResponse(region, list_connected_realms_form, list_connected_realms_api, getNamespace(dynamic_ns, region), &realm_index)
 	if fetchError != nil {
 		return BlizzardApi.ConnectedRealmIndex{}, fetchError
 	}
@@ -158,8 +154,7 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 	}
 
 	get_connected_realm_form := basicDataPackage{
-		"namespace": getNamespace(dynamic_ns, server_region),
-		"locale":    locale_us,
+		"locale": blizzard_api_call.ENGLISH_US,
 	}
 
 	realm_id := globalTypes.ConnectedRealmID(0)
@@ -174,7 +169,7 @@ func GetConnectedRealmId(server_name globalTypes.RealmName, server_region global
 	for _, realm_href := range all_connected_realms.Connected_realms {
 		hr := realm_href.Href
 		var connected_realm_detail BlizzardApi.ConnectedRealm
-		_, crErr := blizzard_api_call.GetBlizzardRawUriResponse(get_connected_realm_form, hr, server_region, &connected_realm_detail)
+		_, crErr := blizzard_api_call.GetBlizzardRawUriResponse(get_connected_realm_form, hr, server_region, getNamespace(dynamic_ns, server_region), &connected_realm_detail)
 		if crErr != nil {
 			return globalTypes.ConnectedRealmID(0), crErr
 		}
@@ -744,8 +739,7 @@ func GetAllRealmNames(region globalTypes.RegionCode) []string {
 	}
 
 	get_connected_realm_form := basicDataPackage{
-		"namespace": getNamespace(dynamic_ns, region),
-		"locale":    locale_us,
+		"locale": blizzard_api_call.ENGLISH_US,
 	}
 
 	// Get a list of all connected realms
@@ -758,7 +752,7 @@ func GetAllRealmNames(region globalTypes.RegionCode) []string {
 	for _, realm_href := range all_connected_realms.Connected_realms {
 		hr := realm_href.Href
 		var connected_realm_detail BlizzardApi.ConnectedRealm
-		_, crErr := blizzard_api_call.GetBlizzardRawUriResponse(get_connected_realm_form, hr, region, &connected_realm_detail)
+		_, crErr := blizzard_api_call.GetBlizzardRawUriResponse(get_connected_realm_form, hr, region, getNamespace(dynamic_ns, region), &connected_realm_detail)
 		if crErr != nil {
 			return realmNames
 		}

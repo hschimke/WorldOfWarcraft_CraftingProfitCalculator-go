@@ -25,9 +25,9 @@ func main() {
 	fProfession := flag.String("profession", "[]", "Profession")
 	//fProfession := flag.String("profession", "[\"Tailoring\", \"Enchanting\"]", "Profession")
 	//fItem := flag.String("item", "171276", "Item")
-	//fItem := flag.String("item", "Grim-Veiled Bracers", "Item")
 	fItem := flag.String("item", "Grim-Veiled Bracers", "Item")
 	//fItem := flag.String("item", "Crafter's Mark of the First Ones", "Item")
+	//fItem := flag.String("item", "Notorious Combatant's Mail Waistguard", "Item")
 	fCount := flag.Uint("count", 1, "How many of the main item to build")
 	fJsonData := flag.String("json_data", "", "JSON configuration data")
 	fUseJsonFlag := flag.Bool("json", false, "Use JSON to configure region, realm, and professions")
@@ -38,15 +38,12 @@ func main() {
 	var character_config_json globalTypes.AddonData
 
 	err := json.Unmarshal([]byte(*fJsonData), &character_config_json)
+	//err := json.Unmarshal([]byte(testJson), &character_config_json)
 	if err != nil {
-		fmt.Print("JSON character input cannot be parsed.")
+		fmt.Printf("JSON character input cannot be parsed: %v", err)
 	}
 
 	if !(*fUseJsonFlag) {
-		/*character_config_json.Inventory = make([]struct {
-			Id       uint `json:"id,omitempty"`
-			Quantity uint `json:"quantity,omitempty"`
-		}, 0)*/
 		err := json.Unmarshal([]byte(*fProfession), &(character_config_json.Professions))
 		if err != nil {
 			cpclog.Error(err.Error())

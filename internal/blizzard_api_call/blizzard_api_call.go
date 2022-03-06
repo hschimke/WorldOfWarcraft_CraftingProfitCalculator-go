@@ -123,7 +123,7 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 	for attempt := 0; attempt < max_retries; attempt++ {
 		res, getErr = httpClient.Do(req)
 		if getErr != nil {
-			cpclog.Errorf("Failure fetching uri, will retry %d more times. (%v)", max_retries-attempt, getErr)
+			cpclog.Debugf("Failure fetching uri, will retry %d more times. (%v)", max_retries-attempt, getErr)
 			time.Sleep(time.Second * sleep_seconds_between_tries)
 		} else {
 			break

@@ -106,6 +106,8 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("Authorization", fmt.Sprint("Bearer ", token.Access_token))
 	req.Header.Set("Battlenet-Namespace", namespace)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Keep-Alive", "timeout=3600")
 
 	queryParams := req.URL.Query()
 	for key, value := range data {

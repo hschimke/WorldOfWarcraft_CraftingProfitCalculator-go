@@ -41,8 +41,8 @@ func MedianFromMap(source map[float64]uint64) (float64, error) {
 	sort.Float64s(keys)
 
 	if useMiddle {
-		target1 := sum/2 - 1
-		target2 := sum / 2
+		target1 := sum / 2
+		target2 := sum/2 + 1
 
 		pickup1 := float64(0)
 		pickup2 := float64(0)

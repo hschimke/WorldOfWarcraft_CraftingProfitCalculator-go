@@ -188,7 +188,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	bonuses_cache := *bonus_cache_ptr
 
 	cpclog.Debugf(`Regurning bonus lists for %s`, data.Item)
-	var ilvl_adjusts, socket_adjusts, quality_adjusts, unknown_adjusts util.StringSet
+	var ilvl_adjusts, socket_adjusts, quality_adjusts, unknown_adjusts util.Set[string]
 	found_empty_bonuses := false
 
 	b_array := make([]mapped, 0)

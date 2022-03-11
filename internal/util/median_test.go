@@ -121,7 +121,7 @@ func TestMedianFromMap(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "one",
+			name: "two",
 			args: args{
 				source: map[float64]uint64{
 					5: 5,

@@ -6,7 +6,7 @@ import (
 )
 
 // Filter an array or arrays to an array of unique arrays
-func FilterArrayToSetDouble(array [][]uint) (result [][]uint) {
+func FilterArrayToSetDouble[T comparable](array [][]T) (result [][]T) {
 	hld := make(map[string]bool)
 	for _, element := range array {
 		srch := fmt.Sprint(element)
@@ -19,8 +19,8 @@ func FilterArrayToSetDouble(array [][]uint) (result [][]uint) {
 }
 
 // Filter an array to a set
-func FilterArrayToSet(array []uint) (result []uint) {
-	hld := make(map[uint]bool)
+func FilterArrayToSet[T comparable](array []T) (result []T) {
+	hld := make(map[T]bool)
 	for _, element := range array {
 		if _, present := hld[element]; !present {
 			hld[element] = true
@@ -31,7 +31,7 @@ func FilterArrayToSet(array []uint) (result []uint) {
 }
 
 // Flatten an array of arrays of uints to an array of uints
-func FlattenArray(array [][]uint) (return_array []uint) {
+func FlattenArray[T comparable](array [][]T) (return_array []T) {
 	//return_array = make([]uint, 0)
 	for _, sub_array := range array {
 		return_array = append(return_array, sub_array...)
@@ -40,7 +40,7 @@ func FlattenArray(array [][]uint) (return_array []uint) {
 }
 
 // Check if an array of uints contains a given uing
-func ArrayContains(array []uint, search uint) (found bool) {
+func ArrayContains[T comparable](array []T, search T) (found bool) {
 	found = false
 	for _, item := range array {
 		if item == search {
@@ -62,7 +62,7 @@ func ParseStringArrayToUint(array []string) []uint {
 }
 
 // SliceEqual checks that two slices are exactly equal, including order
-func SlicesEqual(slice1 []uint, slice2 []uint) bool {
+func SlicesEqual[T comparable](slice1 []T, slice2 []T) bool {
 	found := true
 	if len(slice1) != len(slice2) {
 		return false
@@ -74,11 +74,11 @@ func SlicesEqual(slice1 []uint, slice2 []uint) bool {
 }
 
 // Check if a uint slice contains a value
-func UintSliceHas(arr []uint, value uint) (found bool) {
+func UintSliceHas[T comparable](arr []T, value T) (found bool) {
 	return ArrayContains(arr, value)
 }
 
 // Check if an array includes a value
-func ArrayIncludes(array []uint, search uint) bool {
+func ArrayIncludes[T comparable](array []T, search T) bool {
 	return ArrayContains(array, search)
 }

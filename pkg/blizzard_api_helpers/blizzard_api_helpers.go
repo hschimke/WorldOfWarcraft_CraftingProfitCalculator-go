@@ -660,7 +660,7 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 	}
 	var counter uint64
 	cpclog.Debug("Scanning st: ", skill_tier.Name)
-	checked_set := util.UintSet{}
+	var checked_set util.Set[uint]
 	var found_links SkillTierCyclicLinksBuild
 	skill_tier_detail, err := GetBlizSkillTierDetail(profession.Id, skill_tier.Id, region)
 	if err != nil {

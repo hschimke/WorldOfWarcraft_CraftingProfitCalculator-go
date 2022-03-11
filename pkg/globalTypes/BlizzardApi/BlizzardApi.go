@@ -110,4 +110,6 @@ type Auctions struct {
 	Auctions []Auction `json:"auctions,omitempty"`
 }
 
-type BlizzardApiReponse interface{}
+type BlizzardApiReponse interface {
+	Auctions | Recipe | ProfessionSkillTier | Profession | ProfessionsIndex | Item | ConnectedRealm | ConnectedRealmIndex | ItemSearch
+}

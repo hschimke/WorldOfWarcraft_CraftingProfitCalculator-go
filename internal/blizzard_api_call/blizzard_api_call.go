@@ -91,7 +91,7 @@ func init() {
 }
 
 // Get a response from Blizzard API and fill a struct with the results
-func getAndFill(uri string, region globalTypes.RegionCode, data map[string]string, namespace string, target BlizzardApi.BlizzardApiReponse) error {
+func getAndFill[T BlizzardApi.BlizzardApiReponse](uri string, region globalTypes.RegionCode, data map[string]string, namespace string, target *T) error {
 	token, tokenErr := blizz_oath.GetAuthorizationToken(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, region)
 	if tokenErr != nil {
 		return tokenErr
@@ -148,7 +148,7 @@ func getAndFill(uri string, region globalTypes.RegionCode, data map[string]strin
 	return nil
 }
 
-func getBlizzardAPIResponse(data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target BlizzardApi.BlizzardApiReponse) (int, error) {
+func getBlizzardAPIResponse[T BlizzardApi.BlizzardApiReponse](data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target *T) (int, error) {
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {
@@ -179,12 +179,12 @@ func getBlizzardAPIResponse(data map[string]string, uri string, region globalTyp
 }
 
 // Fetch a Blizzard API response given only the endpoint
-func GetBlizzardAPIResponse(region_code globalTypes.RegionCode, data map[string]string, uri string, namespace string, target BlizzardApi.BlizzardApiReponse) (int, error) {
+func GetBlizzardAPIResponse[T BlizzardApi.BlizzardApiReponse](region_code globalTypes.RegionCode, data map[string]string, uri string, namespace string, target *T) (int, error) {
 	built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
 	return getBlizzardAPIResponse(data, built_uri, region_code, namespace, target)
 }
 
 // Fetch a Blizzard API response given a fully qualified URL
-func GetBlizzardRawUriResponse(data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target BlizzardApi.BlizzardApiReponse) (int, error) {
+func GetBlizzardRawUriResponse[T BlizzardApi.BlizzardApiReponse](data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target *T) (int, error) {
 	return getBlizzardAPIResponse(data, uri, region, namespace, target)
 }

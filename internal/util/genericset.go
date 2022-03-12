@@ -35,3 +35,11 @@ func (s *Set[comparable]) ToArray() []comparable {
 	}
 	return return_list
 }
+
+func SetFromSlice[T comparable](source []T) *Set[T] {
+	var set Set[T]
+	for _, val := range source {
+		set.Add(val)
+	}
+	return &set
+}

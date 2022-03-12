@@ -27,7 +27,7 @@ func FilterArrayToSet[T comparable](array []T) (result []T) {
 			result = append(result, element)
 		}
 	}
-	return
+	return result
 }
 
 // Flatten an array of arrays of uints to an array of uints

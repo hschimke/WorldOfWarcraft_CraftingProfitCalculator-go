@@ -45,8 +45,12 @@ type ShoppingRecipeExclusionList struct {
 	Exclusions []uint
 }
 
+type staticSource interface {
+	BonusesCache | RankMappingsCache | ShoppingRecipeExclusionList
+}
+
 // load a static resource from the filesystem
-func loadStaticResource(fn string, target interface{}) error {
+func loadStaticResource[T staticSource](fn string, target *T) error {
 	file, err := os.Open(fn)
 	if err != nil {
 		return err
@@ -61,7 +65,7 @@ func loadStaticResource(fn string, target interface{}) error {
 }
 
 // load a static resource from a URI
-func fetchFromUri(uri string, target interface{}) error {
+func fetchFromUri[T staticSource](uri string, target *T) error {
 	cpclog.Debug("Downloading Bonuses from web")
 	httpClient := &http.Client{
 		Timeout: 10 * time.Second,

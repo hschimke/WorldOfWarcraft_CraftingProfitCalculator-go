@@ -21,7 +21,7 @@ func getRedisKey(namespace string, key string) string {
 }
 
 // Fetch an object from the cache, or fail
-func CacheGet(namespace string, key string, target interface{}) error {
+func CacheGet[T any](namespace string, key string, target *T) error {
 	data, getErr := redisClient.Get(ctx, getRedisKey(namespace, key)).Result()
 	if getErr != nil {
 		return getErr
@@ -34,7 +34,7 @@ func CacheGet(namespace string, key string, target interface{}) error {
 }
 
 // Set or replace an item in the cache, or fail.
-func CacheSet(namespace string, key string, data interface{}, expiration_period time.Duration) error {
+func CacheSet[T any](namespace string, key string, data T, expiration_period time.Duration) error {
 	json_data, err := json.Marshal(&data)
 	if err != nil {
 		return err

@@ -1,6 +1,7 @@
 package blizzard_api_helpers
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -216,8 +217,9 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 		return globalTypes.CraftingStatus{}, err
 	}
 
-	recipe_options := globalTypes.CraftingStatus{}
-	recipe_options.Craftable = false
+	recipe_options := globalTypes.CraftingStatus{
+		Craftable: false,
+	}
 
 	// Check if a vendor is mentioned in the item description and if so just short circuit
 	item_detail, err := GetItemDetails(item_id, region)
@@ -232,14 +234,14 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 		}
 	}
 
-	profession_result_array := make([]globalTypes.CraftingStatus, 0)
+	var profession_result_array []globalTypes.CraftingStatus
 
 	type iData struct {
-		profession_list BlizzardApi.ProfessionsIndex
-		prof            globalTypes.CharacterProfession
-		region          globalTypes.RegionCode
-		item_id         globalTypes.ItemID
-		item_detail     BlizzardApi.Item
+		profession_id uint
+		prof          globalTypes.CharacterProfession
+		region        globalTypes.RegionCode
+		item_id       globalTypes.ItemID
+		item_detail   BlizzardApi.Item
 	}
 
 	type iRet struct {
@@ -252,21 +254,25 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 
 	workerFunc := func(input chan iData, output chan iRet) {
 		for z := range input {
-			z, err := checkProfessionCrafting(z.profession_list, z.prof, z.region, z.item_id, z.item_detail)
+			z, err := checkProfessionCrafting(z.profession_id, z.prof, z.region, z.item_id, z.item_detail)
 			output <- iRet{z, err}
 		}
 	}
+
+	var errArr []error
 
 	for i := 0; i < len(character_professions); i++ {
 		go workerFunc(inputData, outputData)
 	}
 
 	for _, prof := range character_professions {
-		inputData <- iData{profession_list, prof, region, item_id, item_detail}
+		if profession_id, profErr := getProfessionId(profession_list, prof); profErr == nil {
+			inputData <- iData{profession_id, prof, region, item_id, item_detail}
+		} else {
+			errArr = append(errArr, profErr)
+		}
 	}
 	close(inputData)
-
-	var errArr []error
 
 	for job := 1; job <= len(character_professions); job++ {
 		jBr := <-outputData
@@ -277,22 +283,18 @@ func CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalT
 	}
 
 	if len(errArr) != 0 {
-		return globalTypes.CraftingStatus{}, errArr[0]
-	}
+		var str strings.Builder
 
-	/*
-		for _, prof := range character_professions {
-			z, err := checkProfessionCrafting(profession_list, prof, region, item_id, item_detail)
-			if err != nil {
-				return globalTypes.CraftingStatus{}, err
-			}
-			profession_result_array = append(profession_result_array, z)
-		}*/
+		for i, e := range errArr {
+			str.WriteString(fmt.Sprintf("error %d: %v\n", i, e))
+		}
+		return globalTypes.CraftingStatus{}, errors.New(str.String())
+	}
 
 	// collate professions
 	for _, profession_crafting_check := range profession_result_array {
-		recipe_options.Recipes = append(recipe_options.Recipes, profession_crafting_check.Recipes...)          //recipe_options.Recipes.concat(profession_crafting_check.recipes)
-		recipe_options.Recipe_ids = append(recipe_options.Recipe_ids, profession_crafting_check.Recipe_ids...) //recipe_options.Recipe_ids.concat(profession_crafting_check.recipe_ids)
+		recipe_options.Recipes = append(recipe_options.Recipes, profession_crafting_check.Recipes...)
+		recipe_options.Recipe_ids = append(recipe_options.Recipe_ids, profession_crafting_check.Recipe_ids...)
 		recipe_options.Craftable = recipe_options.Craftable || profession_crafting_check.Craftable
 	}
 
@@ -405,7 +407,7 @@ func checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.Region
 }
 
 // Check whether an item can be crafted by a given profession
-func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item) (globalTypes.CraftingStatus, error) {
+func checkProfessionCrafting(profession_id uint, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item) (globalTypes.CraftingStatus, error) {
 	cache_key := fmt.Sprintf("%s:%s:%d", region, prof, item_id)
 	if found, err := cache_provider.CacheCheck(CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key); err == nil && found {
 		item := globalTypes.CraftingStatus{}
@@ -415,13 +417,13 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 	profession_recipe_options := globalTypes.CraftingStatus{}
 	profession_recipe_options.Craftable = false
 
-	check_profession_id, err := getProfessionId(profession_list, prof)
+	/*check_profession_id, err := getProfessionId(profession_list, prof)
 	if err != nil {
 		return globalTypes.CraftingStatus{}, err
-	}
+	}*/
 
 	// Get a list of the crafting levels for the professions
-	profession_detail, err := GetBlizProfessionDetail(check_profession_id, region)
+	profession_detail, err := GetBlizProfessionDetail(profession_id, region)
 	if err != nil {
 		return globalTypes.CraftingStatus{}, err
 	}
@@ -437,7 +439,7 @@ func checkProfessionCrafting(profession_list BlizzardApi.ProfessionsIndex, prof 
 		st := tier
 		go func() {
 			defer wg.Done()
-			checkProfessionTierCrafting(st, region, item_id, check_profession_id, prof, item_detail, &profession_recipe_options, &lock)
+			checkProfessionTierCrafting(st, region, item_id, profession_id, prof, item_detail, &profession_recipe_options, &lock)
 		}()
 	}
 
@@ -470,7 +472,7 @@ func getRecipeCraftedItemID(recipe BlizzardApi.Recipe) []globalTypes.ItemID {
 		return make([]globalTypes.ItemID, 0)
 	}
 
-	return_ids := make([]globalTypes.ItemID, 0)
+	return_ids := make([]globalTypes.ItemID, 0, len(item_ids))
 	for key := range item_ids {
 		return_ids = append(return_ids, key)
 	}
@@ -509,13 +511,13 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 
 	var links SkillTierCyclicLinksBuild
 
-	var profz []BlizzardApi.Profession
+	var professionScanList []BlizzardApi.Profession
 	for _, pro := range profession_list.Professions {
 		profDetail, err := GetBlizProfessionDetail(pro.Id, region)
 		if err != nil {
 			return globalTypes.SkillTierCyclicLinks{}, err
 		}
-		profz = append(profz, profDetail)
+		professionScanList = append(professionScanList, profDetail)
 	}
 
 	counter := uint64(0)
@@ -527,7 +529,7 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 	}
 
 	inputData := make(chan BlizzardApi.Profession, 4)
-	outputData := make(chan oData, len(profz))
+	outputData := make(chan oData, len(professionScanList))
 
 	workerFunc := func(input chan BlizzardApi.Profession, output chan oData) {
 		var (
@@ -565,17 +567,17 @@ func BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTier
 		}
 	}
 
-	for i := 0; i < len(profz); i++ {
+	for i := 0; i < len(professionScanList); i++ {
 		go workerFunc(inputData, outputData)
 	}
 
-	for _, prof := range profz {
+	for _, prof := range professionScanList {
 		inputData <- prof
 	}
 	close(inputData)
 
 	var errors []error
-	for job := 1; job <= len(profz); job++ {
+	for job := 1; job <= len(professionScanList); job++ {
 		jbR := <-outputData
 		//for job := range outputData {
 		if jbR.err != nil {

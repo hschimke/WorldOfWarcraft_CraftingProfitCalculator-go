@@ -2,6 +2,7 @@ package routes
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
@@ -28,16 +29,26 @@ func Healthcheck(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Get a list of all bonus mappings
+// Get a list of all bonus mappings for a given bonus
 func BonusMappings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	bonus := r.URL.Query().Get("bonus")
+
+	if len(bonus) <= 0 {
+		http.Error(w, "bonus not found", http.StatusBadRequest)
+		return
+	}
 
 	sources, err := static_sources.GetBonuses()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
-		//		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(sources)
+		if bns, fnd := (*sources)[bonus]; fnd {
+			json.NewEncoder(w).Encode(bns)
+		} else {
+			http.Error(w, fmt.Sprintf("bonus '%s' not found", bonus), http.StatusBadRequest)
+		}
 	}
 }
 

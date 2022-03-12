@@ -20,14 +20,7 @@ func FilterArrayToSetDouble[T comparable](array [][]T) (result [][]T) {
 
 // Filter an array to a set
 func FilterArrayToSet[T comparable](array []T) (result []T) {
-	hld := make(map[T]bool)
-	for _, element := range array {
-		if _, present := hld[element]; !present {
-			hld[element] = true
-			result = append(result, element)
-		}
-	}
-	return result
+	return SetFromSlice(array).ToSlice()
 }
 
 // Flatten an array of arrays of uints to an array of uints

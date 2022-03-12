@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 )
 
 var (
@@ -32,7 +34,7 @@ func getBoolean(variable string) (result bool) {
 	default:
 		result = false
 	}
-	return
+	return result
 }
 
 // Get an environment variable with a default value
@@ -43,25 +45,15 @@ func getWithDefault(variable string, default_value string) (result string) {
 			result = val
 		}
 	}
-	return
+	return result
 }
 
 // Verify that the value in check is one of the acceptable ones available in options
 func validateFromArray(check string, options []string) (found bool) {
-	found = false
-	for _, element := range options {
-		if check == element {
-			found = true
-			break
-		}
-	}
-	return
+	return util.ArrayContains(options, check)
 }
 
 func init() {
-	//CACHE_DB_FN = os.Getenv("CACHE_DB_FN")
-
-	//HISTORY_DB_FN = os.Getenv("HISTORY_DB_FN")
 
 	USE_REDIS = getBoolean(os.Getenv("USE_REDIS"))
 
@@ -82,15 +74,7 @@ func init() {
 	}
 	LOG_LEVEL = getWithDefault("LOG_LEVEL", "info")
 
-	//NODE_ENV = getWithDefault("NODE_ENV", "development")
-
 	DISABLE_AUCTION_HISTORY = getBoolean("DISABLE_AUCTION_HISTORY")
-
-	/*tempCS, err := strconv.ParseUint(getWithDefault("CLUSTER_SIZE", "1"), 0, 64)
-	if err != nil {
-		log.Fatal("could not parse CLUSTER_SIZE from environment variable")
-	}
-	CLUSTER_SIZE = tempCS*/
 
 	tempSP, err := strconv.ParseUint(getWithDefault("SERVER_PORT", "3001"), 0, 64)
 	if err != nil {
@@ -99,7 +83,6 @@ func init() {
 	SERVER_PORT = tempSP
 
 	DATABASE_CONNECTION_STRING = os.Getenv("DATABASE_CONNECTION_STRING")
-	//DATABASE_TYPE = os.Getenv("DATABASE_TYPE")
 
 	var standaloneContainerOptions []string = []string{"normal", "hourly", "worker", "standalone"}
 	if fetched_var := getWithDefault("STANDALONE_CONTAINER", "normal"); validateFromArray(fetched_var, standaloneContainerOptions) {

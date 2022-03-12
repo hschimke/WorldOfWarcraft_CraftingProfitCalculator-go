@@ -248,7 +248,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 		Quality *int   "json:\"quality,omitempty\""
 	}, 0)
 
-	for _, elem := range ilvl_adjusts.ToArray() {
+	for _, elem := range ilvl_adjusts.ToSlice() {
 		name := fmt.Sprint(elem)
 		return_value.Collected.ILvl = append(return_value.Collected.ILvl, struct {
 			Id    string "json:\"id,omitempty\""
@@ -258,7 +258,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 			Level: bonuses_cache[name].Level + int(bonuses.Item.Level),
 		})
 	}
-	for _, elem := range socket_adjusts.ToArray() {
+	for _, elem := range socket_adjusts.ToSlice() {
 		name := fmt.Sprint(elem)
 		sockets := bonuses_cache[name].Socket
 		return_value.Collected.Socket = append(return_value.Collected.Socket, struct {
@@ -269,7 +269,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 			Sockets: &sockets,
 		})
 	}
-	for _, elem := range quality_adjusts.ToArray() {
+	for _, elem := range quality_adjusts.ToSlice() {
 		name := fmt.Sprint(elem)
 		quality := bonuses_cache[name].Quality
 		return_value.Collected.Quality = append(return_value.Collected.Quality, struct {
@@ -280,7 +280,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 			Quality: &quality,
 		})
 	}
-	return_value.Collected.Unknown = unknown_adjusts.ToArray()
+	return_value.Collected.Unknown = unknown_adjusts.ToSlice()
 	return_value.Collected.Empty = found_empty_bonuses
 
 	json.NewEncoder(w).Encode(return_value)

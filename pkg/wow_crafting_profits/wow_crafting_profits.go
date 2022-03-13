@@ -612,6 +612,7 @@ func constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_
 			if li.Cost.Ah.Sales != 0 {
 				li.Cost.Ah.High *= li.Quantity
 				li.Cost.Ah.Low *= li.Quantity
+				li.Cost.Ah.Median *= li.Quantity
 				li.Cost.Ah.Average *= float64(li.Quantity)
 			}
 

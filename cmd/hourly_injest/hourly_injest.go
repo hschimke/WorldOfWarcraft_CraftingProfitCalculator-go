@@ -34,6 +34,8 @@ func main() {
 		include_auction_history = !environment_variables.DISABLE_AUCTION_HISTORY
 	)
 
+	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
+
 	if include_auction_history {
 		switch server_mode {
 		case "hourly":

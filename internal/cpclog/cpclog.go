@@ -3,8 +3,6 @@ package cpclog
 import (
 	"log"
 	"strings"
-
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 )
 
 const (
@@ -15,10 +13,6 @@ const (
 )
 
 var LogLevel uint = INFO
-
-func init() {
-	LogLevel = GetLevel(environment_variables.LOG_LEVEL)
-}
 
 func GetLevel(level string) (ret_level uint) {
 	switch strings.ToLower(level) {

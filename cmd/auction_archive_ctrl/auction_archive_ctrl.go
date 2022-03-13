@@ -7,12 +7,15 @@ import (
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/auction_history"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
 
 func main() {
 	fmt.Println("Auction Archive Control Program")
+
+	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
 
 	fAddScanRealm := flag.Bool("add_scan_realm", false, "Add a scanned realm")                     // (X)
 	fArchiveAuctions := flag.Bool("archive_auctions", false, "Perform an auction archive")         // (-)

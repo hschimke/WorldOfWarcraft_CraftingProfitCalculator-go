@@ -7,11 +7,13 @@ import (
 	"strconv"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/wow_crafting_profits"
 )
 
 func main() {
+	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
 	//http.ListenAndServe("localhost:8080", nil)
 	//defer profile.Start(profile.ProfilePath("."), profile.CPUProfile, profile.MemProfileHeap).Stop()
 	//defer profile.Start(profile.BlockProfile).Stop()

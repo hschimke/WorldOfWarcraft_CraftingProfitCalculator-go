@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	cpclog.LogLevel = cpclog.GetLevel("debug")
+	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
 	router := http.NewServeMux()
 	/*
 		var frontend fs.FS = os.DirFS("html/build")

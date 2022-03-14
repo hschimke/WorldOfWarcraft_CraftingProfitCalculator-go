@@ -2,8 +2,8 @@ package util
 
 // Set is a true set of items
 type Set[T comparable] struct {
-	set    map[T]bool
-	length uint64
+	set map[T]bool
+	//length uint64
 }
 
 // Has checks if a Set contains an element
@@ -20,10 +20,7 @@ func (s *Set[comparable]) Add(value comparable) {
 	if s.set == nil {
 		s.set = make(map[comparable]bool)
 	}
-	if v, p := s.set[value]; !p || !v {
-		s.set[value] = true
-		s.length++
-	}
+	s.set[value] = true
 }
 
 // Remove drops an element from a Set
@@ -31,10 +28,7 @@ func (s *Set[comparable]) Remove(value comparable) {
 	if s.set == nil {
 		s.set = make(map[comparable]bool)
 	}
-	if v, p := s.set[value]; p || v {
-		s.set[value] = false
-		s.length--
-	}
+	s.set[value] = false
 }
 
 // ToSlice converts a set into a slice
@@ -49,14 +43,13 @@ func (s *Set[comparable]) ToSlice() []comparable {
 }
 
 func (s Set[comparable]) Len() uint64 {
-	if len(s.set) != 0 && s.length == 0 {
-		for _, v := range s.set {
-			if v {
-				s.length++
-			}
+	length := uint64(0)
+	for _, v := range s.set {
+		if v {
+			length++
 		}
 	}
-	return s.length
+	return length
 }
 
 // SetFromSlice takes a slice and returns a Set

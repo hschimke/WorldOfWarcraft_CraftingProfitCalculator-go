@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-// Filter an array of strings to return only those values containing a given partial
+// FilterStringArray filters an array of strings to return only those values containing a given partial
 func FilterStringArray(array []string, partial string, logName string) []string {
 	var filteredNames []string
 	if len(partial) > 0 {
@@ -15,12 +15,10 @@ func FilterStringArray(array []string, partial string, logName string) []string 
 				filteredNames = append(filteredNames, name)
 			}
 		}
-
 		if len(filteredNames) == 0 {
 			filteredNames = make([]string, 0)
 		}
 	} else {
-		//cpclog.Debug("Returning all unfiltered ", logName)
 		filteredNames = array
 
 		if len(filteredNames) == 0 {

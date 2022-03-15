@@ -141,7 +141,6 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](uri string, region globalTypes
 
 	parseErr := json.NewDecoder(res.Body).Decode(&target)
 	if parseErr != nil {
-		//fmt.Println(io.ReadAll(res.Body))
 		cpclog.Error("An error was encountered while parsing response: ", parseErr)
 		return fmt.Errorf("error parsing api response for: %s, err: %s", uri, parseErr)
 	}

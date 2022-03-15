@@ -42,7 +42,7 @@ func BonusMappings(w http.ResponseWriter, r *http.Request) {
 
 	sources, err := static_sources.GetBonuses()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Could not load bonuses", http.StatusInternalServerError)
 	} else {
 		if bns, fnd := (*sources)[bonus]; fnd {
 			json.NewEncoder(w).Encode(bns)

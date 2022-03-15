@@ -61,7 +61,8 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 		adData = globalTypes.AddonData{}
 	}
 
-	if data.Type == "custom" {
+	switch data.Type {
+	case "custom":
 		cpclog.Debugf(`Custom search for item: %s, server: %s, region: %s, professions: %v. JSON DATA: %d`, data.ItemId, data.Server, data.Region, data.Professions, len(adData.Inventory))
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
@@ -95,7 +96,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
-	} else if data.Type == "json" {
+	case "json":
 		cpclog.Debug("json search")
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
@@ -117,9 +118,8 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
-	} else {
-		fmt.Fprint(w, "type must be one of 'custom' or 'json'")
-		w.WriteHeader(http.StatusBadRequest)
+	default:
+		http.Error(w, "type must be one of 'custom' or 'json'", http.StatusBadRequest)
 		return
 	}
 
@@ -127,7 +127,6 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(globalTypes.QueuedJobReturn{
 		JobId: jobUUID,
 	})
-	//fmt.Fprintf(w, "{ \"job_id\": \"%s\" }", jobUUID)
 }
 
 // Check to see if a queued CPC run has completed
@@ -161,7 +160,6 @@ func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(globalTypes.ReturnError{
 				ERROR: jobErr.Error(),
 			})
-			//fmt.Fprintf(w, "{\"ERROR\":\"%s\"}", jobErr.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		w.Write([]byte(job))
@@ -169,7 +167,6 @@ func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(globalTypes.QueuedJobReturn{
 			JobId: data.JobId,
 		})
-		//fmt.Fprintf(w, "{\"job_id\":\"%s\"}", data.RunId)
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")

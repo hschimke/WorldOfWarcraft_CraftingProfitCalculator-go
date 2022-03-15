@@ -48,9 +48,8 @@ func ScannedRealms(w http.ResponseWriter, r *http.Request) {
 
 	gsc, err := auction_history.GetScanRealms()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "Could not load scan realms", http.StatusInternalServerError)
 	} else {
-		//		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(gsc)
 	}
 }
@@ -69,6 +68,7 @@ func AllItems(w http.ResponseWriter, r *http.Request) {
 	found, err := cache_provider.CacheCheck(cacheNS, cacheKey)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Header().Set("X-CPC-ERROR", err.Error())
 		fmt.Fprint(w, "[]")
 	}
 	var names []string
@@ -170,10 +170,8 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	bonuses, allBonusesErr := auction_history.GetAllBonuses(globalTypes.NewItemFromString(data.Item), data.Region)
 	if allBonusesErr != nil {
 		cpclog.Errorf("Issue getting bonuses %v", allBonusesErr)
-		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: allBonusesErr.Error()})
 		w.WriteHeader(http.StatusInternalServerError)
-		//w.WriteHeader(http.StatusInternalServerError)
-		//fmt.Fprintf(w, "{ERROR:\"%s\"}", allBonusesErr.Error())
+		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: allBonusesErr.Error()})
 		return
 	}
 

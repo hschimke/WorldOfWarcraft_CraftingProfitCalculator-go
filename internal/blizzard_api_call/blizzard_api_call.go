@@ -47,6 +47,7 @@ var (
 	httpClient            *http.Client
 	clearTicks            *time.Ticker
 	stopClear             chan bool
+	tokenServer           *blizz_oath.TokenServer
 )
 
 // Control reset windows and connection flow for Blizzard API connections
@@ -83,6 +84,11 @@ func init() {
 			MaxConnsPerHost:    allowed_connections_per_period,
 		},
 	}
+	var tsErr error
+	tokenServer, tsErr = blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET)
+	if tsErr != nil {
+		cpclog.Fatal(tsErr.Error())
+	}
 	clearTicks = time.NewTicker(time.Duration(time.Second * period_reset_window))
 	stopClear = make(chan bool)
 	appShutdownDetected := make(chan os.Signal, 1)
@@ -92,7 +98,7 @@ func init() {
 
 // Get a response from Blizzard API and fill a struct with the results
 func getAndFill[T BlizzardApi.BlizzardApiReponse](uri string, region globalTypes.RegionCode, data map[string]string, namespace string, target *T) error {
-	token, tokenErr := blizz_oath.GetAuthorizationToken(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, region)
+	token, tokenErr := tokenServer.GetAuthorizationToken(region)
 	if tokenErr != nil {
 		return tokenErr
 	}

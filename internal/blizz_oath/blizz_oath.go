@@ -12,7 +12,11 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 )
 
-// Represents an access token as returned by Blizzard OATH. Fetched is internal only.
+const (
+	authorizationUriBase string = "battle.net/oauth/token"
+)
+
+// AccessToken represents an access token as returned by Blizzard OATH. Fetched is internal only.
 type AccessToken struct {
 	Access_token string    `json:"access_token"`
 	Token_type   string    `json:"token_type"`
@@ -21,7 +25,7 @@ type AccessToken struct {
 	Fetched      time.Time `json:"-"`
 }
 
-// Check if the given access token needs to be refreshed
+// CheckExpired checks if the given access token needs to be refreshed
 func (at *AccessToken) CheckExpired() (expired bool) {
 	expired = true
 	current_time := time.Now()
@@ -32,28 +36,39 @@ func (at *AccessToken) CheckExpired() (expired bool) {
 	return expired
 }
 
-const (
-	authorizationUriBase string = "battle.net/oauth/token"
-)
+// TokenServer represents a server that can return authorization tokens for a given client id and secret
+type TokenServer struct {
+	clientId, clientSecret string
+	tokenStore             map[string]*AccessToken
+	httpClient             *http.Client
+	authCheckMutex         sync.Mutex
+}
 
-var (
-	token_store map[string]*AccessToken = map[string]*AccessToken{}
-	httpClient  *http.Client            = &http.Client{
-		Timeout: 10 * time.Second,
+// NewTokenServer creates a default TokenServer with a given client ID and Secret
+func NewTokenServer(clientId, clientSecret string) (*TokenServer, error) {
+	if clientId == "" || clientSecret == "" {
+		return nil, fmt.Errorf("cannot have empty clientId or clientSecret")
 	}
-	authCheckMutex sync.Mutex
-)
+	return &TokenServer{
+		clientId:     clientId,
+		clientSecret: clientSecret,
+		tokenStore:   map[string]*AccessToken{},
+		httpClient: &http.Client{
+			Timeout: 10 * time.Second,
+		},
+	}, nil
+}
 
-// Return an authorization token for a given region, fetches a new one if an existing token isn't found or has expired.
-func GetAuthorizationToken(client_id string, client_secret string, region string) (*AccessToken, error) {
-	if client_id == "" || client_secret == "" || region == "" {
-		return nil, fmt.Errorf("cannot have empty client, secret, or region")
+// GetAuthorizationToken returns an authorization token for a given region, fetches a new one if an existing token isn't found or has expired.
+func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error) {
+	if region == "" {
+		return nil, fmt.Errorf("cannot have empty region")
 	}
 
-	authCheckMutex.Lock()
+	ts.authCheckMutex.Lock()
 
-	if _, found := token_store[region]; !found {
-		token_store[region] = &AccessToken{
+	if _, found := ts.tokenStore[region]; !found {
+		ts.tokenStore[region] = &AccessToken{
 			Access_token: "",
 			Token_type:   "",
 			Expires_in:   0,
@@ -61,7 +76,7 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 			Fetched:      time.Now(),
 		}
 	}
-	token := token_store[region]
+	token := ts.tokenStore[region]
 
 	if token.CheckExpired() {
 		cpclog.Debug("Access token expired, fetching fresh.")
@@ -78,9 +93,9 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 		req.Header.Set("User-Agent", "WorldOfWarcraft_CraftingProfitCalculator-go")
 		req.Header.Set("Connection", "keep-alive")
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-		req.URL.User = url.UserPassword(client_id, client_secret)
+		req.URL.User = url.UserPassword(ts.clientId, ts.clientSecret)
 
-		res, getErr := httpClient.Do(req)
+		res, getErr := ts.httpClient.Do(req)
 		if getErr != nil {
 			cpclog.Error(getErr)
 			cpclog.Error("an error was encountered while retrieving an authorization token: ", getErr.Error())
@@ -104,11 +119,11 @@ func GetAuthorizationToken(client_id string, client_secret string, region string
 		} else {
 			new_token.Expires_in = uint64(time.Duration(time.Second * time.Duration(new_token.Expires_in)))
 		}
-		token_store[region] = &new_token
+		ts.tokenStore[region] = &new_token
 	}
-	return_value := token_store[region]
+	return_value := ts.tokenStore[region]
 
-	authCheckMutex.Unlock()
+	ts.authCheckMutex.Unlock()
 
 	return return_value, nil
 }

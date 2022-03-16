@@ -13,6 +13,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -690,8 +691,8 @@ func buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Pr
 
 								rc_ids := getRecipeCraftedItemID(recheck_recipe)
 
-								if util.UintSliceHas(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
-									if util.UintSliceHas(rc_ids, recipe.Reagents[0].Reagent.Id) {
+								if slices.Contains(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
+									if slices.Contains(rc_ids, recipe.Reagents[0].Reagent.Id) {
 										cpclog.Debugf("Found cyclic link for %s (%d) and %s (%d)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
 										p1 := getRecipeCraftedItemID(recipe)
 										p2 := getRecipeCraftedItemID(recheck_recipe)

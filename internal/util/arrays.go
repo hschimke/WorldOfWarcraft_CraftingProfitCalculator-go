@@ -25,20 +25,8 @@ func FilterArrayToSet[T comparable](array []T) (result []T) {
 
 // Flatten an array of arrays of uints to an array of uints
 func FlattenArray[T comparable](array [][]T) (return_array []T) {
-	//return_array = make([]uint, 0)
 	for _, sub_array := range array {
 		return_array = append(return_array, sub_array...)
-	}
-	return
-}
-
-// Check if an array of uints contains a given uing
-func ArrayContains[T comparable](array []T, search T) (found bool) {
-	found = false
-	for _, item := range array {
-		if item == search {
-			found = true
-		}
 	}
 	return
 }
@@ -52,26 +40,4 @@ func ParseStringArrayToUint(array []string) []uint {
 		}
 	}
 	return r
-}
-
-// SliceEqual checks that two slices are exactly equal, including order
-func SlicesEqual[T comparable](slice1 []T, slice2 []T) bool {
-	found := true
-	if len(slice1) != len(slice2) {
-		return false
-	}
-	for index, element := range slice1 {
-		found = found && element == slice2[index]
-	}
-	return found
-}
-
-// Check if a uint slice contains a value
-func UintSliceHas[T comparable](arr []T, value T) (found bool) {
-	return ArrayContains(arr, value)
-}
-
-// Check if an array includes a value
-func ArrayIncludes[T comparable](array []T, search T) bool {
-	return ArrayContains(array, search)
 }

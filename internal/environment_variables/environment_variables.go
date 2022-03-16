@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
+	"golang.org/x/exp/slices"
 )
 
 var (
@@ -50,7 +50,7 @@ func getWithDefault(variable string, default_value string) (result string) {
 
 // Verify that the value in check is one of the acceptable ones available in options
 func validateFromArray(check string, options []string) (found bool) {
-	return util.ArrayContains(options, check)
+	return slices.Contains(options, check)
 }
 
 func init() {

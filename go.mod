@@ -6,6 +6,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.4
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx/v4 v4.15.0
+	golang.org/x/exp v0.0.0-20220314205449-43aec2f8a4e7
 )
 
 require (

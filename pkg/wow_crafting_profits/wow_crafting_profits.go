@@ -15,6 +15,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/text_output_helpers"
+	"golang.org/x/exp/slices"
 )
 
 type recipeCost struct {
@@ -43,7 +44,7 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 	for _, auction := range auction_house.Auctions {
 		if auction.Item.Id == item_id {
 
-			if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && util.ArrayIncludes(auction.Item.Bonus_lists, bonus_level_required))) || (bonus_level_required == 0) {
+			if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && slices.Contains(auction.Item.Bonus_lists, bonus_level_required))) || (bonus_level_required == 0) {
 				var foundPrice float64
 				if auction.Buyout != 0 {
 					foundPrice = float64(auction.Buyout)
@@ -139,7 +140,7 @@ func getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Au
 	for _, list := range bonus_lists {
 		found := false
 		for _, i := range bonus_lists_set {
-			if len(i) == len(list) && util.SlicesEqual(i, list) {
+			if len(i) == len(list) && slices.Equal(i, list) {
 				found = true
 			}
 		}
@@ -329,7 +330,7 @@ func performProfitAnalysis(region globalTypes.RegionCode, server globalTypes.Rea
 			var rank_AH globalTypes.AHItemPriceObject
 			if len(recipe_id_list) > 1 {
 				//var rank_level uint
-				if util.ArrayContains(recipe_id_list, recipe.Recipe_id) {
+				if slices.Contains(recipe_id_list, recipe.Recipe_id) {
 					for loc, el := range recipe_id_list {
 						if el == recipe.Recipe_id {
 							if loc < len(rankings.Rank_mapping) {
@@ -652,7 +653,7 @@ func build_shopping_list(intermediate_data globalTypes.OutputFormatObject, rank_
 	} else {
 		for _, recipe := range intermediate_data.Recipes {
 			// Make sure the recipe isn't on the exclusion list
-			if util.ArrayContains(shopping_recipe_exclusions.Exclusions, recipe.Id) {
+			if slices.Contains(shopping_recipe_exclusions.Exclusions, recipe.Id) {
 				cpclog.Debug(recipe.Name, " (", recipe.Id, ") is on the exclusion list. Add it directly")
 				shopping_list = append(shopping_list, globalTypes.ShoppingList{
 					Id:       intermediate_data.Id,

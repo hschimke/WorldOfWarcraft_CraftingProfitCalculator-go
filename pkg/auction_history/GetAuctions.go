@@ -14,6 +14,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"golang.org/x/exp/slices"
 )
 
 // Get all auctions filtering with parameters
@@ -391,7 +392,7 @@ func checkBonus(bonus_list []uint, target []uint) (found bool) {
 	}
 
 	for _, list_entry := range bonus_list {
-		found = found && util.ArrayIncludes(target, list_entry)
+		found = found && slices.Contains(target, list_entry)
 	}
 
 	return

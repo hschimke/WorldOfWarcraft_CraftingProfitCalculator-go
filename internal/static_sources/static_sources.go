@@ -8,7 +8,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 )
 
@@ -20,11 +19,11 @@ const (
 	raidbots_dl_uri                   string = "https://www.raidbots.com/static/data/live/bonuses.json" // Thank you raidbots
 )
 
-var (
+type StaticSources struct {
 	bonus_cache                    *BonusesCache
 	rank_mapping_cache             *RankMappingsCache
 	shopping_recipe_exclusion_list *ShoppingRecipeExclusionList
-)
+}
 
 // A simplified version of the data availble for bonus mappings from raidbots
 type BonusesCache map[string]struct {
@@ -66,7 +65,6 @@ func loadStaticResource[T staticSource](fn string, target *T) error {
 
 // load a static resource from a URI
 func fetchFromUri[T staticSource](uri string, target *T) error {
-	cpclog.Debug("Downloading Bonuses from web")
 	httpClient := &http.Client{
 		Timeout: 10 * time.Second,
 	}
@@ -99,49 +97,48 @@ func fetchFromUri[T staticSource](uri string, target *T) error {
 }
 
 // Fetch the bonus catch, if it cannot be found locally it will be loaded from raidbots
-func GetBonuses() (*BonusesCache, error) {
-	if bonus_cache == nil {
+func (s *StaticSources) GetBonuses() (*BonusesCache, error) {
+	if s.bonus_cache == nil {
 		bc := BonusesCache{}
 		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, bonuses_cache_fn)
 		err := loadStaticResource(fn, &bc)
 		if err != nil {
 			// lets go get it
-			cpclog.Debug(err.Error())
 			fetchErr := fetchFromUri(raidbots_dl_uri, &bc)
 			if fetchErr != nil {
 				return nil, fetchErr
 			}
 		}
-		bonus_cache = &bc
+		s.bonus_cache = &bc
 	}
-	return bonus_cache, nil
+	return s.bonus_cache, nil
 }
 
 // Fetch the rank mappings, if not available locally it will be empty
-func GetRankMappings() *RankMappingsCache {
-	if rank_mapping_cache == nil {
+func (s *StaticSources) GetRankMappings() *RankMappingsCache {
+	if s.rank_mapping_cache == nil {
 		rm := RankMappingsCache{}
 		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, rank_mappings_cache_fn)
 		err := loadStaticResource(fn, &rm)
 		if err != nil {
-			rank_mapping_cache = &RankMappingsCache{}
+			s.rank_mapping_cache = &RankMappingsCache{}
 		}
-		rank_mapping_cache = &rm
+		s.rank_mapping_cache = &rm
 
 	}
-	return rank_mapping_cache
+	return s.rank_mapping_cache
 }
 
 // Fetch the shopping list exclusion set, if not available locally it will be empty
-func GetShoppingRecipeExclusionList() *ShoppingRecipeExclusionList {
-	if shopping_recipe_exclusion_list == nil {
+func (s *StaticSources) GetShoppingRecipeExclusionList() *ShoppingRecipeExclusionList {
+	if s.shopping_recipe_exclusion_list == nil {
 		sre := ShoppingRecipeExclusionList{}
 		fn := path.Join(environment_variables.STATIC_DIR_ROOT, static_source_dir, shopping_recipe_exclusion_list_fn)
 		err := loadStaticResource(fn, &sre)
 		if err != nil {
-			shopping_recipe_exclusion_list = &ShoppingRecipeExclusionList{}
+			s.shopping_recipe_exclusion_list = &ShoppingRecipeExclusionList{}
 		}
-		shopping_recipe_exclusion_list = &sre
+		s.shopping_recipe_exclusion_list = &sre
 	}
-	return shopping_recipe_exclusion_list
+	return s.shopping_recipe_exclusion_list
 }

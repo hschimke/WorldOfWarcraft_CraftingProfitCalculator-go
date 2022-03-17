@@ -1,21 +1,26 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"time"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/auction_history"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
 
 func main() {
 	fmt.Println("Auction Archive Control Program")
 
-	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
+	logger := &cpclog.CpCLog{
+		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
+	}
 
 	fAddScanRealm := flag.Bool("add_scan_realm", false, "Add a scanned realm")                     // (X)
 	fArchiveAuctions := flag.Bool("archive_auctions", false, "Perform an auction archive")         // (-)
@@ -46,7 +51,11 @@ func main() {
 
 	flag.Parse()
 
-	cpclog.LogLevel = cpclog.GetLevel(*fLogLevel)
+	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
+	helper := blizzard_api_helpers.NewBlizzardApiHelper(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, cache, logger)
+	auctionHouseDataServer := auction_history.NewAuctionHistoryServer(environment_variables.DATABASE_CONNECTION_STRING, helper, logger)
+
+	logger.LogLevel = cpclog.GetLevel(*fLogLevel)
 
 	realm := globalTypes.ConnectedRealmSoftIentity{
 		Id:   *fRealmId,
@@ -88,7 +97,7 @@ func main() {
 
 	if *fAddScanRealm {
 		fmt.Println("AddScanRealm selected for ", realm, " ", *fRegion)
-		err := auction_history.AddScanRealm(realm, *fRegion)
+		err := auctionHouseDataServer.AddScanRealm(realm, *fRegion)
 		if err != nil {
 			fmt.Println("Error adding realm")
 			fmt.Println(err)
@@ -97,22 +106,22 @@ func main() {
 
 	if *fArchiveAuctions {
 		fmt.Println("ArchiveAuctions selected")
-		auction_history.ArchiveAuctions()
+		auctionHouseDataServer.ArchiveAuctions()
 	}
 
 	if *fFillNItems {
 		fmt.Println("FillNItems selected with N=", *fCount)
-		auction_history.FillNItems(*fCount)
+		auctionHouseDataServer.FillNItems(*fCount)
 	}
 
 	if *fFillNNames {
 		fmt.Println("FillNNames selected with N=", *fCount)
-		auction_history.FillNNames(*fCount)
+		auctionHouseDataServer.FillNNames(*fCount)
 	}
 
 	if *fGetAllBonuses {
 		fmt.Println("GetAllBonuses selected with item: ", item, " and region: ", *fRegion)
-		all_bonuses, err := auction_history.GetAllBonuses(item, *fRegion)
+		all_bonuses, err := auctionHouseDataServer.GetAllBonuses(item, *fRegion)
 		if err != nil {
 			fmt.Println("Error getting bonuses")
 			fmt.Println(err)
@@ -122,13 +131,13 @@ func main() {
 
 	if *fGetAllNames {
 		fmt.Println("GetAllNames selected")
-		all_names := auction_history.GetAllNames()
+		all_names := auctionHouseDataServer.GetAllNames()
 		fmt.Println(all_names)
 	}
 
 	if *fGetAuctions {
 		fmt.Println("GetAuctions selected: ", item, " ", realm, " ", *fRegion, " ", start_dtm, "->", end_dtm)
-		auctions, err := auction_history.GetAuctions(item, realm, *fRegion, bonuses, start_dtm, end_dtm)
+		auctions, err := auctionHouseDataServer.GetAuctions(item, realm, *fRegion, bonuses, start_dtm, end_dtm)
 		if err != nil {
 			fmt.Println("Error selecting auctions")
 			fmt.Println(err)
@@ -138,7 +147,7 @@ func main() {
 
 	if *fGetScanRealms {
 		fmt.Println("GetScanRealms selected")
-		scan_realms, err := auction_history.GetScanRealms()
+		scan_realms, err := auctionHouseDataServer.GetScanRealms()
 		if err != nil {
 			fmt.Println("Error getting all scan realms")
 			fmt.Println(err)
@@ -148,12 +157,12 @@ func main() {
 
 	if *fRemoveScanRealm {
 		fmt.Println("RemoveScanRealm selected for ", realm, " ", *fRegion)
-		auction_history.RemoveScanRealm(realm, *fRegion)
+		auctionHouseDataServer.RemoveScanRealm(realm, *fRegion)
 	}
 
 	if *fScanRealms {
 		fmt.Println("ScanRealms selected")
-		err := auction_history.ScanRealms(false)
+		err := auctionHouseDataServer.ScanRealms(false)
 		if err != nil {
 			fmt.Println("Error scanning realms")
 			fmt.Println(err)

@@ -10,21 +10,28 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/wow_crafting_profits"
 )
 
 func main() {
 
-	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
+	logger := &cpclog.CpCLog{
+		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
+	}
 
-	cpclog.Info("Starting cpc-job-worker")
+	logger.Info("Starting cpc-job-worker")
 
 	uri := environment_variables.REDIS_URL
 
 	ctx, cancelContext := context.WithCancel(context.Background())
+
+	cache := cache_provider.NewCacheProvider(ctx, environment_variables.REDIS_URL)
+	helper := blizzard_api_helpers.NewBlizzardApiHelper(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, cache, logger)
 
 	closeRequested := make(chan os.Signal, 1)
 	signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -51,10 +58,10 @@ func main() {
 	}
 
 	for running {
-		cpclog.Debug("Trying to get job")
+		logger.Debug("Trying to get job")
 		job_json, popErr := redisClient.BRPop(ctx, time.Minute, globalTypes.CPC_JOB_QUEUE_NAME).Result()
 
-		cpclog.Sillyf("Got \"%v\" from json : %v.", job_json, popErr)
+		logger.Sillyf("Got \"%v\" from json : %v.", job_json, popErr)
 
 		go func() {
 			if len(job_json) == 0 {
@@ -64,27 +71,27 @@ func main() {
 			job := globalTypes.RunJob{}
 			err := json.Unmarshal([]byte(job_json[1]), &job)
 			if err != nil {
-				cpclog.Error("Error decoding job", err)
+				logger.Error("Error decoding job", err)
 				return
 			}
 
 			run_id := job.JobId
 			run_config := job.JobConfig
 
-			cpclog.Infof(`Got new job with id %d -> %v`, run_id, run_config)
+			logger.Infof(`Got new job with id %d -> %v`, run_id, run_config)
 			config := globalTypes.NewRunConfig(&run_config.AddonData, run_config.Item, run_config.Count)
 			job_key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, run_id)
 
-			data, err := wow_crafting_profits.RunWithJSONConfig(config)
+			data, err := wow_crafting_profits.RunWithJSONConfig(config, helper, logger)
 			if err != nil {
-				cpclog.Info(`Invalid item search`, err)
+				logger.Info(`Invalid item search`, err)
 				redisClient.SetEX(ctx, job_key, job_error_return, time.Hour)
 				return
 			}
 
 			job_save, err := json.Marshal(&data)
 			if err != nil {
-				cpclog.Error("Issue marshaling js ", err)
+				logger.Error("Issue marshaling js ", err)
 			}
 
 			redisClient.SetEX(ctx, job_key, job_save, time.Hour)
@@ -92,5 +99,5 @@ func main() {
 
 	}
 
-	cpclog.Info("Stopping cpc-job-worker")
+	logger.Info("Stopping cpc-job-worker")
 }

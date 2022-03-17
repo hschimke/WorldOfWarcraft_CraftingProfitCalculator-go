@@ -12,7 +12,6 @@ import (
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 )
@@ -41,71 +40,81 @@ const (
 	CHINESE_SIMPLIFIED  string = "zh_CN" // Chinese (Simplified)
 )
 
-var (
-	allowed_during_period uint64 = 0
-	in_use                uint64 = 0
-	httpClient            *http.Client
-	clearTicks            *time.Ticker
-	stopClear             chan bool
-	tokenServer           *blizz_oath.TokenServer
-)
+type BlizzardApiProvider struct {
+	clientId, clientSecret     string
+	allowedDuringPeriod, inUse uint64
+	httpClient                 *http.Client
+	clearTicks                 *time.Ticker
+	stopClear                  chan bool
+	tokenServer                *blizz_oath.TokenServer
+	logger                     *cpclog.CpCLog
+}
+
+func NewBlizzardApiProvider(clientId, clientSecret string, logger *cpclog.CpCLog) *BlizzardApiProvider {
+	client := BlizzardApiProvider{
+		allowedDuringPeriod: 0,
+		inUse:               0,
+		clientId:            clientId,
+		clientSecret:        clientSecret,
+		httpClient: &http.Client{
+			Timeout: 20 * time.Second,
+			Transport: &http.Transport{
+				DisableCompression: false,
+				ForceAttemptHTTP2:  true,
+				MaxConnsPerHost:    allowed_connections_per_period,
+			},
+		},
+		clearTicks: time.NewTicker(time.Duration(time.Second * period_reset_window)),
+		stopClear:  make(chan bool),
+		logger:     logger,
+	}
+	tokenServer, tsErr := blizz_oath.NewTokenServer(clientId, clientSecret, logger)
+	if tsErr != nil {
+		logger.Fatal(tsErr.Error())
+	}
+	client.tokenServer = tokenServer
+	appShutdownDetected := make(chan os.Signal, 1)
+	signal.Notify(appShutdownDetected, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	go client.blizzardApiFlowManager(client.stopClear, appShutdownDetected)
+
+	return &client
+}
 
 // Control reset windows and connection flow for Blizzard API connections
-func blizzardApiFlowManager(stopper chan bool, appShutdownSignal chan os.Signal) {
-	cpclog.Info("Starting API Flow Manager")
+func (client *BlizzardApiProvider) blizzardApiFlowManager(stopper chan bool, appShutdownSignal chan os.Signal) {
+	client.logger.Info("Starting API Flow Manager")
 	for {
 		select {
-		case <-clearTicks.C:
-			cpclog.Silly("Reset window ", atomic.LoadUint64(&allowed_during_period))
-			atomic.StoreUint64(&allowed_during_period, atomic.LoadUint64(&in_use))
+		case <-client.clearTicks.C:
+			client.logger.Silly("Reset window ", atomic.LoadUint64(&client.allowedDuringPeriod))
+			atomic.StoreUint64(&client.allowedDuringPeriod, atomic.LoadUint64(&client.inUse))
 		case <-stopper:
-			cpclog.Info("Stopping API Flow Manager")
-			clearTicks.Stop()
+			client.logger.Info("Stopping API Flow Manager")
+			client.clearTicks.Stop()
 			return
 		case <-appShutdownSignal:
-			cpclog.Info("App Shutdown Detected: API Flow Manager shutting down")
-			clearTicks.Stop()
+			client.logger.Info("App Shutdown Detected: API Flow Manager shutting down")
+			client.clearTicks.Stop()
 			return
 		}
 	}
 }
 
 // Stop the flow manager
-func ShutdownApiManager() {
-	stopClear <- true
-}
-
-func init() {
-	httpClient = &http.Client{
-		Timeout: 20 * time.Second,
-		Transport: &http.Transport{
-			DisableCompression: false,
-			ForceAttemptHTTP2:  true,
-			MaxConnsPerHost:    allowed_connections_per_period,
-		},
-	}
-	var tsErr error
-	tokenServer, tsErr = blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET)
-	if tsErr != nil {
-		cpclog.Fatal(tsErr.Error())
-	}
-	clearTicks = time.NewTicker(time.Duration(time.Second * period_reset_window))
-	stopClear = make(chan bool)
-	appShutdownDetected := make(chan os.Signal, 1)
-	signal.Notify(appShutdownDetected, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	go blizzardApiFlowManager(stopClear, appShutdownDetected)
+func (client *BlizzardApiProvider) ShutdownApiManager() {
+	client.stopClear <- true
 }
 
 // Get a response from Blizzard API and fill a struct with the results
-func getAndFill[T BlizzardApi.BlizzardApiReponse](uri string, region globalTypes.RegionCode, data map[string]string, namespace string, target *T) error {
-	token, tokenErr := tokenServer.GetAuthorizationToken(region)
+func getAndFill[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, uri string, region globalTypes.RegionCode, data map[string]string, namespace string, target *T) error {
+	token, tokenErr := api.tokenServer.GetAuthorizationToken(region)
 	if tokenErr != nil {
 		return tokenErr
 	}
 
 	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
-		cpclog.Errorf("error with request: %s, err: %s", uri, err)
+		api.logger.Errorf("error with request: %s, err: %s", uri, err)
 		return fmt.Errorf("error with request: %s, err: %s", uri, err)
 	}
 	req.Header.Set("User-Agent", "WorldOfWarcraft_CraftingProfitCalculator-go")
@@ -127,9 +136,9 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](uri string, region globalTypes
 	)
 
 	for attempt := 0; attempt < max_retries; attempt++ {
-		res, getErr = httpClient.Do(req)
+		res, getErr = api.httpClient.Do(req)
 		if getErr != nil {
-			cpclog.Debugf("Failure fetching uri, will retry %d more times. (%v)", max_retries-attempt, getErr)
+			api.logger.Debugf("Failure fetching uri, will retry %d more times. (%v)", max_retries-attempt, getErr)
 			time.Sleep(time.Second * sleep_seconds_between_tries)
 		} else {
 			break
@@ -137,7 +146,7 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](uri string, region globalTypes
 	}
 
 	if getErr != nil {
-		cpclog.Error("An error was encountered while retrieving a uri(", uri, "): ", getErr)
+		api.logger.Error("An error was encountered while retrieving a uri(", uri, "): ", getErr)
 		return fmt.Errorf("error fetching uri: %s, err: %s", uri, getErr)
 	}
 
@@ -147,49 +156,49 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](uri string, region globalTypes
 
 	parseErr := json.NewDecoder(res.Body).Decode(&target)
 	if parseErr != nil {
-		cpclog.Error("An error was encountered while parsing response: ", parseErr)
+		api.logger.Error("An error was encountered while parsing response: ", parseErr)
 		return fmt.Errorf("error parsing api response for: %s, err: %s", uri, parseErr)
 	}
 	return nil
 }
 
-func getBlizzardAPIResponse[T BlizzardApi.BlizzardApiReponse](data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target *T) (int, error) {
+func getBlizzardAPIResponse[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target *T) (int, error) {
 	var proceed bool = false
 	var wait_count uint = 0
 	for !proceed {
-		if atomic.LoadUint64(&allowed_during_period) >= allowed_connections_per_period {
+		if atomic.LoadUint64(&api.allowedDuringPeriod) >= allowed_connections_per_period {
 			wait_count++
 			time.Sleep(time.Duration(time.Second * 1))
 		} else {
 			proceed = true
-			atomic.AddUint64(&allowed_during_period, 1)
+			atomic.AddUint64(&api.allowedDuringPeriod, 1)
 		}
 	}
 	if wait_count > 10 {
-		cpclog.Debugf("Waited %v seconds for an available API window.", wait_count)
+		api.logger.Debugf("Waited %v seconds for an available API window.", wait_count)
 	} else if wait_count > 0 && wait_count <= 10 {
-		cpclog.Sillyf("Waited %v seconds for an available API window.", wait_count)
+		api.logger.Sillyf("Waited %v seconds for an available API window.", wait_count)
 	}
-	atomic.AddUint64(&in_use, 1)
-	getAndFillerr := getAndFill(uri, region, data, namespace, target)
+	atomic.AddUint64(&api.inUse, 1)
+	getAndFillerr := getAndFill(api, uri, region, data, namespace, target)
 	if getAndFillerr != nil {
-		atomic.AddUint64(&in_use, ^uint64(0))
-		cpclog.Errorf("issue fetching blizzard data: (%s)", uri)
+		atomic.AddUint64(&api.inUse, ^uint64(0))
+		api.logger.Errorf("issue fetching blizzard data: (%s)", uri)
 		return -1, fmt.Errorf("issue fetching blizzard data: (%s)", uri)
 	}
 
-	atomic.AddUint64(&in_use, ^uint64(0))
+	atomic.AddUint64(&api.inUse, ^uint64(0))
 
 	return int(wait_count), nil
 }
 
 // Fetch a Blizzard API response given only the endpoint
-func GetBlizzardAPIResponse[T BlizzardApi.BlizzardApiReponse](region_code globalTypes.RegionCode, data map[string]string, uri string, namespace string, target *T) (int, error) {
+func GetBlizzardAPIResponse[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, region_code globalTypes.RegionCode, data map[string]string, uri string, namespace string, target *T) (int, error) {
 	built_uri := fmt.Sprintf("https://%s.%s%s", region_code, base_uri, uri)
-	return getBlizzardAPIResponse(data, built_uri, region_code, namespace, target)
+	return getBlizzardAPIResponse(api, data, built_uri, region_code, namespace, target)
 }
 
 // Fetch a Blizzard API response given a fully qualified URL
-func GetBlizzardRawUriResponse[T BlizzardApi.BlizzardApiReponse](data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target *T) (int, error) {
-	return getBlizzardAPIResponse(data, uri, region, namespace, target)
+func GetBlizzardRawUriResponse[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, data map[string]string, uri string, region globalTypes.RegionCode, namespace string, target *T) (int, error) {
+	return getBlizzardAPIResponse(api, data, uri, region, namespace, target)
 }

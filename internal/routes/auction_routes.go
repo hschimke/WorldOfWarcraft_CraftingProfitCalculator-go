@@ -8,10 +8,7 @@ import (
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/auction_history"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
 
@@ -43,10 +40,10 @@ type SeenItemBonusesReturn struct {
 }
 
 // Return a list of all realms being actively scanned for history
-func ScannedRealms(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) ScannedRealms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	gsc, err := auction_history.GetScanRealms()
+	gsc, err := routes.auctionHouseServer.GetScanRealms()
 	if err != nil {
 		http.Error(w, "Could not load scan realms", http.StatusInternalServerError)
 	} else {
@@ -55,17 +52,17 @@ func ScannedRealms(w http.ResponseWriter, r *http.Request) {
 }
 
 // Return a unique list of all items in the items table
-func AllItems(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) AllItems(w http.ResponseWriter, r *http.Request) {
 	const (
 		cacheNS  string = "AH-FUNCTIONS"
 		cacheKey string = "ALL_ITEMS_NAMES"
 	)
 
-	cpclog.Debug("Getting all items")
+	routes.logger.Debug("Getting all items")
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	found, err := cache_provider.CacheCheck(cacheNS, cacheKey)
+	found, err := cache_provider.CacheCheck(routes.cache, cacheNS, cacheKey)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("X-CPC-ERROR", err.Error())
@@ -73,17 +70,17 @@ func AllItems(w http.ResponseWriter, r *http.Request) {
 	}
 	var names []string
 	if found {
-		cpclog.Debug("Cached all items found.")
-		err := cache_provider.CacheGet(cacheNS, cacheKey, &names)
+		routes.logger.Debug("Cached all items found.")
+		err := cache_provider.CacheGet(routes.cache, cacheNS, cacheKey, &names)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Header().Set("X-CPC-ERROR", err.Error())
 			fmt.Fprint(w, "[]")
 		}
 	} else {
-		cpclog.Debug("Getting fresh all items.")
-		names = auction_history.GetAllNames()
-		cache_provider.CacheSet(cacheNS, cacheKey, names, time.Hour)
+		routes.logger.Debug("Getting fresh all items.")
+		names = routes.auctionHouseServer.GetAllNames()
+		cache_provider.CacheSet(routes.cache, cacheNS, cacheKey, names, time.Hour)
 	}
 
 	partial := r.URL.Query().Get("partial")
@@ -93,7 +90,7 @@ func AllItems(w http.ResponseWriter, r *http.Request) {
 }
 
 // Perform a search for auction history data
-func AuctionHistory(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) AuctionHistory(w http.ResponseWriter, r *http.Request) {
 	type expectedBody struct {
 		Item     string   `json:"item"`
 		Realm    string   `json:"realm"`
@@ -113,7 +110,7 @@ func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	cpclog.Infof(`AuctionHistory request for item: %s, realm: %s, region: %s, bonuses: %v, start_dtm: %s, end_dtm: %s`, data.Item, data.Realm, data.Region, data.Bonuses, data.StartDtm, data.EndDtm)
+	routes.logger.Infof(`AuctionHistory request for item: %s, realm: %s, region: %s, bonuses: %v, start_dtm: %s, end_dtm: %s`, data.Item, data.Realm, data.Region, data.Bonuses, data.StartDtm, data.EndDtm)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -129,19 +126,19 @@ func AuctionHistory(w http.ResponseWriter, r *http.Request) {
 		endTime = time.Now()
 	}
 
-	auctionData, auctionDataError := auction_history.GetAuctions(item, realm, data.Region, util.ParseStringArrayToUint(data.Bonuses), startTime, endTime)
+	auctionData, auctionDataError := routes.auctionHouseServer.GetAuctions(item, realm, data.Region, util.ParseStringArrayToUint(data.Bonuses), startTime, endTime)
 	if auctionDataError != nil {
-		cpclog.Error("Issue getting auctions ", auctionDataError)
+		routes.logger.Error("Issue getting auctions ", auctionDataError)
 		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: auctionDataError.Error()})
 		return
 	}
 
-	cpclog.Debug("returned auction data")
+	routes.logger.Debug("returned auction data")
 	json.NewEncoder(w).Encode(auctionData)
 }
 
 // Return a list of all the bonuses seen for an item
-func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 	type seenItemBonusesData struct {
 		Item   string `json:"item,omitempty"`
 		Region string `json:"region,omitempty"`
@@ -160,16 +157,16 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	cpclog.Debugf(`Getting seen bonus lists for %s in %s`, data.Item, data.Region)
+	routes.logger.Debugf(`Getting seen bonus lists for %s in %s`, data.Item, data.Region)
 
 	if data.Item == "" {
 		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: "empty item"})
 		return
 	}
 
-	bonuses, allBonusesErr := auction_history.GetAllBonuses(globalTypes.NewItemFromString(data.Item), data.Region)
+	bonuses, allBonusesErr := routes.auctionHouseServer.GetAllBonuses(globalTypes.NewItemFromString(data.Item), data.Region)
 	if allBonusesErr != nil {
-		cpclog.Errorf("Issue getting bonuses %v", allBonusesErr)
+		routes.logger.Errorf("Issue getting bonuses %v", allBonusesErr)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: allBonusesErr.Error()})
 		return
@@ -177,7 +174,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 
 	return_value := SeenItemBonusesReturn{}
 
-	bonus_cache_ptr, err := static_sources.GetBonuses()
+	bonus_cache_ptr, err := routes.staticSources.GetBonuses()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -185,7 +182,7 @@ func SeenItemBonuses(w http.ResponseWriter, r *http.Request) {
 
 	bonuses_cache := *bonus_cache_ptr
 
-	cpclog.Debugf(`Regurning bonus lists for %s`, data.Item)
+	routes.logger.Debugf(`Regurning bonus lists for %s`, data.Item)
 	var ilvl_adjusts, socket_adjusts, quality_adjusts, unknown_adjusts util.Set[string]
 	found_empty_bonuses := false
 

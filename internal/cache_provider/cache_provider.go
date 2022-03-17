@@ -6,13 +6,23 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 )
 
-var (
+type CacheProvider struct {
 	redisClient *redis.Client
 	ctx         context.Context
-)
+}
+
+func NewCacheProvider(ctx context.Context, uri string) *CacheProvider {
+	redis_options, err := redis.ParseURL(uri)
+	if err != nil {
+		panic("redis cannot be contacted")
+	}
+	return &CacheProvider{
+		redisClient: redis.NewClient(redis_options),
+		ctx:         ctx,
+	}
+}
 
 // Create a Redis key given a namespace and key
 func getRedisKey(namespace string, key string) string {
@@ -20,8 +30,8 @@ func getRedisKey(namespace string, key string) string {
 }
 
 // Fetch an object from the cache, or fail
-func CacheGet[T any](namespace string, key string, target *T) error {
-	data, getErr := redisClient.Get(ctx, getRedisKey(namespace, key)).Bytes()
+func CacheGet[T any](cache *CacheProvider, namespace string, key string, target *T) error {
+	data, getErr := cache.redisClient.Get(cache.ctx, getRedisKey(namespace, key)).Bytes()
 	if getErr != nil {
 		return getErr
 	}
@@ -33,12 +43,12 @@ func CacheGet[T any](namespace string, key string, target *T) error {
 }
 
 // Set or replace an item in the cache, or fail.
-func CacheSet[T any](namespace string, key string, data T, expiration_period time.Duration) error {
+func CacheSet[T any](cache *CacheProvider, namespace string, key string, data T, expiration_period time.Duration) error {
 	json_data, err := json.Marshal(&data)
 	if err != nil {
 		return err
 	}
-	setErr := redisClient.Set(ctx, getRedisKey(namespace, key), json_data, expiration_period).Err()
+	setErr := cache.redisClient.Set(cache.ctx, getRedisKey(namespace, key), json_data, expiration_period).Err()
 	if setErr != nil {
 		return setErr
 	}
@@ -46,23 +56,11 @@ func CacheSet[T any](namespace string, key string, data T, expiration_period tim
 }
 
 // Check if a given key exists in a given namespace
-func CacheCheck(namespace string, key string) (bool, error) {
+func CacheCheck(cache *CacheProvider, namespace string, key string) (bool, error) {
 	//return false, nil
-	fnd, err := redisClient.Exists(ctx, getRedisKey(namespace, key)).Result()
+	fnd, err := cache.redisClient.Exists(cache.ctx, getRedisKey(namespace, key)).Result()
 	if err != nil {
 		return false, err
 	}
 	return fnd == 1, nil
-}
-
-func init() {
-	uri := environment_variables.REDIS_URL
-
-	ctx = context.Background()
-
-	redis_options, err := redis.ParseURL(uri)
-	if err != nil {
-		panic("redis cannot be contacted")
-	}
-	redisClient = redis.NewClient(redis_options)
 }

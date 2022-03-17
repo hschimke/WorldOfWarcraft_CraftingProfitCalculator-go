@@ -12,7 +12,9 @@ const (
 	ERROR
 )
 
-var LogLevel uint = INFO
+type CpCLog struct {
+	LogLevel uint
+}
 
 func GetLevel(level string) (ret_level uint) {
 	switch strings.ToLower(level) {
@@ -30,58 +32,58 @@ func GetLevel(level string) (ret_level uint) {
 	return
 }
 
-func Silly(v ...interface{}) {
-	if LogLevel <= SILLY {
+func (l *CpCLog) Silly(v ...interface{}) {
+	if l.LogLevel <= SILLY {
 		log.Print(v...)
 	}
 }
 
-func Debug(v ...interface{}) {
-	if LogLevel <= DEBUG {
+func (l *CpCLog) Debug(v ...interface{}) {
+	if l.LogLevel <= DEBUG {
 		log.Print(v...)
 	}
 }
 
-func Info(v ...interface{}) {
-	if LogLevel <= INFO {
+func (l *CpCLog) Info(v ...interface{}) {
+	if l.LogLevel <= INFO {
 		log.Print(v...)
 	}
 }
 
-func Error(v ...interface{}) {
-	if LogLevel <= ERROR {
+func (l *CpCLog) Error(v ...interface{}) {
+	if l.LogLevel <= ERROR {
 		log.Print(v...)
 	}
 }
 
-func Fatal(v ...interface{}) {
+func (l *CpCLog) Fatal(v ...interface{}) {
 	log.Fatal(v...)
 }
 
-func Sillyf(format string, v ...interface{}) {
-	if LogLevel <= SILLY {
+func (l *CpCLog) Sillyf(format string, v ...interface{}) {
+	if l.LogLevel <= SILLY {
 		log.Printf(format, v...)
 	}
 }
 
-func Debugf(format string, v ...interface{}) {
-	if LogLevel <= DEBUG {
+func (l *CpCLog) Debugf(format string, v ...interface{}) {
+	if l.LogLevel <= DEBUG {
 		log.Printf(format, v...)
 	}
 }
 
-func Infof(format string, v ...interface{}) {
-	if LogLevel <= INFO {
+func (l *CpCLog) Infof(format string, v ...interface{}) {
+	if l.LogLevel <= INFO {
 		log.Printf(format, v...)
 	}
 }
 
-func Errorf(format string, v ...interface{}) {
-	if LogLevel <= ERROR {
+func (l *CpCLog) Errorf(format string, v ...interface{}) {
+	if l.LogLevel <= ERROR {
 		log.Printf(format, v...)
 	}
 }
 
-func Fatalf(format string, v ...interface{}) {
+func (l *CpCLog) Fatalf(format string, v ...interface{}) {
 	log.Fatalf(format, v...)
 }

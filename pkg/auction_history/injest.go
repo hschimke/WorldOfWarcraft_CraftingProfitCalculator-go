@@ -7,16 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Injest a realm for auction archives
-func ingest(region globalTypes.RegionCode, connected_realm globalTypes.ConnectedRealmID, dbpool *pgxpool.Pool, async bool) error {
+func (ahs *AuctionHistoryServer) ingest(region globalTypes.RegionCode, connected_realm globalTypes.ConnectedRealmID, dbpool *pgxpool.Pool, async bool) error {
 	type lItm struct {
 		ItemId     globalTypes.ItemID
 		BonusLists []uint
@@ -25,10 +22,10 @@ func ingest(region globalTypes.RegionCode, connected_realm globalTypes.Connected
 	}
 	items := make(map[string]map[uint]lItm)
 
-	cpclog.Infof("start ingest for %v - %v", region, connected_realm)
+	ahs.logger.Infof("start ingest for %v - %v", region, connected_realm)
 
 	// Get Auctions
-	auctions, auctionError := blizzard_api_helpers.GetAuctionHouse(connected_realm, region)
+	auctions, auctionError := ahs.helper.GetAuctionHouse(connected_realm, region)
 	if auctionError != nil {
 		return auctionError
 	}
@@ -92,9 +89,9 @@ func ingest(region globalTypes.RegionCode, connected_realm globalTypes.Connected
 	}
 
 	if async {
-		go churnAuctionItemsOnInjest(item_set)
+		go ahs.churnAuctionItemsOnInjest(item_set)
 	} else {
-		churnAuctionItemsOnInjest(item_set)
+		ahs.churnAuctionItemsOnInjest(item_set)
 	}
 
 	copyCount, copyErr := dbpool.CopyFrom(context.TODO(),
@@ -106,19 +103,19 @@ func ingest(region globalTypes.RegionCode, connected_realm globalTypes.Connected
 		return copyErr
 	}
 
-	cpclog.Infof("finished ingest of %d auctions for %v - %v", copyCount, region, connected_realm)
+	ahs.logger.Infof("finished ingest of %d auctions for %v - %v", copyCount, region, connected_realm)
 	return nil
 }
 
 // Add all auction items to the items table if they aren't already there
-func churnAuctionItemsOnInjest(items []localItem) {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+func (ahs *AuctionHistoryServer) churnAuctionItemsOnInjest(items []localItem) {
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		panic(err)
 	}
 	defer dbpool.Close()
-	cpclog.Infof("start item churn for %d items", len(items))
+	ahs.logger.Infof("start item churn for %d items", len(items))
 
 	insertBatch := &pgx.Batch{}
 
@@ -132,5 +129,5 @@ func churnAuctionItemsOnInjest(items []localItem) {
 	batchRes := dbpool.SendBatch(context.TODO(), insertBatch)
 	batchRes.Close()
 
-	cpclog.Info("finished item churn")
+	ahs.logger.Info("finished item churn")
 }

@@ -7,10 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -18,10 +15,10 @@ import (
 )
 
 // Get all auctions filtering with parameters
-func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint, start_dtm time.Time, end_dtm time.Time) (AuctionSummaryData, error) {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint, start_dtm time.Time, end_dtm time.Time) (AuctionSummaryData, error) {
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		return AuctionSummaryData{}, err
 	}
 	defer dbpool.Close()
@@ -49,7 +46,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 		return fmt.Sprintf("$%d", len(value_searches)+1)
 	}
 
-	cpclog.Debugf(`getAuctions(%v, %v, %s, %v, %T, %T)`, item, realm, region, bonuses, start_dtm, end_dtm)
+	ahs.logger.Debugf(`getAuctions(%v, %v, %s, %v, %T, %T)`, item, realm, region, bonuses, start_dtm, end_dtm)
 	const (
 		sql_archive_build        string = "SELECT downloaded, summary FROM auction_archive"
 		sql_build_distinct_dtm   string = "SELECT DISTINCT downloaded FROM auctions"
@@ -72,7 +69,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 
 	// Get realm
 	if realm.Name != "" {
-		rlm, err := blizzard_api_helpers.GetConnectedRealmId(realm.Name, region)
+		rlm, err := ahs.helper.GetConnectedRealmId(realm.Name, region)
 		if err != nil {
 			return AuctionSummaryData{}, err
 		}
@@ -83,7 +80,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 
 	// Get item
 	if item.ItemName != "" {
-		itm, err := blizzard_api_helpers.GetItemId(region, item.ItemName)
+		itm, err := ahs.helper.GetItemId(region, item.ItemName)
 		if err != nil {
 			return AuctionSummaryData{}, err
 		}
@@ -127,7 +124,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 		// Get only with specific bonuses
 		for _, b := range bonuses {
 			if b != 0 {
-				cpclog.Debugf(`Add bonus %d in (select json_each.value from json_each(bonuses))`, b)
+				ahs.logger.Debugf(`Add bonus %d in (select json_each.value from json_each(bonuses))`, b)
 				json_query := fmt.Sprintf(jsonQueryTemplate, get_place_marker())
 				sql_addins = append(sql_addins, json_query)
 				value_searches = append(value_searches, b)
@@ -217,7 +214,7 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 	return_value.PriceMap = price_data_by_download
 
 	// Get spot auctions
-	spotSummary, err := getSpotAuctionSummary(item, realm, region, bonuses)
+	spotSummary, err := ahs.getSpotAuctionSummary(item, realm, region, bonuses)
 	if err != nil {
 		return AuctionSummaryData{}, err
 	}
@@ -262,13 +259,13 @@ func GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedR
 }
 
 // Get a current auction spot summary from the internet
-func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint) (AuctionPriceSummaryRecord, error) {
+func (ahs *AuctionHistoryServer) getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint) (AuctionPriceSummaryRecord, error) {
 	var realm_get uint
 	if realm.Id != 0 {
 		realm_get = realm.Id
 	} else if realm.Name != "" {
 		var realmGetError error
-		realm_get, realmGetError = blizzard_api_helpers.GetConnectedRealmId(realm.Name, region)
+		realm_get, realmGetError = ahs.helper.GetConnectedRealmId(realm.Name, region)
 		if realmGetError != nil {
 			return AuctionPriceSummaryRecord{}, fmt.Errorf("no realm found with %s", realm.Name)
 		}
@@ -276,15 +273,15 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 		return AuctionPriceSummaryRecord{}, fmt.Errorf("realm %v could not be found", realm)
 	}
 
-	ah, _ := blizzard_api_helpers.GetAuctionHouse(realm_get, region)
-	cpclog.Debugf(`Spot search for item: %v and realm %v and region %s, with bonuses %v`, item, realm, region, bonuses)
+	ah, _ := ahs.helper.GetAuctionHouse(realm_get, region)
+	ahs.logger.Debugf(`Spot search for item: %v and realm %v and region %s, with bonuses %v`, item, realm, region, bonuses)
 
 	var item_id uint
 	if item.ItemId != 0 {
 		item_id = item.ItemId
 	} else if item.ItemName != "" {
 		var it_err error
-		item_id, it_err = blizzard_api_helpers.GetItemId(region, item.ItemName)
+		item_id, it_err = ahs.helper.GetItemId(region, item.ItemName)
 		if it_err != nil {
 			return AuctionPriceSummaryRecord{}, fmt.Errorf("could not find item for %v", item)
 		}
@@ -297,16 +294,16 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 		found_item, found_bonus := false, false
 		if auction.Item.Id == item_id {
 			found_item = true
-			cpclog.Sillyf(`Found %d`, auction.Item.Id)
+			ahs.logger.Sillyf(`Found %d`, auction.Item.Id)
 		}
 		if len(bonuses) == 0 {
 			if len(auction.Item.Bonus_lists) > 0 {
 				found_bonus = true
-				cpclog.Sillyf(`Found $%d to match null bonus list`, auction.Item.Id)
+				ahs.logger.Sillyf(`Found $%d to match null bonus list`, auction.Item.Id)
 			}
 		} else {
 			found_bonus = checkBonus(bonuses, auction.Item.Bonus_lists)
-			cpclog.Sillyf(`Array bonus list %v returned %t for %v`, bonuses, found_bonus, auction.Item.Bonus_lists)
+			ahs.logger.Sillyf(`Array bonus list %v returned %t for %v`, bonuses, found_bonus, auction.Item.Bonus_lists)
 		}
 
 		if found_bonus && found_item {
@@ -314,7 +311,7 @@ func getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.
 		}
 	}
 
-	cpclog.Debugf(`Found %d auctions`, len(auction_set))
+	ahs.logger.Debugf(`Found %d auctions`, len(auction_set))
 
 	return_value := AuctionPriceSummaryRecord{
 		MinValue: math.MaxUint,

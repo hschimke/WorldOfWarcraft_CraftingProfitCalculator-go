@@ -1,19 +1,24 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"strconv"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/wow_crafting_profits"
 )
 
 func main() {
-	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
+	logger := &cpclog.CpCLog{
+		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
+	}
 	//http.ListenAndServe("localhost:8080", nil)
 	//defer profile.Start(profile.ProfilePath("."), profile.CPUProfile, profile.MemProfileHeap).Stop()
 	//defer profile.Start(profile.BlockProfile).Stop()
@@ -48,7 +53,7 @@ func main() {
 	if !(*fUseJsonFlag) {
 		err := json.Unmarshal([]byte(*fProfession), &(character_config_json.Professions))
 		if err != nil {
-			cpclog.Error(err.Error())
+			logger.Error(err.Error())
 			character_config_json.Professions = make([]string, 0)
 		}
 		character_config_json.Realm.Realm_name = *fServer
@@ -66,9 +71,12 @@ func main() {
 	config := globalTypes.NewRunConfig(&character_config_json, item, *fCount)
 	config.UseAllProfessions = *fAllProfessionsFlag
 
-	runErr := wow_crafting_profits.CliRun(config)
+	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
+	helper := blizzard_api_helpers.NewBlizzardApiHelper(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, cache, logger)
+
+	runErr := wow_crafting_profits.CliRun(config, helper, logger)
 	if runErr != nil {
-		cpclog.Error(runErr.Error())
+		logger.Error(runErr.Error())
 	}
 
 	//fl, _ := os.Create("memprof.pprof")

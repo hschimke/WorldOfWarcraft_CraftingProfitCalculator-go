@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
@@ -65,7 +64,23 @@ type localItem struct {
 	Craftable *bool
 }
 
-func init() {
+type AuctionHistoryServer struct {
+	helper           *blizzard_api_helpers.BlizzardApiHelper
+	connectionString string
+	logger           *cpclog.CpCLog
+}
+
+func NewAuctionHistoryServer(connectionString string, helper *blizzard_api_helpers.BlizzardApiHelper, logger *cpclog.CpCLog) *AuctionHistoryServer {
+	ahs := AuctionHistoryServer{
+		helper:           helper,
+		connectionString: connectionString,
+		logger:           logger,
+	}
+	ahs.dbSetup()
+	return &ahs
+}
+
+func (ahs *AuctionHistoryServer) dbSetup() {
 	const (
 		sql_create_item_table            string = "CREATE TABLE IF NOT EXISTS auctions (item_id NUMERIC, bonuses TEXT, quantity NUMERIC, price NUMERIC, downloaded TIMESTAMP WITH TIME ZONE, connected_realm_id NUMERIC, region TEXT)"
 		sql_create_items_table           string = "CREATE TABLE IF NOT EXISTS items (item_id NUMERIC, region TEXT, name TEXT, craftable BOOLEAN, scanned BOOLEAN, PRIMARY KEY (item_id,region))"
@@ -76,9 +91,9 @@ func init() {
 		sql_create_items_name_ind        string = "CREATE INDEX IF NOT EXISTS items_name_index on items (name)"
 	)
 
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		panic(err)
 	}
 	defer dbpool.Close()
@@ -93,19 +108,19 @@ func init() {
 }
 
 // Injest all the realms in the scan list
-func ScanRealms(async bool) error {
+func (ahs *AuctionHistoryServer) ScanRealms(async bool) error {
 	const sql string = "SELECT connected_realm_id, region FROM realm_scan_list"
 
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		return err
 	}
 	defer dbpool.Close()
 
 	realms, err := dbpool.Query(context.TODO(), sql)
 	if err != nil {
-		cpclog.Errorf("Unable to query database: %v", err)
+		ahs.logger.Errorf("Unable to query database: %v", err)
 		return err
 	}
 	defer realms.Close()
@@ -116,7 +131,7 @@ func ScanRealms(async bool) error {
 			region             string
 		)
 		realms.Scan(&connected_realm_id, &region)
-		ingestErr := ingest(region, connected_realm_id, dbpool, async)
+		ingestErr := ahs.ingest(region, connected_realm_id, dbpool, async)
 		if ingestErr != nil {
 			return ingestErr
 		}
@@ -126,10 +141,10 @@ func ScanRealms(async bool) error {
 }
 
 // Add a realm for historic price data scanning
-func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+func (ahs *AuctionHistoryServer) AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		return err
 	}
 	defer dbpool.Close()
@@ -145,7 +160,7 @@ func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalType
 	if realm.Id != 0 {
 		newRealmId = realm.Id
 	} else if realm.Name != "" {
-		fetchRealmId, fetchRealmIdErr := blizzard_api_helpers.GetConnectedRealmId(realm.Name, region)
+		fetchRealmId, fetchRealmIdErr := ahs.helper.GetConnectedRealmId(realm.Name, region)
 		if fetchRealmIdErr != nil {
 			return fmt.Errorf("could not get realm %v", fetchRealmIdErr)
 		}
@@ -157,7 +172,7 @@ func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalType
 		return fmt.Errorf("no realm")
 	}
 
-	fetchRealm, fetchRealmErr := blizzard_api_helpers.GetBlizConnectedRealmDetail(newRealmId, region)
+	fetchRealm, fetchRealmErr := ahs.helper.GetBlizConnectedRealmDetail(newRealmId, region)
 	if fetchRealmErr != nil {
 		return fmt.Errorf("could not get realm %v", fetchRealmErr)
 	}
@@ -168,7 +183,7 @@ func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalType
 
 	_, execErr := dbpool.Exec(context.TODO(), sql, newRealmId, strings.ToLower(region), strings.Join(realmNameComposite, ", "))
 	if execErr != nil {
-		cpclog.Errorf(`Couldn't add %v in %s to scan realms table: %v.`, realm, region, err)
+		ahs.logger.Errorf(`Couldn't add %v in %s to scan realms table: %v.`, realm, region, err)
 		return execErr
 	}
 
@@ -176,10 +191,10 @@ func AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalType
 }
 
 // Remove a realm from the history scan list
-func RemoveScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+func (ahs *AuctionHistoryServer) RemoveScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		return err
 	}
 	defer dbpool.Close()
@@ -194,7 +209,7 @@ func RemoveScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalT
 	if realm.Id != 0 {
 		newRealmId = realm.Id
 	} else if realm.Name != "" {
-		fetchRealmId, fetchRealmIdErr := blizzard_api_helpers.GetConnectedRealmId(realm.Name, region)
+		fetchRealmId, fetchRealmIdErr := ahs.helper.GetConnectedRealmId(realm.Name, region)
 		if fetchRealmIdErr != nil {
 			panic("could not get realm")
 		}
@@ -212,15 +227,15 @@ func RemoveScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalT
 }
 
 // Return all bonuses availble for an item
-func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionCode) (GetAllBonusesReturn, error) {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+func (ahs *AuctionHistoryServer) GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionCode) (GetAllBonusesReturn, error) {
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		return GetAllBonusesReturn{}, err
 	}
 	defer dbpool.Close()
 
-	cpclog.Debugf(`Fetching bonuses for %v`, item)
+	ahs.logger.Debugf(`Fetching bonuses for %v`, item)
 
 	const sql string = "SELECT DISTINCT bonuses FROM auctions WHERE item_id = $1"
 
@@ -228,7 +243,7 @@ func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionC
 	if item.ItemId != 0 {
 		searchId = item.ItemId
 	} else if item.ItemName != "" {
-		itemId, idErr := blizzard_api_helpers.GetItemId(region, item.ItemName)
+		itemId, idErr := ahs.helper.GetItemId(region, item.ItemName)
 		if idErr != nil {
 			return GetAllBonusesReturn{}, idErr
 		}
@@ -239,7 +254,7 @@ func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionC
 
 	var return_value GetAllBonusesReturn
 
-	fetchedItem, err := blizzard_api_helpers.GetItemDetails(searchId, region)
+	fetchedItem, err := ahs.helper.GetItemDetails(searchId, region)
 	if err != nil {
 		return GetAllBonusesReturn{}, err
 	}
@@ -270,16 +285,16 @@ func GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionC
 		return_value.Bonuses = append(return_value.Bonuses, arrayOfBonuses)
 	}
 
-	cpclog.Debugf(`Found %d bonuses for %v`, len(return_value.Bonuses), item)
+	ahs.logger.Debugf(`Found %d bonuses for %v`, len(return_value.Bonuses), item)
 
 	return return_value, nil
 }
 
 // Archive auctions, in this implementation it generally just deletes old auctions
-func ArchiveAuctions() {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+func (ahs *AuctionHistoryServer) ArchiveAuctions() {
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		panic(err)
 	}
 	defer dbpool.Close()

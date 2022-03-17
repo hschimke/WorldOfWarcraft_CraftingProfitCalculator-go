@@ -3,16 +3,14 @@ package auction_history
 import (
 	"context"
 
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Get a list of all scanned realms
-func GetScanRealms() ([]ScanRealmsResult, error) {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+func (ahs *AuctionHistoryServer) GetScanRealms() ([]ScanRealmsResult, error) {
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		return []ScanRealmsResult{}, err
 	}
 	defer dbpool.Close()
@@ -36,10 +34,10 @@ func GetScanRealms() ([]ScanRealmsResult, error) {
 }
 
 // Get all the names available, filtering if availble
-func GetAllNames() []string {
-	dbpool, err := pgxpool.Connect(context.Background(), environment_variables.DATABASE_CONNECTION_STRING)
+func (ahs *AuctionHistoryServer) GetAllNames() []string {
+	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
 	if err != nil {
-		cpclog.Errorf("Unable to connect to database: %v", err)
+		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		panic(err)
 	}
 	defer dbpool.Close()

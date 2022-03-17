@@ -5,20 +5,17 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 )
 
 // Download the WOW addon
-func AddonDownload(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) AddonDownload(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/zip")
 	http.ServeFile(w, r, "html/CraftingProfitCalculator_data.zip")
 }
 
 // Internal healthcheck
-func Healthcheck(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) Healthcheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	//	w.WriteHeader(http.StatusOK)
 
@@ -30,7 +27,7 @@ func Healthcheck(w http.ResponseWriter, r *http.Request) {
 }
 
 // Get a list of all bonus mappings for a given bonus
-func BonusMappings(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) BonusMappings(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 	bonus := r.URL.Query().Get("bonus")
@@ -40,7 +37,7 @@ func BonusMappings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sources, err := static_sources.GetBonuses()
+	sources, err := routes.staticSources.GetBonuses()
 	if err != nil {
 		http.Error(w, "Could not load bonuses", http.StatusInternalServerError)
 	} else {
@@ -53,8 +50,8 @@ func BonusMappings(w http.ResponseWriter, r *http.Request) {
 }
 
 // Return a list of all realms availble
-func AllRealms(w http.ResponseWriter, r *http.Request) {
-	cpclog.Debug("Getting all realms")
+func (routes *CPCRoutes) AllRealms(w http.ResponseWriter, r *http.Request) {
+	routes.logger.Debug("Getting all realms")
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
@@ -64,7 +61,7 @@ func AllRealms(w http.ResponseWriter, r *http.Request) {
 	region := r.URL.Query().Get("region")
 
 	if len(region) > 0 {
-		names = blizzard_api_helpers.GetAllRealmNames(region)
+		names = routes.helper.GetAllRealmNames(region)
 	}
 
 	filterd_names := util.FilterStringArray(names, partial, "realms")

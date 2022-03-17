@@ -6,24 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
-
-var redisClient *redis.Client
-
-func init() {
-	uri := environment_variables.REDIS_URL
-
-	redis_options, err := redis.ParseURL(uri)
-	if err != nil {
-		panic("redis cannot be contacted")
-	}
-	redisClient = redis.NewClient(redis_options)
-}
 
 type jsonOutputBodyQueueData struct {
 	//AddonData   globalTypes.AddonData `json:"addon_data,omitempty"`
@@ -38,7 +23,7 @@ type jsonOutputBodyQueueData struct {
 }
 
 // Queue up a CPC run
-func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body == nil {
 		http.Error(w, "body required", http.StatusBadRequest)
@@ -63,7 +48,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 
 	switch data.Type {
 	case "custom":
-		cpclog.Debugf(`Custom search for item: %s, server: %s, region: %s, professions: %v. JSON DATA: %d`, data.ItemId, data.Server, data.Region, data.Professions, len(adData.Inventory))
+		routes.logger.Debugf(`Custom search for item: %s, server: %s, region: %s, professions: %v. JSON DATA: %d`, data.ItemId, data.Server, data.Region, data.Professions, len(adData.Inventory))
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
 			JobConfig: struct {
@@ -95,9 +80,9 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, rjsErr.Error(), http.StatusInternalServerError)
 			return
 		}
-		redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
+		routes.redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
 	case "json":
-		cpclog.Debug("json search")
+		routes.logger.Debug("json search")
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
 			JobConfig: struct {
@@ -117,7 +102,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, rjsErr.Error(), http.StatusInternalServerError)
 			return
 		}
-		redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
+		routes.redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
 	default:
 		http.Error(w, "type must be one of 'custom' or 'json'", http.StatusBadRequest)
 		return
@@ -130,7 +115,7 @@ func JsonOutputQueue(w http.ResponseWriter, r *http.Request) {
 }
 
 // Check to see if a queued CPC run has completed
-func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
+func (routes *CPCRoutes) JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 
 	if r.Body == nil {
 		http.Error(w, "body required", http.StatusBadRequest)
@@ -147,7 +132,7 @@ func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 	key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, data.JobId)
 	jobDone := false
 
-	fnd, err := redisClient.Exists(context.TODO(), key).Result()
+	fnd, err := routes.redisClient.Exists(context.TODO(), key).Result()
 	if err != nil {
 		jobDone = false
 	} else {
@@ -155,7 +140,7 @@ func JsonOutputCheck(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if jobDone {
-		job, jobErr := redisClient.Get(context.TODO(), key).Result()
+		job, jobErr := routes.redisClient.Get(context.TODO(), key).Result()
 		if jobErr != nil {
 			json.NewEncoder(w).Encode(globalTypes.ReturnError{
 				ERROR: jobErr.Error(),

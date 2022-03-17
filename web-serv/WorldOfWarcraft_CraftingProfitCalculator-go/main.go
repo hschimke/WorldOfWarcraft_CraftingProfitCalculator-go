@@ -10,13 +10,20 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/routes"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 )
 
 func main() {
-	cpclog.LogLevel = cpclog.GetLevel(environment_variables.LOG_LEVEL)
+	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
+	logger := &cpclog.CpCLog{
+		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
+	}
+	apiHelper := blizzard_api_helpers.NewBlizzardApiHelper(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, cache, logger)
+	cpcRoutes := routes.NewCPCRoutes(environment_variables.DATABASE_CONNECTION_STRING, environment_variables.REDIS_URL, apiHelper, cache, logger)
 	router := http.NewServeMux()
 	/*
 		var frontend fs.FS = os.DirFS("html/build")
@@ -30,21 +37,21 @@ func main() {
 
 	router.Handle("/", spa)
 
-	router.HandleFunc("/json_output_QUEUED", routes.JsonOutputQueue)
-	router.HandleFunc("/json_output_CHECK", routes.JsonOutputCheck)
+	router.HandleFunc("/json_output_QUEUED", cpcRoutes.JsonOutputQueue)
+	router.HandleFunc("/json_output_CHECK", cpcRoutes.JsonOutputCheck)
 	//http.HandleFunc("/json_output", routes.JsonOutput)
 
 	if !environment_variables.DISABLE_AUCTION_HISTORY {
-		router.HandleFunc("/all_items", routes.AllItems)
-		router.HandleFunc("/scanned_realms", routes.ScannedRealms)
-		router.HandleFunc("/auction_history", routes.AuctionHistory)
-		router.HandleFunc("/seen_item_bonuses", routes.SeenItemBonuses)
+		router.HandleFunc("/all_items", cpcRoutes.AllItems)
+		router.HandleFunc("/scanned_realms", cpcRoutes.ScannedRealms)
+		router.HandleFunc("/auction_history", cpcRoutes.AuctionHistory)
+		router.HandleFunc("/seen_item_bonuses", cpcRoutes.SeenItemBonuses)
 	}
 
-	router.HandleFunc("/bonus_mappings", routes.BonusMappings)
-	router.HandleFunc("/addon-download", routes.AddonDownload)
-	router.HandleFunc("/healthcheck", routes.Healthcheck)
-	router.HandleFunc("/all_realm_names", routes.AllRealms)
+	router.HandleFunc("/bonus_mappings", cpcRoutes.BonusMappings)
+	router.HandleFunc("/addon-download", cpcRoutes.AddonDownload)
+	router.HandleFunc("/healthcheck", cpcRoutes.Healthcheck)
+	router.HandleFunc("/all_realm_names", cpcRoutes.AllRealms)
 
 	address := fmt.Sprintf(":%d", environment_variables.SERVER_PORT)
 
@@ -65,6 +72,6 @@ func main() {
 	signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	<-closeRequested
-	cpclog.Info("Shutting down")
+	logger.Info("Shutting down")
 	server.Shutdown(context.Background())
 }

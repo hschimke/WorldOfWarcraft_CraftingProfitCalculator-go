@@ -6,10 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
-
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 )
 
 const (
@@ -34,31 +31,6 @@ func (at *AccessToken) CheckExpired() (expired bool) {
 		expired = false
 	}
 	return expired
-}
-
-// TokenServer represents a server that can return authorization tokens for a given client id and secret
-type TokenServer struct {
-	clientId, clientSecret string
-	tokenStore             map[string]*AccessToken
-	HttpClient             *http.Client
-	authCheckMutex         sync.Mutex
-	Logger                 *cpclog.CpCLog
-}
-
-// NewTokenServer creates a default TokenServer with a given client ID and Secret
-func NewTokenServer(clientId, clientSecret string, logger *cpclog.CpCLog) *TokenServer {
-	if clientId == "" || clientSecret == "" {
-		panic("cannot have empty clientId or clientSecret")
-	}
-	return &TokenServer{
-		clientId:     clientId,
-		clientSecret: clientSecret,
-		tokenStore:   map[string]*AccessToken{},
-		HttpClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
-		Logger: logger,
-	}
 }
 
 // GetAuthorizationToken returns an authorization token for a given region, fetches a new one if an existing token isn't found or has expired.

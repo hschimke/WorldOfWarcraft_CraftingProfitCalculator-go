@@ -9,7 +9,6 @@ import (
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
@@ -48,20 +47,6 @@ type skilltier struct {
 type SkillTierCyclicLinksBuild [][]struct {
 	Id       []uint
 	Quantity uint
-}
-
-type BlizzardApiHelper struct {
-	api    *blizzard_api_call.BlizzardApiProvider
-	cache  *cache_provider.CacheProvider
-	logger *cpclog.CpCLog
-}
-
-func NewBlizzardApiHelper(cache *cache_provider.CacheProvider, logger *cpclog.CpCLog, api *blizzard_api_call.BlizzardApiProvider) *BlizzardApiHelper {
-	return &BlizzardApiHelper{
-		api:    api,
-		cache:  cache,
-		logger: logger,
-	}
 }
 
 // Check if a page of search results contains an item named itemName. foundItemId can be ignored if found is false

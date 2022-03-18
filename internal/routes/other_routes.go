@@ -51,7 +51,7 @@ func (routes *CPCRoutes) BonusMappings(w http.ResponseWriter, r *http.Request) {
 
 // Return a list of all realms availble
 func (routes *CPCRoutes) AllRealms(w http.ResponseWriter, r *http.Request) {
-	routes.logger.Debug("Getting all realms")
+	routes.Logger.Debug("Getting all realms")
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 

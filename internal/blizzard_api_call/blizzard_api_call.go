@@ -46,7 +46,7 @@ type BlizzardApiProvider struct {
 	clearTicks                 *time.Ticker
 	stopClear                  chan bool
 	TokenServer                *blizz_oath.TokenServer
-	logger                     *cpclog.CpCLog
+	Logger                     *cpclog.CpCLog
 }
 
 func NewBlizzardApiProvider(tokenServer *blizz_oath.TokenServer, logger *cpclog.CpCLog) *BlizzardApiProvider {
@@ -63,7 +63,7 @@ func NewBlizzardApiProvider(tokenServer *blizz_oath.TokenServer, logger *cpclog.
 		},
 		clearTicks:  time.NewTicker(time.Duration(time.Second * period_reset_window)),
 		stopClear:   make(chan bool),
-		logger:      logger,
+		Logger:      logger,
 		TokenServer: tokenServer,
 	}
 	appShutdownDetected := make(chan os.Signal, 1)
@@ -75,18 +75,18 @@ func NewBlizzardApiProvider(tokenServer *blizz_oath.TokenServer, logger *cpclog.
 
 // Control reset windows and connection flow for Blizzard API connections
 func (client *BlizzardApiProvider) blizzardApiFlowManager(stopper chan bool, appShutdownSignal chan os.Signal) {
-	client.logger.Info("Starting API Flow Manager")
+	client.Logger.Info("Starting API Flow Manager")
 	for {
 		select {
 		case <-client.clearTicks.C:
-			client.logger.Silly("Reset window ", atomic.LoadUint64(&client.allowedDuringPeriod))
+			client.Logger.Silly("Reset window ", atomic.LoadUint64(&client.allowedDuringPeriod))
 			atomic.StoreUint64(&client.allowedDuringPeriod, atomic.LoadUint64(&client.inUse))
 		case <-stopper:
-			client.logger.Info("Stopping API Flow Manager")
+			client.Logger.Info("Stopping API Flow Manager")
 			client.clearTicks.Stop()
 			return
 		case <-appShutdownSignal:
-			client.logger.Info("App Shutdown Detected: API Flow Manager shutting down")
+			client.Logger.Info("App Shutdown Detected: API Flow Manager shutting down")
 			client.clearTicks.Stop()
 			return
 		}
@@ -107,7 +107,7 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, uri 
 
 	req, err := http.NewRequest(http.MethodGet, uri, nil)
 	if err != nil {
-		api.logger.Errorf("error with request: %s, err: %s", uri, err)
+		api.Logger.Errorf("error with request: %s, err: %s", uri, err)
 		return fmt.Errorf("error with request: %s, err: %s", uri, err)
 	}
 	req.Header.Set("User-Agent", "WorldOfWarcraft_CraftingProfitCalculator-go")
@@ -131,7 +131,7 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, uri 
 	for attempt := 0; attempt < max_retries; attempt++ {
 		res, getErr = api.HttpClient.Do(req)
 		if getErr != nil {
-			api.logger.Debugf("Failure fetching uri, will retry %d more times. (%v)", max_retries-attempt, getErr)
+			api.Logger.Debugf("Failure fetching uri, will retry %d more times. (%v)", max_retries-attempt, getErr)
 			time.Sleep(time.Second * sleep_seconds_between_tries)
 		} else {
 			break
@@ -139,7 +139,7 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, uri 
 	}
 
 	if getErr != nil {
-		api.logger.Error("An error was encountered while retrieving a uri(", uri, "): ", getErr)
+		api.Logger.Error("An error was encountered while retrieving a uri(", uri, "): ", getErr)
 		return fmt.Errorf("error fetching uri: %s, err: %s", uri, getErr)
 	}
 
@@ -149,7 +149,7 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, uri 
 
 	parseErr := json.NewDecoder(res.Body).Decode(&target)
 	if parseErr != nil {
-		api.logger.Error("An error was encountered while parsing response: ", parseErr)
+		api.Logger.Error("An error was encountered while parsing response: ", parseErr)
 		return fmt.Errorf("error parsing api response for: %s, err: %s", uri, parseErr)
 	}
 	return nil
@@ -168,15 +168,15 @@ func getBlizzardAPIResponse[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiPr
 		}
 	}
 	if wait_count > 10 {
-		api.logger.Debugf("Waited %v seconds for an available API window.", wait_count)
+		api.Logger.Debugf("Waited %v seconds for an available API window.", wait_count)
 	} else if wait_count > 0 && wait_count <= 10 {
-		api.logger.Sillyf("Waited %v seconds for an available API window.", wait_count)
+		api.Logger.Sillyf("Waited %v seconds for an available API window.", wait_count)
 	}
 	atomic.AddUint64(&api.inUse, 1)
 	getAndFillerr := getAndFill(api, uri, region, data, namespace, target)
 	if getAndFillerr != nil {
 		atomic.AddUint64(&api.inUse, ^uint64(0))
-		api.logger.Errorf("issue fetching blizzard data: (%s)", uri)
+		api.Logger.Errorf("issue fetching blizzard data: (%s)", uri)
 		return -1, fmt.Errorf("issue fetching blizzard data: (%s)", uri)
 	}
 

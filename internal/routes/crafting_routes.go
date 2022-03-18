@@ -48,7 +48,7 @@ func (routes *CPCRoutes) JsonOutputQueue(w http.ResponseWriter, r *http.Request)
 
 	switch data.Type {
 	case "custom":
-		routes.logger.Debugf(`Custom search for item: %s, server: %s, region: %s, professions: %v. JSON DATA: %d`, data.ItemId, data.Server, data.Region, data.Professions, len(adData.Inventory))
+		routes.Logger.Debugf(`Custom search for item: %s, server: %s, region: %s, professions: %v. JSON DATA: %d`, data.ItemId, data.Server, data.Region, data.Professions, len(adData.Inventory))
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
 			JobConfig: struct {
@@ -82,7 +82,7 @@ func (routes *CPCRoutes) JsonOutputQueue(w http.ResponseWriter, r *http.Request)
 		}
 		routes.redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
 	case "json":
-		routes.logger.Debug("json search")
+		routes.Logger.Debug("json search")
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
 			JobConfig: struct {

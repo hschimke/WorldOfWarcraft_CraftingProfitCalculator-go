@@ -16,7 +16,7 @@ type CPCRoutes struct {
 	helper             *blizzard_api_helpers.BlizzardApiHelper
 	cache              *cache_provider.CacheProvider
 	staticSources      static_sources.StaticSources
-	logger             *cpclog.CpCLog
+	Logger             *cpclog.CpCLog
 }
 
 func NewCPCRoutes(connectionString, redisUri string, helper *blizzard_api_helpers.BlizzardApiHelper, cache *cache_provider.CacheProvider, logger *cpclog.CpCLog) *CPCRoutes {
@@ -29,6 +29,6 @@ func NewCPCRoutes(connectionString, redisUri string, helper *blizzard_api_helper
 		redisClient:        redis.NewClient(redis_options),
 		helper:             helper,
 		cache:              cache,
-		logger:             logger,
+		Logger:             logger,
 	}
 }

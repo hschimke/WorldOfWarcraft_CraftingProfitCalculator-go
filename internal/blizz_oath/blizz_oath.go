@@ -40,9 +40,9 @@ func (at *AccessToken) CheckExpired() (expired bool) {
 type TokenServer struct {
 	clientId, clientSecret string
 	tokenStore             map[string]*AccessToken
-	httpClient             *http.Client
+	HttpClient             *http.Client
 	authCheckMutex         sync.Mutex
-	logger                 *cpclog.CpCLog
+	Logger                 *cpclog.CpCLog
 }
 
 // NewTokenServer creates a default TokenServer with a given client ID and Secret
@@ -54,10 +54,10 @@ func NewTokenServer(clientId, clientSecret string, logger *cpclog.CpCLog) *Token
 		clientId:     clientId,
 		clientSecret: clientSecret,
 		tokenStore:   map[string]*AccessToken{},
-		httpClient: &http.Client{
+		HttpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		logger: logger,
+		Logger: logger,
 	}
 }
 
@@ -81,7 +81,7 @@ func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error
 	token := ts.tokenStore[region]
 
 	if token.CheckExpired() {
-		ts.logger.Debug("Access token expired, fetching fresh.")
+		ts.Logger.Debug("Access token expired, fetching fresh.")
 		uri := fmt.Sprint("https://", region, ".", authorizationUriBase)
 
 		form := url.Values{}
@@ -89,7 +89,7 @@ func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error
 
 		req, err := http.NewRequest(http.MethodPost, uri, strings.NewReader(form.Encode()))
 		if err != nil {
-			ts.logger.Errorf("error getting access token for region: %s, err: %s", region, err)
+			ts.Logger.Errorf("error getting access token for region: %s, err: %s", region, err)
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, err)
 		}
 		req.Header.Set("User-Agent", "WorldOfWarcraft_CraftingProfitCalculator-go")
@@ -97,10 +97,10 @@ func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 		req.URL.User = url.UserPassword(ts.clientId, ts.clientSecret)
 
-		res, getErr := ts.httpClient.Do(req)
+		res, getErr := ts.HttpClient.Do(req)
 		if getErr != nil {
-			ts.logger.Error(getErr)
-			ts.logger.Error("an error was encountered while retrieving an authorization token: ", getErr.Error())
+			ts.Logger.Error(getErr)
+			ts.Logger.Error("an error was encountered while retrieving an authorization token: ", getErr.Error())
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, getErr)
 		}
 
@@ -111,8 +111,8 @@ func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error
 		new_token := AccessToken{}
 		parseErr := json.NewDecoder(res.Body).Decode(&new_token)
 		if parseErr != nil {
-			ts.logger.Error(parseErr)
-			ts.logger.Error("an error was encountered while parsing an authorization token: ", parseErr.Error())
+			ts.Logger.Error(parseErr)
+			ts.Logger.Error("an error was encountered while parsing an authorization token: ", parseErr.Error())
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, parseErr)
 		}
 		new_token.Fetched = time.Now()

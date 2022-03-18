@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
-	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 
@@ -62,22 +60,6 @@ type localItem struct {
 	ItemId    uint
 	Region    globalTypes.RegionCode
 	Craftable *bool
-}
-
-type AuctionHistoryServer struct {
-	helper           *blizzard_api_helpers.BlizzardApiHelper
-	connectionString string
-	logger           *cpclog.CpCLog
-}
-
-func NewAuctionHistoryServer(connectionString string, helper *blizzard_api_helpers.BlizzardApiHelper, logger *cpclog.CpCLog) *AuctionHistoryServer {
-	ahs := AuctionHistoryServer{
-		helper:           helper,
-		connectionString: connectionString,
-		logger:           logger,
-	}
-	ahs.dbSetup()
-	return &ahs
 }
 
 func (ahs *AuctionHistoryServer) dbSetup() {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
@@ -31,7 +32,8 @@ func main() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 
 	cache := cache_provider.NewCacheProvider(ctx, environment_variables.REDIS_URL)
-	helper := blizzard_api_helpers.NewBlizzardApiHelper(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, cache, logger)
+	api := blizzard_api_call.NewBlizzardApiProvider(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
+	helper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
 
 	closeRequested := make(chan os.Signal, 1)
 	signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)

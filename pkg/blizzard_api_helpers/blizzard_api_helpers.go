@@ -56,9 +56,9 @@ type BlizzardApiHelper struct {
 	logger *cpclog.CpCLog
 }
 
-func NewBlizzardApiHelper(clientId, clientSecret string, cache *cache_provider.CacheProvider, logger *cpclog.CpCLog) *BlizzardApiHelper {
+func NewBlizzardApiHelper(cache *cache_provider.CacheProvider, logger *cpclog.CpCLog, api *blizzard_api_call.BlizzardApiProvider) *BlizzardApiHelper {
 	return &BlizzardApiHelper{
-		api:    blizzard_api_call.NewBlizzardApiProvider(clientId, clientSecret, logger),
+		api:    api,
 		cache:  cache,
 		logger: logger,
 	}

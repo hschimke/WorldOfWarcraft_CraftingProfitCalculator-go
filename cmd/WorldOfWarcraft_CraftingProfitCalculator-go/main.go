@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
@@ -72,7 +73,8 @@ func main() {
 	config.UseAllProfessions = *fAllProfessionsFlag
 
 	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
-	helper := blizzard_api_helpers.NewBlizzardApiHelper(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, cache, logger)
+	api := blizzard_api_call.NewBlizzardApiProvider(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
+	helper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
 
 	runErr := wow_crafting_profits.CliRun(config, helper, logger)
 	if runErr != nil {

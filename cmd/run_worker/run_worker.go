@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
@@ -32,7 +33,8 @@ func main() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 
 	cache := cache_provider.NewCacheProvider(ctx, environment_variables.REDIS_URL)
-	api := blizzard_api_call.NewBlizzardApiProvider(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
+	tokenServer := blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
+	api := blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 	helper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
 
 	closeRequested := make(chan os.Signal, 1)

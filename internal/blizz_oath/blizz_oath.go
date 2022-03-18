@@ -46,9 +46,9 @@ type TokenServer struct {
 }
 
 // NewTokenServer creates a default TokenServer with a given client ID and Secret
-func NewTokenServer(clientId, clientSecret string, logger *cpclog.CpCLog) (*TokenServer, error) {
+func NewTokenServer(clientId, clientSecret string, logger *cpclog.CpCLog) *TokenServer {
 	if clientId == "" || clientSecret == "" {
-		return nil, fmt.Errorf("cannot have empty clientId or clientSecret")
+		panic("cannot have empty clientId or clientSecret")
 	}
 	return &TokenServer{
 		clientId:     clientId,
@@ -58,7 +58,7 @@ func NewTokenServer(clientId, clientSecret string, logger *cpclog.CpCLog) (*Toke
 			Timeout: 10 * time.Second,
 		},
 		logger: logger,
-	}, nil
+	}
 }
 
 // GetAuthorizationToken returns an authorization token for a given region, fetches a new one if an existing token isn't found or has expired.

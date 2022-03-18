@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
@@ -71,9 +72,9 @@ func main() {
 
 	config := globalTypes.NewRunConfig(&character_config_json, item, *fCount)
 	config.UseAllProfessions = *fAllProfessionsFlag
-
+	tokenServer := blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
 	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
-	api := blizzard_api_call.NewBlizzardApiProvider(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
+	api := blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 	helper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
 
 	runErr := wow_crafting_profits.CliRun(config, helper, logger)

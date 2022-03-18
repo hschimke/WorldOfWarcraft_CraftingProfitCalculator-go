@@ -41,22 +41,19 @@ const (
 )
 
 type BlizzardApiProvider struct {
-	clientId, clientSecret     string
 	allowedDuringPeriod, inUse uint64
-	httpClient                 *http.Client
+	HttpClient                 *http.Client
 	clearTicks                 *time.Ticker
 	stopClear                  chan bool
-	tokenServer                *blizz_oath.TokenServer
+	TokenServer                *blizz_oath.TokenServer
 	logger                     *cpclog.CpCLog
 }
 
-func NewBlizzardApiProvider(clientId, clientSecret string, logger *cpclog.CpCLog) *BlizzardApiProvider {
+func NewBlizzardApiProvider(tokenServer *blizz_oath.TokenServer, logger *cpclog.CpCLog) *BlizzardApiProvider {
 	client := BlizzardApiProvider{
 		allowedDuringPeriod: 0,
 		inUse:               0,
-		clientId:            clientId,
-		clientSecret:        clientSecret,
-		httpClient: &http.Client{
+		HttpClient: &http.Client{
 			Timeout: 20 * time.Second,
 			Transport: &http.Transport{
 				DisableCompression: false,
@@ -64,15 +61,11 @@ func NewBlizzardApiProvider(clientId, clientSecret string, logger *cpclog.CpCLog
 				MaxConnsPerHost:    allowed_connections_per_period,
 			},
 		},
-		clearTicks: time.NewTicker(time.Duration(time.Second * period_reset_window)),
-		stopClear:  make(chan bool),
-		logger:     logger,
+		clearTicks:  time.NewTicker(time.Duration(time.Second * period_reset_window)),
+		stopClear:   make(chan bool),
+		logger:      logger,
+		TokenServer: tokenServer,
 	}
-	tokenServer, tsErr := blizz_oath.NewTokenServer(clientId, clientSecret, logger)
-	if tsErr != nil {
-		logger.Fatal(tsErr.Error())
-	}
-	client.tokenServer = tokenServer
 	appShutdownDetected := make(chan os.Signal, 1)
 	signal.Notify(appShutdownDetected, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 	go client.blizzardApiFlowManager(client.stopClear, appShutdownDetected)
@@ -107,7 +100,7 @@ func (client *BlizzardApiProvider) ShutdownApiManager() {
 
 // Get a response from Blizzard API and fill a struct with the results
 func getAndFill[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, uri string, region globalTypes.RegionCode, data map[string]string, namespace string, target *T) error {
-	token, tokenErr := api.tokenServer.GetAuthorizationToken(region)
+	token, tokenErr := api.TokenServer.GetAuthorizationToken(region)
 	if tokenErr != nil {
 		return tokenErr
 	}
@@ -136,7 +129,7 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, uri 
 	)
 
 	for attempt := 0; attempt < max_retries; attempt++ {
-		res, getErr = api.httpClient.Do(req)
+		res, getErr = api.HttpClient.Do(req)
 		if getErr != nil {
 			api.logger.Debugf("Failure fetching uri, will retry %d more times. (%v)", max_retries-attempt, getErr)
 			time.Sleep(time.Second * sleep_seconds_between_tries)

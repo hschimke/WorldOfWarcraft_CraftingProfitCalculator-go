@@ -36,6 +36,10 @@ func main() {
 	tokenServer := blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
 	api := blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 	helper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
+	cpc := wow_crafting_profits.WoWCpCRunner{
+		Helper: helper,
+		Logger: logger,
+	}
 
 	closeRequested := make(chan os.Signal, 1)
 	signal.Notify(closeRequested, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -86,7 +90,7 @@ func main() {
 			config := globalTypes.NewRunConfig(&run_config.AddonData, run_config.Item, run_config.Count)
 			job_key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, run_id)
 
-			data, err := wow_crafting_profits.RunWithJSONConfig(config, helper, logger)
+			data, err := cpc.RunWithJSONConfig(config)
 			if err != nil {
 				logger.Info(`Invalid item search`, err)
 				redisClient.SetEX(ctx, job_key, job_error_return, time.Hour)

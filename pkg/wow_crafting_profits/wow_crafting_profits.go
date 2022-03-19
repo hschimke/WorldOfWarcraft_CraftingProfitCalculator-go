@@ -23,9 +23,9 @@ type recipeCost struct {
 }
 
 type WoWCpCRunner struct {
-	helper        *blizzard_api_helpers.BlizzardApiHelper
+	Helper        *blizzard_api_helpers.BlizzardApiHelper
 	staticSources static_sources.StaticSources
-	logger        *cpclog.CpCLog
+	Logger        *cpclog.CpCLog
 }
 
 /*
@@ -102,7 +102,7 @@ func (cpc *WoWCpCRunner) findNoneAHPrice(item_id globalTypes.ItemID, region glob
 	// Get the item from blizz and see what the purchase price is
 	// The general method is to get the item and see if the description mentions the auction house,
 	// if it does then return -1, if it doesn't return the 'purchase_price' options
-	item, err := cpc.helper.GetItemDetails(item_id, region)
+	item, err := cpc.Helper.GetItemDetails(item_id, region)
 	if err != nil {
 		return 0, err
 	}
@@ -154,7 +154,7 @@ func (cpc *WoWCpCRunner) getItemBonusLists(item_id globalTypes.ItemID, auction_h
 			bonus_lists_set = append(bonus_lists_set, list)
 		}
 	}
-	cpc.logger.Debug("Item ", item_id, " has ", len(bonus_lists_set), " bonus lists.")
+	cpc.Logger.Debug("Item ", item_id, " has ", len(bonus_lists_set), " bonus lists.")
 	return bonus_lists_set
 }
 
@@ -188,12 +188,12 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 	if item.ItemId != 0 {
 		item_id = item.ItemId
 	} else {
-		fnd_id, err := cpc.helper.GetItemId(region, item.ItemName)
+		fnd_id, err := cpc.Helper.GetItemId(region, item.ItemName)
 		if (fnd_id <= 0) || err != nil {
-			cpc.logger.Error("No itemId could be found for ", item)
+			cpc.Logger.Error("No itemId could be found for ", item)
 			return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("no itemId could be found for %v -> %v", item, err)
 		}
-		cpc.logger.Infof("Found %v for %v", fnd_id, item)
+		cpc.Logger.Infof("Found %v for %v", fnd_id, item)
 		item_id = fnd_id
 	}
 
@@ -206,7 +206,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 	rankings_ptr := cpc.staticSources.GetRankMappings()
 	rankings := *rankings_ptr
 
-	item_detail, err := cpc.helper.GetItemDetails(item_id, region)
+	item_detail, err := cpc.Helper.GetItemDetails(item_id, region)
 	if err != nil {
 		return globalTypes.ProfitAnalysisObject{}, err
 	}
@@ -214,7 +214,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 	base_ilvl := item_detail.Level
 
 	if passedCyclicLinks == nil {
-		cos, err := cpc.helper.BuildCyclicRecipeList(region)
+		cos, err := cpc.Helper.BuildCyclicRecipeList(region)
 		passedCyclicLinks = &cos
 		if err != nil {
 			return globalTypes.ProfitAnalysisObject{}, err
@@ -229,10 +229,10 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 		Item_quantity: float64(qauntity),
 	}
 
-	cpc.logger.Infof("Analyzing profits potential for %s ( %d )", item_detail.Name, item_id)
+	cpc.Logger.Infof("Analyzing profits potential for %s ( %d )", item_detail.Name, item_id)
 
 	// Get the realm id
-	server_id, err := cpc.helper.GetConnectedRealmId(server, region)
+	server_id, err := cpc.Helper.GetConnectedRealmId(server, region)
 	if err != nil {
 		return globalTypes.ProfitAnalysisObject{}, err
 	}
@@ -241,7 +241,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 
 	//Get the auction house
 	if passed_ah == nil {
-		ah, err := cpc.helper.GetAuctionHouse(server_id, region)
+		ah, err := cpc.Helper.GetAuctionHouse(server_id, region)
 		if err != nil {
 			return globalTypes.ProfitAnalysisObject{}, err
 		}
@@ -253,7 +253,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 	// Get Item AH price
 	price_obj.Ah_price = getAHItemPrice(item_id, auction_house, 0)
 
-	item_craftable, err := cpc.helper.CheckIsCrafting(item_id, character_professions, region)
+	item_craftable, err := cpc.Helper.CheckIsCrafting(item_id, character_professions, region)
 	if err != nil {
 		return globalTypes.ProfitAnalysisObject{}, err
 	}
@@ -296,17 +296,17 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 		if mod != 0 {
 			new_level := uint(int(base_ilvl) + mod)
 			bonus_link[new_level] = bonus
-			cpc.logger.Debug("Bonus level ", bonus, " results in crafted ilvl of ", new_level)
+			cpc.Logger.Debug("Bonus level ", bonus, " results in crafted ilvl of ", new_level)
 		}
 	}
 
 	recipe_id_list := item_craftable.Recipe_ids
 
 	if item_craftable.Craftable {
-		cpc.logger.Debug("Item ", item_detail.Name, " (", item_id, ") has ", len(item_craftable.Recipes), " recipes.")
+		cpc.Logger.Debug("Item ", item_detail.Name, " (", item_id, ") has ", len(item_craftable.Recipes), " recipes.")
 		for _, recipe := range item_craftable.Recipes {
 			// Get Reagents
-			item_bom, err := cpc.helper.GetBlizRecipeDetail(recipe.Recipe_id, region)
+			item_bom, err := cpc.Helper.GetBlizRecipeDetail(recipe.Recipe_id, region)
 			if err != nil {
 				return globalTypes.ProfitAnalysisObject{}, err
 			}
@@ -316,11 +316,11 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 			// Get prices for BOM
 			var bom_prices []globalTypes.ProfitAnalysisObject
 
-			cpc.logger.Debug("Recipe ", item_bom.Name, " (", recipe.Recipe_id, ") has ", len(item_bom.Reagents), " reagents")
+			cpc.Logger.Debug("Recipe ", item_bom.Name, " (", recipe.Recipe_id, ") has ", len(item_bom.Reagents), " reagents")
 
 			for _, reagent := range item_bom.Reagents {
 				if _, fnd := craftable_item_swaps[reagent.Reagent.Id]; fnd {
-					cpc.logger.Error("Cycles are not fully implemented.", craftable_item_swaps[reagent.Reagent.Id])
+					cpc.Logger.Error("Cycles are not fully implemented.", craftable_item_swaps[reagent.Reagent.Id])
 					return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("cycles are not supported")
 				}
 				itm := globalTypes.ItemSoftIdentity{
@@ -353,10 +353,10 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 				}
 				//	               rank_level = recipe_id_list.indexOf(recipe.recipe_id) > -1 ? rankings.available_levels[rankings.rank_mapping[recipe_id_list.indexOf(recipe.recipe_id)]] : 0;
 				if bonus_link[rank_level] != 0 {
-					cpc.logger.Debugf(`Looking for AH price for %d for level %d using bonus is %d`, item_id, rank_level, bonus_link[rank_level])
+					cpc.Logger.Debugf(`Looking for AH price for %d for level %d using bonus is %d`, item_id, rank_level, bonus_link[rank_level])
 					rank_AH = getAHItemPrice(item_id, auction_house, bonus_link[rank_level])
 				} else {
-					cpc.logger.Debugf(`Item %d has no auctions for level %d`, item_id, rank_level)
+					cpc.Logger.Debugf(`Item %d has no auctions for level %d`, item_id, rank_level)
 				}
 			}
 
@@ -368,7 +368,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 			})
 		}
 	} else {
-		cpc.logger.Debugf(`Item %s (%d) not craftable with professions: %v`, item_detail.Name, item_id, character_professions)
+		cpc.Logger.Debugf(`Item %s (%d) not craftable with professions: %v`, item_detail.Name, item_id, character_professions)
 		if len(price_obj.Bonus_lists) > 0 {
 			//price_obj.bonus_prices = [];
 			for _, bonus := range bl_flat {
@@ -408,7 +408,7 @@ func (cpc *WoWCpCRunner) recipeCostCalculator(recipe_option globalTypes.RecipeOp
 			cost.Low += component.Vendor_price * component.Item_quantity
 			cost.Average += component.Vendor_price * component.Item_quantity
 			cost.Median += component.Vendor_price * component.Item_quantity
-			cpc.logger.Debug("Use vendor price for ", component.Item_name, " (", component.Item_id, ")")
+			cpc.Logger.Debug("Use vendor price for ", component.Item_name, " (", component.Item_id, ")")
 		} else if !component.Crafting_status.Craftable {
 
 			high := float64(0)
@@ -429,9 +429,9 @@ func (cpc *WoWCpCRunner) recipeCostCalculator(recipe_option globalTypes.RecipeOp
 			cost.High += high * component.Item_quantity
 			cost.Low += low * component.Item_quantity
 			cost.Median += component.Ah_price.Median * component.Item_quantity
-			cpc.logger.Debugf("Use auction price for uncraftable item %s (%d)", component.Item_name, component.Item_id)
+			cpc.Logger.Debugf("Use auction price for uncraftable item %s (%d)", component.Item_name, component.Item_id)
 		} else {
-			cpc.logger.Debugf("Recursive check for item %s (%d)", component.Item_name, component.Item_id)
+			cpc.Logger.Debugf("Recursive check for item %s (%d)", component.Item_name, component.Item_id)
 			ave_acc := float64(0)
 			ave_cnt := 0
 
@@ -499,7 +499,7 @@ func (cpc *WoWCpCRunner) generateOutputFormat(price_data globalTypes.ProfitAnaly
 
 	for _, recipe_option := range price_data.Recipe_options {
 		option_price := cpc.recipeCostCalculator(recipe_option)
-		recipe, err := cpc.helper.GetBlizRecipeDetail(recipe_option.Recipe.Recipe_id, region)
+		recipe, err := cpc.Helper.GetBlizRecipeDetail(recipe_option.Recipe.Recipe_id, region)
 		if err != nil {
 			return globalTypes.OutputFormatObject{}
 		}
@@ -592,21 +592,21 @@ func getShoppingListRanks(intermediate_data globalTypes.OutputFormatObject) []ui
 func (cpc *WoWCpCRunner) constructShoppingList(intermediate_data globalTypes.OutputFormatObject, on_hand *globalTypes.RunConfiguration) globalTypes.OutputFormatShoppingList {
 	shopping_lists := make(globalTypes.OutputFormatShoppingList)
 	for _, rank := range getShoppingListRanks(intermediate_data) {
-		cpc.logger.Debug("Resetting inventory for rank shopping list.")
+		cpc.Logger.Debug("Resetting inventory for rank shopping list.")
 		on_hand.ResetInventoryAdjustments()
 		shopping_list := cpc.build_shopping_list(intermediate_data, rank)
 		for listIndex, li := range shopping_list {
 			needed := li.Quantity
 			available := on_hand.ItemCount(li.Id)
 
-			cpc.logger.Debugf("%s (%d) %f needed with %d available", li.Name, li.Id, needed, available)
+			cpc.Logger.Debugf("%s (%d) %f needed with %d available", li.Name, li.Id, needed, available)
 			if needed <= float64(available) {
-				cpc.logger.Debugf("$%s (%d) used %f of the available %d", li.Name, li.Id, needed, available)
+				cpc.Logger.Debugf("$%s (%d) used %f of the available %d", li.Name, li.Id, needed, available)
 				needed = 0
 				on_hand.AdjustInventory(li.Id, (int(needed) * -1))
 			} else if (needed > float64(available)) && (int(available) != 0) {
 				needed -= float64(available)
-				cpc.logger.Debugf("%s (%d) used all of the available %d and still need %f", li.Name, li.Id, available, needed)
+				cpc.Logger.Debugf("%s (%d) used all of the available %d and still need %f", li.Name, li.Id, available, needed)
 				on_hand.AdjustInventory(li.Id, (int(available) * -1))
 			}
 
@@ -641,7 +641,7 @@ func (cpc *WoWCpCRunner) build_shopping_list(intermediate_data globalTypes.Outpu
 	shopping_recipe_exclusions_ptr := cpc.staticSources.GetShoppingRecipeExclusionList()
 	shopping_recipe_exclusions := *shopping_recipe_exclusions_ptr
 
-	cpc.logger.Debugf(`Build shopping list for %s (%d) rank %d`, intermediate_data.Name, intermediate_data.Id, rank_requested)
+	cpc.Logger.Debugf(`Build shopping list for %s (%d) rank %d`, intermediate_data.Name, intermediate_data.Id, rank_requested)
 
 	needed := intermediate_data.Required
 
@@ -655,12 +655,12 @@ func (cpc *WoWCpCRunner) build_shopping_list(intermediate_data globalTypes.Outpu
 				Vendor: intermediate_data.Vendor,
 			},
 		})
-		cpc.logger.Debug(intermediate_data.Name, "(", intermediate_data.Id, ") cannot be crafted.")
+		cpc.Logger.Debug(intermediate_data.Name, "(", intermediate_data.Id, ") cannot be crafted.")
 	} else {
 		for _, recipe := range intermediate_data.Recipes {
 			// Make sure the recipe isn't on the exclusion list
 			if slices.Contains(shopping_recipe_exclusions.Exclusions, recipe.Id) {
-				cpc.logger.Debug(recipe.Name, " (", recipe.Id, ") is on the exclusion list. Add it directly")
+				cpc.Logger.Debug(recipe.Name, " (", recipe.Id, ") is on the exclusion list. Add it directly")
 				shopping_list = append(shopping_list, globalTypes.ShoppingList{
 					Id:       intermediate_data.Id,
 					Name:     intermediate_data.Name,
@@ -676,14 +676,14 @@ func (cpc *WoWCpCRunner) build_shopping_list(intermediate_data globalTypes.Outpu
 						// Only top level searches can have ranks
 						for _, sl := range cpc.build_shopping_list(part, 0) {
 							//let al = sl;
-							cpc.logger.Debugf(`Need %f of %s (%d) for each of %f`, sl.Quantity, sl.Name, sl.Id, needed)
+							cpc.Logger.Debugf(`Need %f of %s (%d) for each of %f`, sl.Quantity, sl.Name, sl.Id, needed)
 
 							sl.Quantity = sl.Quantity * needed
 							shopping_list = append(shopping_list, sl)
 						}
 					}
 				} else {
-					cpc.logger.Debugf(`Skipping recipe %d because its rank (%d) does not match the requested rank (%d)`, recipe.Id, recipe.Rank, rank_requested)
+					cpc.Logger.Debugf(`Skipping recipe %d because its rank (%d) does not match the requested rank (%d)`, recipe.Id, recipe.Rank, rank_requested)
 				}
 			}
 		}
@@ -743,9 +743,9 @@ func getRegionCode(region string) (region_coded globalTypes.RegionCode, err erro
  */
 func (cpc *WoWCpCRunner) run(region string, server globalTypes.RealmName, useAllProfessions bool, professions_input []globalTypes.CharacterProfession, item globalTypes.ItemSoftIdentity, json_config *globalTypes.RunConfiguration, count uint) (globalTypes.RunReturn, error) {
 
-	cpc.logger.Info("World of Warcraft Crafting Profit Calculator")
+	cpc.Logger.Info("World of Warcraft Crafting Profit Calculator")
 
-	cpc.logger.Infof("Checking %s in %s for %v with available professions %s", server, region, item, professions_input)
+	cpc.Logger.Infof("Checking %s in %s for %v with available professions %s", server, region, item, professions_input)
 
 	//let formatted_data = 'NO DATA';
 
@@ -757,7 +757,7 @@ func (cpc *WoWCpCRunner) run(region string, server globalTypes.RealmName, useAll
 	var professions []globalTypes.CharacterProfession
 
 	if useAllProfessions {
-		profList, profErr := cpc.helper.GetBlizProfessionsList(region)
+		profList, profErr := cpc.Helper.GetBlizProfessionsList(region)
 		if profErr != nil {
 			return globalTypes.RunReturn{Formatted: "NO DATA"}, profErr
 		}
@@ -849,11 +849,7 @@ func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data g
  * Perform a run with pure json configuration from the addon.
  * @param {RunConfiguration} json_config The configuration object.
  */
-func RunWithJSONConfig(json_config *globalTypes.RunConfiguration, helper *blizzard_api_helpers.BlizzardApiHelper, logger *cpclog.CpCLog) (globalTypes.RunReturn, error) {
-	cpc := WoWCpCRunner{
-		helper: helper,
-		logger: logger,
-	}
+func (cpc *WoWCpCRunner) RunWithJSONConfig(json_config *globalTypes.RunConfiguration) (globalTypes.RunReturn, error) {
 	return cpc.run(json_config.Realm_region, json_config.Realm_name, json_config.UseAllProfessions, json_config.Professions, json_config.Item, json_config, json_config.Item_count)
 	//return globalTypes.RunReturn{}, fmt.Errorf("not implemented")
 }
@@ -862,11 +858,11 @@ func RunWithJSONConfig(json_config *globalTypes.RunConfiguration, helper *blizza
  * Run from the command prompt.
  * @param {RunConfiguration} json_config The configuration object to execute.
  */
-func CliRun(json_config *globalTypes.RunConfiguration, helper *blizzard_api_helpers.BlizzardApiHelper, logger *cpclog.CpCLog) error {
-	results, err := RunWithJSONConfig(json_config, helper, logger)
+func (cpc *WoWCpCRunner) CliRun(json_config *globalTypes.RunConfiguration) error {
+	results, err := cpc.RunWithJSONConfig(json_config)
 	if err != nil {
 		return err
 	}
-	saveOutput(results.Price, results.Intermediate, results.Formatted, logger)
+	saveOutput(results.Price, results.Intermediate, results.Formatted, cpc.Logger)
 	return nil
 }

@@ -76,8 +76,12 @@ func main() {
 	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
 	api := blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 	helper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
+	cpc := wow_crafting_profits.WoWCpCRunner{
+		Helper: helper,
+		Logger: logger,
+	}
 
-	runErr := wow_crafting_profits.CliRun(config, helper, logger)
+	runErr := cpc.CliRun(config)
 	if runErr != nil {
 		logger.Error(runErr.Error())
 	}

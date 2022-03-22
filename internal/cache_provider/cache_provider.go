@@ -3,7 +3,6 @@ package cache_provider
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -17,16 +16,16 @@ var (
 
 // Create a Redis key given a namespace and key
 func getRedisKey(namespace string, key string) string {
-	return fmt.Sprint(namespace, ":->", key)
+	return namespace + ":->" + key
 }
 
 // Fetch an object from the cache, or fail
 func CacheGet[T any](namespace string, key string, target *T) error {
-	data, getErr := redisClient.Get(ctx, getRedisKey(namespace, key)).Result()
+	data, getErr := redisClient.Get(ctx, getRedisKey(namespace, key)).Bytes()
 	if getErr != nil {
 		return getErr
 	}
-	convertErr := json.Unmarshal([]byte(data), &target)
+	convertErr := json.Unmarshal(data, &target)
 	if convertErr != nil {
 		return convertErr
 	}

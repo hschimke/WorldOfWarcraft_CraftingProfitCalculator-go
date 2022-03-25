@@ -20,14 +20,16 @@ import (
 )
 
 func main() {
-	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
+	ctx := context.Background()
+	cache := cache_provider.NewCacheProvider(ctx, environment_variables.REDIS_URL)
 	logger := &cpclog.CpCLog{
 		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
 	}
 	tokenServer := blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
 	api := blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 	apiHelper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
-	cpcRoutes := routes.NewCPCRoutes(environment_variables.DATABASE_CONNECTION_STRING, environment_variables.REDIS_URL, apiHelper, cache, logger)
+	cpcRoutes := routes.NewCPCRoutes(ctx, environment_variables.DATABASE_CONNECTION_STRING, environment_variables.REDIS_URL, apiHelper, cache, logger)
+	defer cpcRoutes.Shutdown()
 	router := http.NewServeMux()
 	/*
 		var frontend fs.FS = os.DirFS("html/build")

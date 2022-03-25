@@ -53,11 +53,14 @@ func main() {
 
 	flag.Parse()
 
-	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
+	ctx := context.Background()
+
+	cache := cache_provider.NewCacheProvider(ctx, environment_variables.REDIS_URL)
 	tokenServer := blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
 	api := blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 	helper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
-	auctionHouseDataServer := auction_history.NewAuctionHistoryServer(environment_variables.DATABASE_CONNECTION_STRING, helper, logger)
+	auctionHouseDataServer := auction_history.NewAuctionHistoryServer(ctx, environment_variables.DATABASE_CONNECTION_STRING, helper, logger)
+	defer auctionHouseDataServer.Shutdown()
 
 	logger.LogLevel = cpclog.GetLevel(*fLogLevel)
 

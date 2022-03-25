@@ -4,18 +4,10 @@ import (
 	"context"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 // Fill in fillCount items into the database
 func (ahs *AuctionHistoryServer) FillNItems(fillCount uint) {
-	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
-	if err != nil {
-		ahs.logger.Errorf("Unable to connect to database: %v", err)
-		panic(err)
-	}
-	defer dbpool.Close()
-
 	const (
 		select_sql string = "SELECT item_id, region FROM items WHERE scanned = false LIMIT $1"
 		update_sql string = "UPDATE items SET name = $1, craftable = $2, scanned = true WHERE item_id = $3 AND region = $4"
@@ -24,13 +16,13 @@ func (ahs *AuctionHistoryServer) FillNItems(fillCount uint) {
 
 	ahs.logger.Infof(`Filling %d items with details.`, fillCount)
 
-	rows, rowsErr := dbpool.Query(context.TODO(), select_sql, fillCount)
+	rows, rowsErr := ahs.db.Query(context.TODO(), select_sql, fillCount)
 	if rowsErr != nil {
 		panic(rowsErr)
 	}
 	defer rows.Close()
 
-	tranaction, tErr := dbpool.Begin(context.TODO())
+	tranaction, tErr := ahs.db.Begin(context.TODO())
 	if tErr != nil {
 		panic(tErr)
 	}
@@ -71,13 +63,6 @@ func (ahs *AuctionHistoryServer) FillNItems(fillCount uint) {
 
 // Fill in fillCount names into the database
 func (ahs *AuctionHistoryServer) FillNNames(fillCount uint) {
-	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
-	if err != nil {
-		ahs.logger.Errorf("Unable to connect to database: %v", err)
-		panic(err)
-	}
-	defer dbpool.Close()
-
 	ahs.logger.Infof(`Filling %d unnamed item names.`, fillCount)
 	const (
 		select_sql      string = "SELECT item_id, region FROM items WHERE name ISNULL ORDER BY item_id DESC LIMIT $1"
@@ -85,13 +70,13 @@ func (ahs *AuctionHistoryServer) FillNNames(fillCount uint) {
 		delete_item_sql string = "DELETE FROM items WHERE item_id = $1 AND region = $2"
 	)
 
-	rows, rowErr := dbpool.Query(context.TODO(), select_sql, fillCount)
+	rows, rowErr := ahs.db.Query(context.TODO(), select_sql, fillCount)
 	if rowErr != nil {
 		panic(rowErr)
 	}
 	defer rows.Close()
 
-	transaction, err := dbpool.Begin(context.TODO())
+	transaction, err := ahs.db.Begin(context.TODO())
 	if err != nil {
 		panic(err)
 	}

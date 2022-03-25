@@ -44,8 +44,9 @@ func main() {
 		tokenServer             = blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
 		api                     = blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 		helper                  = blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
-		auctionHouseServer      = auction_history.NewAuctionHistoryServer(environment_variables.DATABASE_CONNECTION_STRING, helper, logger)
+		auctionHouseServer      = auction_history.NewAuctionHistoryServer(ctx, environment_variables.DATABASE_CONNECTION_STRING, helper, logger)
 	)
+	defer auctionHouseServer.Shutdown()
 
 	if include_auction_history {
 		switch server_mode {

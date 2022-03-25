@@ -10,19 +10,11 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"golang.org/x/exp/slices"
 )
 
 // Get all auctions filtering with parameters
 func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint, start_dtm time.Time, end_dtm time.Time) (AuctionSummaryData, error) {
-	dbpool, err := pgxpool.Connect(context.Background(), ahs.connectionString)
-	if err != nil {
-		ahs.logger.Errorf("Unable to connect to database: %v", err)
-		return AuctionSummaryData{}, err
-	}
-	defer dbpool.Close()
-
 	var value_searches []interface{}
 
 	build_sql_with_addins := func(base_sql string, addin_list []string) string {
@@ -148,13 +140,13 @@ func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, 
 		latest_dl_value      time.Time
 	)
 
-	dbpool.QueryRow(context.TODO(), min_max_avg_sql, value_searches...).Scan(&min_value, &max_value, &avg_value)
+	ahs.db.QueryRow(context.TODO(), min_max_avg_sql, value_searches...).Scan(&min_value, &max_value, &avg_value)
 
-	dbpool.QueryRow(context.TODO(), latest_dl_sql, value_searches...).Scan(&latest_dl_value)
+	ahs.db.QueryRow(context.TODO(), latest_dl_sql, value_searches...).Scan(&latest_dl_value)
 
 	price_data_by_download := make(map[time.Time]AuctionPriceSummaryRecord)
 
-	dataRows, drError := dbpool.Query(context.TODO(), downloaded_group_sql, value_searches...)
+	dataRows, drError := ahs.db.Query(context.TODO(), downloaded_group_sql, value_searches...)
 	if drError != nil {
 		return AuctionSummaryData{}, drError
 	}
@@ -167,7 +159,7 @@ func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, 
 		price_data_by_download[downloaded] = newSummary
 	}
 
-	prcMapRows, prMRErr := dbpool.Query(context.TODO(), downloaded_price_map_sql, value_searches...)
+	prcMapRows, prMRErr := ahs.db.Query(context.TODO(), downloaded_price_map_sql, value_searches...)
 	if prMRErr != nil {
 		return AuctionSummaryData{}, prMRErr
 	}

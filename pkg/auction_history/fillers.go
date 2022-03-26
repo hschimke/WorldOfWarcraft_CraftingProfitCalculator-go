@@ -26,7 +26,6 @@ func (ahs *AuctionHistoryServer) FillNItems(fillCount uint) {
 	if tErr != nil {
 		panic(tErr)
 	}
-	defer tranaction.Commit(context.TODO())
 
 	for rows.Next() {
 		var (
@@ -59,6 +58,7 @@ func (ahs *AuctionHistoryServer) FillNItems(fillCount uint) {
 			ahs.logger.Errorf(`DELETED %d in %s from items table.`, item_id, region)
 		}
 	}
+	tranaction.Commit(context.TODO())
 }
 
 // Fill in fillCount names into the database
@@ -80,7 +80,6 @@ func (ahs *AuctionHistoryServer) FillNNames(fillCount uint) {
 	if err != nil {
 		panic(err)
 	}
-	defer transaction.Commit(context.TODO())
 
 	for rows.Next() {
 		var (
@@ -106,4 +105,5 @@ func (ahs *AuctionHistoryServer) FillNNames(fillCount uint) {
 			ahs.logger.Debugf(`Updated item: %d:%s with name: '%s'`, item_id, region, fetchedItem.Name)
 		}
 	}
+	transaction.Commit(context.TODO())
 }

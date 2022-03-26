@@ -140,7 +140,7 @@ func (ahs *AuctionHistoryServer) RemoveScanRealm(realm globalTypes.ConnectedReal
 	// Id passed in is cononical, if name is passed in get ID from that, otherwise panic
 	if realm.Id != 0 {
 		newRealmId = realm.Id
-	} else if realm.Name != "" {
+	} else if len(realm.Name) > 0 {
 		fetchRealmId, fetchRealmIdErr := ahs.helper.GetConnectedRealmId(realm.Name, region)
 		if fetchRealmIdErr != nil {
 			panic("could not get realm")

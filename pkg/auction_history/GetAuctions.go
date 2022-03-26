@@ -15,7 +15,7 @@ import (
 
 // Get all auctions filtering with parameters
 func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint, start_dtm time.Time, end_dtm time.Time) (AuctionSummaryData, error) {
-	var value_searches []interface{}
+	var value_searches []any
 
 	build_sql_with_addins := func(base_sql string, addin_list []string) string {
 		var construct strings.Builder
@@ -152,8 +152,10 @@ func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, 
 	}
 	defer dataRows.Close()
 	for dataRows.Next() {
-		var downloaded time.Time
-		newSummary := AuctionPriceSummaryRecord{}
+		var (
+			downloaded time.Time
+			newSummary AuctionPriceSummaryRecord
+		)
 		dataRows.Scan(&newSummary.MinValue, &newSummary.MaxValue, &newSummary.AvgValue, &downloaded)
 
 		price_data_by_download[downloaded] = newSummary

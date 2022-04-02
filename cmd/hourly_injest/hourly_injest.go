@@ -21,10 +21,8 @@ func job(ctx context.Context, auctionHouse *auction_history.AuctionHistoryServer
 
 	auctionHouse.ScanRealms(async)
 	auctionHouse.FillNItems(20)
-	if time.Now().Hour() == 4 {
-		logger.Info("Performing daily archive.")
-		auctionHouse.ArchiveAuctions()
-	}
+	logger.Info("Performing daily archive.")
+	auctionHouse.ArchiveAuctions()
 	logger.Info("Finished hourly injest job.")
 }
 

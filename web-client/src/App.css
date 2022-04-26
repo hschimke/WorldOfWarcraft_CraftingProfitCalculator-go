@@ -1,23 +1,24 @@
 .App {
-  text-align: center;
   height: 100%;
   min-height: 100%;
-}
-
-.App .Main {
-  clear: both;
-  text-align: left;
-  margin: 15px;
+  display: flex;
+  flex-direction: column;
 }
 
 .App .Header {
-  text-align: left;
-  padding: 15px;
+  width: 100%;
   background-color: #001f00;
+  display: flex;
+  flex-direction: row;
+  min-height: 4em;
+  align-items: center;
+  column-gap: 2em;
+  justify-content: flex-start;
 }
 
 .App .Header H1 {
   font-family: sans-serif;
+  font-size: 2em;
   color: #42A86B;
   margin: 0px;
 }
@@ -28,6 +29,10 @@
   padding: 0;
   overflow: hidden;
   background-color: #333;
+  border-radius: 2em;
+  font-size: 1em;
+  display: flex;
+  align-items: center;
 }
 
 .App .Nav ul li {
@@ -44,4 +49,29 @@
 
 .App .Nav ul li a:hover {
   background-color: #111;
+}
+
+.App .MainHolder {
+  display: flex;
+  justify-content: center;
+}
+
+.App .MainHolder .Main {
+  max-width: 95%;
+}
+
+@media only screen and (max-width: 700px) {
+  .App .Header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-left: 1em;
+  }
+
+  .App .Nav ul {
+    flex-direction: column;
+  }
+
+  .App .MainHolder .Main {
+    max-width: 98%;
+  }
 }

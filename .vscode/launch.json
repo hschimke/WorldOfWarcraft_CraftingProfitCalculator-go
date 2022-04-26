@@ -33,5 +33,27 @@
             //"args": ["--get_auctions", "--item_name", "Grimscale Gauntlets", "--region", "us", "--realm_name", "hyjal", "--bonuses", "[]"]
             "args": ["--scan_realms", "--get_scan_realms", "--fill_n_items", "--count","50", "--get_auctions", "--item_name", "Grim-Veiled Bracers", "--region", "us", "--realm_name", "hyjal", "--bonuses", "[]"]
         },
+        {
+            "name": "Launch Server",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "web-serv/WorldOfWarcraft_CraftingProfitCalculator-go",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "name": "Launch Worker",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "cmd/run_worker",
+            "envFile": "${workspaceFolder}/.env"
+        },
+    ],
+    "compounds": [
+        {
+            "name": "Backend",
+            "configurations": ["Launch Server","Launch Worker"]
+        }
     ]
 }

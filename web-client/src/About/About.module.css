@@ -3,3 +3,9 @@
     font-weight: bolder;
     font-size: large;
 }
+
+.About {
+    margin-top: 1em;
+    max-width: 800px;
+    align-self: flex-start;
+}

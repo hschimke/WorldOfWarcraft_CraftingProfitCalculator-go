@@ -54,10 +54,12 @@
 .App .MainHolder {
   display: flex;
   justify-content: center;
+  background-color: #B0F5CC;
 }
 
 .App .MainHolder .Main {
-  max-width: 95%;
+  width: 95%;
+  background-color: #B0F5CC;
 }
 
 @media only screen and (max-width: 700px) {

@@ -223,8 +223,7 @@ function AuctionReturnDisplay({ resource }: { resource: AuctionSummaryDataRespon
                     </span>
                 }
                 <Chart
-                    width={'500px'}
-                    height={'300px'}
+                    className="GChart"
                     chartType="BubbleChart"
                     loader={<div>Loading Chart</div>}
                     data={bubble_chart_data}
@@ -235,8 +234,7 @@ function AuctionReturnDisplay({ resource }: { resource: AuctionSummaryDataRespon
                 />
 
                 <Chart
-                    width={'500px'}
-                    height={'300px'}
+                    className="GChart"
                     chartType="ColumnChart"
                     loader={<div>Loading Chart</div>}
                     data={bar_chart_data}
@@ -265,8 +263,7 @@ function AuctionReturnDisplay({ resource }: { resource: AuctionSummaryDataRespon
                 />
 
                 <Chart
-                    width={'500px'}
-                    height={'300px'}
+                    className="GChart"
                     chartType="ColumnChart"
                     loader={<div>Loading Chart</div>}
                     data={volume_chart_data}
@@ -309,20 +306,27 @@ function PriceSummary(props: PriceSummaryProps) {
             <span className="PriceSummaryTitle">{props.title}</span>
             <div>
                 <span className="PriceSummarySection">High:</span>
+            </div>
+            <div>
                 <GoldFormatter raw_price={props.high} />
             </div>
             <div>
                 <span className="PriceSummarySection">Average:</span>
+            </div>
+            <div>
                 <GoldFormatter raw_price={props.average} />
             </div>
             <div>
                 <span className="PriceSummarySection">Low:</span>
+            </div>
+            <div>
                 <GoldFormatter raw_price={props.low} />
             </div>
             <div>
                 <span className="PriceSummarySection">Median:</span>
-                <GoldFormatter raw_price={props.med} />
             </div>
+            <div>
+                <GoldFormatter raw_price={props.med} /></div>
         </div>
     );
 }
@@ -334,7 +338,7 @@ export interface PriceChartProps {
 function PriceChart(props: PriceChartProps) {
     return (
         <div className="PriceChart">
-            <span>{props.title}</span>
+            <span className="PriceChartTitle">{props.title}</span>
             <table>
                 <thead>
                     <tr>

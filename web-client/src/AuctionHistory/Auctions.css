@@ -1,20 +1,44 @@
-.PriceSummary {
+.Auctions {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    grid-template-rows: auto;
+    max-width: 90%;
+}
+
+.Auctions .DataReturnDisplay {
+    grid-column-start: 1;
+    grid-column-end: span 2;
+}
+
+.Auctions .AuctionHistorySelector label {
     display: block;
+}
+
+.PriceSummary {
+    display: grid;
     padding-bottom: 10px;
+    grid-template-columns: 9em 1fr;
+    grid-template-rows: auto;
 }
 
 .PriceSummary .PriceSummaryTitle {
+    display: block;
     font-weight: bold;
+    grid-column-start: 1;
+    grid-column-end: span 2;
 }
 
 .PriceSummary .PriceSummarySection {
-    display: inline-block;
-    width: 100px;
     height: fit-content;
 }
 
 .PriceChart {
+    margin-top: 3em;
     display: block;
+}
+
+.PriceChart th {
+    text-align: left;
 }
 
 .Auctions .RegionSelector div {
@@ -36,4 +60,12 @@
 
 .Auctions .RegionSelector div li:hover {
     background-color: rgb(46, 116, 69);
+}
+
+.DataReturnDisplay .GChart {
+    margin-top: 2em;
+}
+
+.Auctions .PriceChartTitle {
+    font-weight: bold;
 }

@@ -1,7 +1,9 @@
+.RunForm {
+    display: block;
+}
+
 .RunForm label {
     display: block;
-    float:none;
-    text-align: left;
     margin-top: 15px;
 }
 

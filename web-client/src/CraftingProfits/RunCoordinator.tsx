@@ -144,8 +144,6 @@ function RunCoordinator(props: RunCoordinatorProps) {
                     <input type="checkbox" name="includeRaw" checked={show_raw_results} onChange={pickForm} />
                 </label>
             </form>
-            <HelpBox />
-            <div>
                 <CraftingProfitsDispatch.Provider value={dispatchFormUpdate}>
                     <RunForm handleSubmit={handleSubmit}
                         form_type={run_type}
@@ -159,8 +157,8 @@ function RunCoordinator(props: RunCoordinatorProps) {
                         useAllProfessions={formData.useAllProfessions}
                         button_enabled={enable_run_button} />
                 </CraftingProfitsDispatch.Provider>
-            </div>
-            <div>
+            <HelpBox />
+            <div className="ResultDisplays">
                 {isLoadingRun && <p>Analyzing {formData.item}</p>}
                 <Suspense fallback={<p>Analyzing {formData.item}</p>}>
                     <RunResultDisplayQUEUE item_name={formData.item} raw_run={scanResult} status={output_display} show_raw_result={show_raw_results} />

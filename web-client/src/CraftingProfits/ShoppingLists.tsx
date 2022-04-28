@@ -47,7 +47,7 @@ function ShoppingList(props: ShoppingListProps) {
 
 function ShoppingListItem(props: ShoppingListItemProps) {
     const li = props.item;
-    const show_vendor = (li.cost.vendor !== undefined);
+    const show_vendor = (li.cost.vendor !== undefined) && (li.cost.vendor !== 0);
     const show_ah = (li.cost.ah !== undefined);
 
     return (

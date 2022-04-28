@@ -2,7 +2,7 @@ import { useState } from 'react';
 import styles from './HelpBox.module.css';
 
 export function HelpBox() {
-    const [showMe, updateShowMe] = useState(true);
+    const [showMe, updateShowMe] = useState(false);
     const showHide = () => {
         updateShowMe(!showMe);
     }

@@ -1,21 +1,17 @@
 .ShoppingListItem {
-    clear: left;
+    display: grid;
+    grid-template-columns: 50px 1fr;
+    column-gap: 1em;
 }
 
 .ShoppingListItem .ShoppingListColumn{
     display: block;
-    float:left;
 }
 
 .ShoppingListItem .Quantity {
     vertical-align: top;
     text-align: right;
     font-family: monospace;
-    width: 50px;
-}
-
-.ShoppingListItem .Data {
-    padding-left: 20px;
 }
 
 .ShoppingListItem .Data .VendorItemPrice,.AHItemPrice {

@@ -1,19 +1,12 @@
-.RunResultDisplay {
-    clear: both;
-    display: block;
-    padding-left: 10px;
-    padding-right: 10px;
-    padding-top: 25px;
-}
-
 .Status {
-    font-size: 14px;
+    font-size: 1.4em;
     font-family: monospace;
 }
 
 .RawResult pre {
     text-align: left;
     font-family: monospace;
+    font-size: 1em;
 }
 
 .WebResult {
@@ -21,11 +14,9 @@
 }
 
 .RunResultItem {
-    padding-left: 10px;
-}
-
-.RunResultItemRecipes {
-    float:left;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
 }
 
 .Bonuses {
@@ -39,11 +30,12 @@
 }
 
 .RecipeCost {
-    font-size: 10pt;
+    font-size: 1em;
 }
 
-.RunResultItemRecipes .VendorItemPrice,.AHItemPrice{
-    font-size: 10pt;
+.RunResultItemRecipes .VendorItemPrice,
+.AHItemPrice {
+    font-size: 1em;
 }
 
 .RunResultItemRecipes {
@@ -51,43 +43,55 @@
 }
 
 .RunResultItemRecipesHeader {
-    font-size: 14pt;
+    font-size: 1.4em;
     padding-bottom: 5px;
 }
 
 .RecipeListing .RunResultItemRecipesHeader {
-    font-size: 12pt;
+    font-size: 1.2em;
     padding-bottom: 5px;
 }
 
 .RecipeHeader {
-    font-size: 12pt;
+    font-size: 1.2em;
 }
 
 .RecipeHeader .RecipeHeaderDetails {
     display: block;
-    clear: both;
 }
 
-.RunResultItemRecipesChildren {
-    
-}
+.RunResultItemRecipesChildren {}
 
 .HideableChild {
     overflow: hidden;
     max-height: 10000px;
     transition-property: all;
     transition-duration: .5s;
-    transition-timing-function:ease-in-out;
+    transition-timing-function: ease-in-out;
 }
 
 .HiddenChild {
     max-height: 0px;
 }
 
-.RecipeBanner,.ItemBanner,.RecipePartsBanner,.ItemRecipesBanner {
+.RecipeBanner,
+.ItemBanner,
+.RecipePartsBanner,
+.ItemRecipesBanner {
     display: block;
     font-family: sans-serif;
     font-variant-caps: all-petite-caps;
     cursor: pointer;
+}
+
+.RunResultDisplay {
+    display: block;
+}
+
+@media only screen and (max-width: 900px) {
+    .RunResultItem {
+        grid-template-columns: 1fr;
+        
+        font-size: .25em;
+    }
 }

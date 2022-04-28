@@ -16,6 +16,11 @@ export interface RunResultItemProps {
     raw_run: ServerRunResultReturn & ServerErrorReturn | ServerRunResultReturn | undefined,
     show_children?: boolean
 }
+
+export interface RunResultCoreProps {
+    raw_run: ServerRunResultReturn & ServerErrorReturn | ServerRunResultReturn | undefined,
+}
+
 export interface RunResultDisplayProps {
     raw_run: RunResultDataResponseAggregate,
     status: string,
@@ -98,14 +103,12 @@ function RunResultItem({ raw_run, show_children = true }: RunResultItemProps) {
     let vendor_addin = false;
     let recipes = false;
     let bonuses = false;
-    let shopping = false;
     const output_data = raw_run;
 
     ah_addin = ((output_data.ah !== undefined) && (output_data.ah.sales > 0));
     vendor_addin = (output_data.vendor > 0);
     recipes = (output_data.recipes !== undefined);
     bonuses = (output_data.bonus_prices !== undefined);
-    shopping = ('shopping_lists' in output_data && Object.keys(output_data.shopping_lists).length > 0);
 
     const children_classes = child_visibility ? '' : ' HiddenChild';
     const parent_styles = child_visibility ? {} : hidden_run_result_header;
@@ -154,9 +157,6 @@ function RunResultItem({ raw_run, show_children = true }: RunResultItemProps) {
                     }
                 </div>
             </div>
-            {shopping &&
-                <ShoppingLists lists={output_data.shopping_lists} name={output_data.name} />
-            }
         </div>
     );
 }
@@ -189,7 +189,7 @@ function RunResultDisplay(props: RunResultDisplayProps) {
     );
 }
 
-function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE){
+function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE) {
     const SHOW_RES = props.show_raw_result;
     let raw_run = props.raw_run.read();
 
@@ -226,8 +226,8 @@ function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE){
         }
     }, [props.raw_run]);
 
-    if(st === undefined && job_id !== undefined){
-        return(<JobRunningBox job_id={job_id} item_name={props.item_name} />);
+    if (st === undefined && job_id !== undefined) {
+        return (<JobRunningBox job_id={job_id} item_name={props.item_name} />);
     }
 
     let res;
@@ -249,17 +249,31 @@ function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE){
                 </div>
             }
             <div className="WebResult">
-                <RunResultItem raw_run={st?.intermediate} />
+                <RunResultCore raw_run={st?.intermediate} />
             </div>
         </div>
     );
 }
 
-function JobRunningBox({job_id, item_name}: {job_id: string, item_name?: string}){
-    return(
+function RunResultCore({ raw_run }: RunResultCoreProps) {
+    if (raw_run !== undefined) {
+        const shopping = Object.assign({},raw_run.shopping_lists)
+        const name = raw_run.name;
+        const lessShopping = Object.assign({},raw_run);
+        lessShopping.shopping_lists = {};
+        return <div className="RunResultCore">
+            <RunResultItem raw_run={lessShopping} />
+            <ShoppingLists lists={shopping} name={name} />
+        </div>
+    }
+    return <></>
+}
+
+function JobRunningBox({ job_id, item_name }: { job_id: string, item_name?: string }) {
+    return (
         <div>
             {item_name &&
-            <p>Job submitted for {item_name}</p>}
+                <p>Job submitted for {item_name}</p>}
             <p>Job {job_id} is running.</p>
         </div>
     );

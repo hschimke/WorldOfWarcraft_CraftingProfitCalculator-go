@@ -13,10 +13,18 @@
     text-align: left;
 }
 
-.RunResultItem {
+.RunResultCore {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto;
+}
+
+@media only screen and (max-width: 900px) {
+    .RunResultCore {
+        grid-template-columns: 1fr;
+        
+        font-size: .25em;
+    }
 }
 
 .Bonuses {
@@ -86,12 +94,4 @@
 
 .RunResultDisplay {
     display: block;
-}
-
-@media only screen and (max-width: 900px) {
-    .RunResultItem {
-        grid-template-columns: 1fr;
-        
-        font-size: .25em;
-    }
 }

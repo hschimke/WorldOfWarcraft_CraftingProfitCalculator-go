@@ -257,10 +257,9 @@ function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE) {
 
 function RunResultCore({ raw_run }: RunResultCoreProps) {
     if (raw_run !== undefined) {
-        const shopping = Object.assign({},raw_run.shopping_lists)
+        const shopping = raw_run.shopping_lists
         const name = raw_run.name;
-        const lessShopping = Object.assign({},raw_run);
-        lessShopping.shopping_lists = {};
+        const lessShopping = raw_run;
         return <div className="RunResultCore">
             <RunResultItem raw_run={lessShopping} />
             <ShoppingLists lists={shopping} name={name} />

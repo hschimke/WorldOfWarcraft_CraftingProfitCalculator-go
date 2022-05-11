@@ -94,12 +94,11 @@ function RecipeListing(props: RecipeListingProps) {
 
 function RunResultItem({ raw_run, show_children = true }: RunResultItemProps) {
     const [child_visibility, updateChildVisibility] = useState(show_children);
+    const [isChangingChildVisibility, startChangingChildVisibility] = useTransition();
 
     if (raw_run === undefined || ((raw_run as ServerErrorReturn).ERROR !== undefined)) {
         return null;
     }
-
-    const [isChangingChildVisibility, startChangingChildVisibility] = useTransition();
 
     const toggleChildren: React.MouseEventHandler = (e) => {
         startChangingChildVisibility(() => {

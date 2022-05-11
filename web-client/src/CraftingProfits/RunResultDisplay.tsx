@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import './RunResultDisplay.css';
 import { GoldFormatter, VendorItemPrice, AHItemPrice } from '../Shared/GoldFormatter';
 import { ShoppingLists } from './ShoppingLists';
@@ -37,8 +37,12 @@ export interface RunResultDisplayPropsQUEUE {
 function RecipeListing(props: RecipeListingProps) {
     const [child_visible, setChildVisibility] = useState(false);
 
+    const [isChangingChildVisibility, startChangingChildVisibility] = useTransition();
+
     const toggleChildren: React.MouseEventHandler = (e) => {
-        setChildVisibility(!child_visible);
+        startChangingChildVisibility(() => {
+            setChildVisibility(!child_visible);;
+        })
     };
 
     const show_ah_price = ((props.recipe.ah !== undefined) && (props.recipe.ah.sales > 0));
@@ -95,8 +99,12 @@ function RunResultItem({ raw_run, show_children = true }: RunResultItemProps) {
         return null;
     }
 
+    const [isChangingChildVisibility, startChangingChildVisibility] = useTransition();
+
     const toggleChildren: React.MouseEventHandler = (e) => {
-        updateChildVisibility(!child_visibility);
+        startChangingChildVisibility(() => {
+            updateChildVisibility(!child_visibility);
+        });
     };
 
     let ah_addin = false;

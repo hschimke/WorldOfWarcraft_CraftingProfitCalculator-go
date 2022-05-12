@@ -70,8 +70,10 @@ function RecipeListing(props: RecipeListingProps) {
                     <GoldFormatter raw_price={props.recipe.high} />
                     /
                     <GoldFormatter raw_price={props.recipe.low} />
-                    /
-                    <GoldFormatter raw_price={props.recipe.average} />
+                    {
+                        ///
+                        //<GoldFormatter raw_price={props.recipe.average} />
+                    }
                     /
                     <GoldFormatter raw_price={props.recipe.median} />
                 </span>

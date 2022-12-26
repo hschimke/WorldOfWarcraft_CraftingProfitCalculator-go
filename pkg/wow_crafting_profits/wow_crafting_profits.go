@@ -29,9 +29,9 @@ type WoWCpCRunner struct {
 }
 
 /*
- Find the value of an item on the auction house.
- Items might be for sale on the auction house and be available from vendors.
- The auction house items have complicated bonus types.
+Find the value of an item on the auction house.
+Items might be for sale on the auction house and be available from vendors.
+The auction house items have complicated bonus types.
 */
 func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions, bonus_level_required uint) globalTypes.AHItemPriceObject {
 	// Find the item and return best, worst, average prices
@@ -94,9 +94,9 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 }
 
 /*
-  Retrieve the value of the item from the vendor price,
-  items that cannot be bought from
-  vendors are given a value of -1.
+Retrieve the value of the item from the vendor price,
+items that cannot be bought from
+vendors are given a value of -1.
 */
 func (cpc *WoWCpCRunner) findNoneAHPrice(item_id globalTypes.ItemID, region globalTypes.RegionCode) (float64, error) {
 	// Get the item from blizz and see what the purchase price is
@@ -126,12 +126,12 @@ func (cpc *WoWCpCRunner) findNoneAHPrice(item_id globalTypes.ItemID, region glob
 }
 
 /*
-  Get a list of bonus item values for a given item.
+Get a list of bonus item values for a given item.
 
-  Finds all of the bonus-list types associated with a given item id,
-  currently the only way to do that is by pulling an auction house down
-  and then scanning it. If no bonus lists are found an empty array is
-  returned.
+Finds all of the bonus-list types associated with a given item id,
+currently the only way to do that is by pulling an auction house down
+and then scanning it. If no bonus lists are found an empty array is
+returned.
 */
 func (cpc *WoWCpCRunner) getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions) [][]uint {
 	var bonus_lists [][]uint
@@ -159,8 +159,8 @@ func (cpc *WoWCpCRunner) getItemBonusLists(item_id globalTypes.ItemID, auction_h
 }
 
 /*
-  Bonus levels correspond to a specific increase in item level over base,
-  get the item level delta for that bonus id.
+Bonus levels correspond to a specific increase in item level over base,
+get the item level delta for that bonus id.
 */
 func (cpc *WoWCpCRunner) getLvlModifierForBonus(bonus_id uint) int {
 	raidbots_bonus_lists_ptr, fetchErr := cpc.staticSources.GetBonuses()
@@ -466,6 +466,13 @@ func (cpc *WoWCpCRunner) recipeCostCalculator(recipe_option globalTypes.RecipeOp
 				cost.Median = med
 			}
 		}
+	}
+
+	if cost.Average == 0 || math.IsNaN(cost.Average) {
+		cost.High = 0
+		cost.Low = 0
+		cost.Median = 0
+		cost.Average = 0
 	}
 
 	return cost

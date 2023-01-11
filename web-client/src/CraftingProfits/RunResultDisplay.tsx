@@ -45,6 +45,9 @@ function RecipeListing(props: RecipeListingProps) {
         })
     };
 
+    if (props.recipe.parts == undefined) {
+        props.recipe.parts = [];
+    }
     const show_ah_price = ((props.recipe.ah !== undefined) && (props.recipe.ah.sales > 0));
     const show_parts = (props.recipe.parts !== undefined);
     const parent_styles = child_visible ? {} : hidden_recipe_listing_header;

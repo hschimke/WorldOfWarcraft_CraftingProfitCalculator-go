@@ -9,6 +9,7 @@ import (
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
@@ -202,7 +203,7 @@ func (helper *BlizzardApiHelper) GetConnectedRealmId(server_name globalTypes.Rea
 }
 
 // Check whether an item is craftable with a given set of professions.
-func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalTypes.CharacterProfession, region globalTypes.RegionCode) (globalTypes.CraftingStatus, error) {
+func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalTypes.CharacterProfession, region globalTypes.RegionCode, static_source *static_sources.StaticSources) (globalTypes.CraftingStatus, error) {
 	// Check if we've already run this check, and if so return the cached version, otherwise keep on
 	key := fmt.Sprintf("%s::%d::%v", region, item_id, character_professions)
 
@@ -254,7 +255,7 @@ func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, cha
 
 	workerFunc := func(input chan iData, output chan iRet) {
 		for z := range input {
-			z, err := helper.checkProfessionCrafting(z.profession_id, z.prof, z.region, z.item_id, z.item_detail)
+			z, err := helper.checkProfessionCrafting(z.profession_id, z.prof, z.region, z.item_id, z.item_detail, static_source)
 			output <- iRet{z, err}
 		}
 	}
@@ -319,7 +320,7 @@ func getProfessionId(profession_list BlizzardApi.ProfessionsIndex, profession_na
 }
 
 // Check whether and item can be crafted by a given skilltier within a profession
-func (helper *BlizzardApiHelper) checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.RegionCode, item_id uint, check_profession_id uint, prof string, item_detail BlizzardApi.Item, profession_recipe_options *globalTypes.CraftingStatus, mutex *sync.Mutex) {
+func (helper *BlizzardApiHelper) checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.RegionCode, item_id uint, check_profession_id uint, prof string, item_detail BlizzardApi.Item, profession_recipe_options *globalTypes.CraftingStatus, mutex *sync.Mutex, static_source *static_sources.StaticSources) {
 	check_scan_tier := true
 	if exclude_before_shadowlands {
 		check_scan_tier = strings.Contains(skill_tier.Name, "Shadowlands")
@@ -350,7 +351,7 @@ func (helper *BlizzardApiHelper) checkProfessionTierCrafting(skill_tier skilltie
 					helper.logger.Sillyf("Check recipe %s", recipe.Name)
 					if !(strings.Contains(recipe.Name, "Prospect") || strings.Contains(recipe.Name, "Mill")) {
 						crafty := false
-						ids := getRecipeCraftedItemID(recipe)
+						ids := getRecipeCraftedItemID(recipe, region, helper, static_source)
 
 						for _, id := range ids {
 							if id == item_id {
@@ -407,7 +408,7 @@ func (helper *BlizzardApiHelper) checkProfessionTierCrafting(skill_tier skilltie
 }
 
 // Check whether an item can be crafted by a given profession
-func (helper *BlizzardApiHelper) checkProfessionCrafting(profession_id uint, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item) (globalTypes.CraftingStatus, error) {
+func (helper *BlizzardApiHelper) checkProfessionCrafting(profession_id uint, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item, static_source *static_sources.StaticSources) (globalTypes.CraftingStatus, error) {
 	cache_key := fmt.Sprintf("%s:%s:%d", region, prof, item_id)
 	if found, err := cache_provider.CacheCheck(helper.cache, CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key); err == nil && found {
 		item := globalTypes.CraftingStatus{}
@@ -439,7 +440,7 @@ func (helper *BlizzardApiHelper) checkProfessionCrafting(profession_id uint, pro
 		st := tier
 		go func() {
 			defer wg.Done()
-			helper.checkProfessionTierCrafting(st, region, item_id, profession_id, prof, item_detail, &profession_recipe_options, &lock)
+			helper.checkProfessionTierCrafting(st, region, item_id, profession_id, prof, item_detail, &profession_recipe_options, &lock, static_source)
 		}()
 	}
 
@@ -452,7 +453,7 @@ func (helper *BlizzardApiHelper) checkProfessionCrafting(profession_id uint, pro
 }
 
 // Get the ID of an item crafted by a given recipe. If multiple items are crafted return them all
-func getRecipeCraftedItemID(recipe BlizzardApi.Recipe) []globalTypes.ItemID {
+func getRecipeCraftedItemID(recipe BlizzardApi.Recipe, region globalTypes.RegionCode, helper *BlizzardApiHelper, static_source *static_sources.StaticSources) []globalTypes.ItemID {
 	item_ids := make(map[globalTypes.ItemID]bool)
 
 	found := false
@@ -468,6 +469,28 @@ func getRecipeCraftedItemID(recipe BlizzardApi.Recipe) []globalTypes.ItemID {
 		item_ids[recipe.Crafted_item.Id] = true
 		found = true
 	}
+	/*
+	 FIX: Search all items BY NAME for the item ID to craft
+	*/
+	if !found {
+		searched_id, search_id_err := helper.GetItemId(region, recipe.Name)
+		if search_id_err == nil {
+			item_ids[searched_id] = true
+			found = true
+		}
+		if !found {
+			// If that fails, try to find the item using the FireSong crafting link table for DF
+			firesong_link_table, fetch_err := static_source.GetFireSongsCraftingLinkTable()
+			if fetch_err == nil {
+				for _, element := range *firesong_link_table {
+					if element.RecipeId == recipe.Id {
+						item_ids[element.Id] = true
+					}
+				}
+			}
+		}
+	}
+
 	if !found {
 		return make([]globalTypes.ItemID, 0)
 	}
@@ -503,7 +526,7 @@ func getSlotName(category BlizzardApi.Category) (raw_slot_name string) {
 }
 
 // Construct a list of cyclic links between recipes
-func (helper *BlizzardApiHelper) BuildCyclicRecipeList(region globalTypes.RegionCode) (globalTypes.SkillTierCyclicLinks, error) {
+func (helper *BlizzardApiHelper) BuildCyclicRecipeList(region globalTypes.RegionCode, static_source *static_sources.StaticSources) (globalTypes.SkillTierCyclicLinks, error) {
 	profession_list, err := helper.GetBlizProfessionsList(region)
 	if err != nil {
 		return globalTypes.SkillTierCyclicLinks{}, err
@@ -552,7 +575,7 @@ func (helper *BlizzardApiHelper) BuildCyclicRecipeList(region globalTypes.Region
 					region := region
 					go func() {
 						defer buildCLSkillTierWG.Done()
-						data, new_count := helper.buildCyclicLinkforSkillTier(st, profession, region)
+						data, new_count := helper.buildCyclicLinkforSkillTier(st, profession, region, static_source)
 						appendMutex.Lock()
 						return_data.ret = append(return_data.ret, data...)
 						atomic.AddUint64(&counter, new_count)
@@ -652,7 +675,7 @@ func (helper *BlizzardApiHelper) BuildCyclicRecipeList(region globalTypes.Region
 }
 
 // Check of cyclic links within a single skill tier
-func (helper *BlizzardApiHelper) buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode) (SkillTierCyclicLinksBuild, uint64) {
+func (helper *BlizzardApiHelper) buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode, static_source *static_sources.StaticSources) (SkillTierCyclicLinksBuild, uint64) {
 	cache_key := fmt.Sprintf("%s::%s::%d", region, skill_tier.Name, profession.Id)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, CYCLIC_LINK_CACHE, cache_key); err == nil && found {
@@ -686,15 +709,15 @@ func (helper *BlizzardApiHelper) buildCyclicLinkforSkillTier(skill_tier skilltie
 								return SkillTierCyclicLinksBuild{}, 0
 							}
 							if len(recheck_recipe.Reagents) == 1 && !checked_set.Has(recheck_recipe.Id) {
-								r_ids := getRecipeCraftedItemID(recipe)
+								r_ids := getRecipeCraftedItemID(recipe, region, helper, static_source)
 
-								rc_ids := getRecipeCraftedItemID(recheck_recipe)
+								rc_ids := getRecipeCraftedItemID(recheck_recipe, region, helper, static_source)
 
 								if slices.Contains(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
 									if slices.Contains(rc_ids, recipe.Reagents[0].Reagent.Id) {
 										helper.logger.Debugf("Found cyclic link for %s (%d) and %s (%d)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
-										p1 := getRecipeCraftedItemID(recipe)
-										p2 := getRecipeCraftedItemID(recheck_recipe)
+										p1 := getRecipeCraftedItemID(recipe, region, helper, static_source)
+										p2 := getRecipeCraftedItemID(recheck_recipe, region, helper, static_source)
 										found_links = append(found_links, []struct {
 											Id       []uint
 											Quantity uint

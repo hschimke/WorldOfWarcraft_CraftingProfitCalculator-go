@@ -3,11 +3,12 @@ package auction_history
 import (
 	"context"
 
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
 
 // Fill in fillCount items into the database
-func (ahs *AuctionHistoryServer) FillNItems(fillCount uint) {
+func (ahs *AuctionHistoryServer) FillNItems(fillCount uint, static_source *static_sources.StaticSources) {
 	const (
 		select_sql string = "SELECT item_id, region FROM items WHERE scanned = false LIMIT $1"
 		update_sql string = "UPDATE items SET name = $1, craftable = $2, scanned = true WHERE item_id = $3 AND region = $4"
@@ -40,7 +41,7 @@ func (ahs *AuctionHistoryServer) FillNItems(fillCount uint) {
 		if fetchErr != nil {
 			safe = false
 		}
-		isCraftable, craftErr := ahs.helper.CheckIsCrafting(item_id, globalTypes.ALL_PROFESSIONS, region)
+		isCraftable, craftErr := ahs.helper.CheckIsCrafting(item_id, globalTypes.ALL_PROFESSIONS, region, static_source)
 		if craftErr != nil {
 			safe = false
 		}

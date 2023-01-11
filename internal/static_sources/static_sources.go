@@ -16,7 +16,9 @@ const (
 	rank_mappings_cache_fn            string = "rank-mappings.json"
 	shopping_recipe_exclusion_list_fn string = "shopping-recipe-exclusion-list.json"
 	static_source_dir                 string = "./static_files"
-	raidbots_dl_uri                   string = "https://www.raidbots.com/static/data/live/bonuses.json" // Thank you raidbots
+	raidbots_dl_uri                   string = "https://www.raidbots.com/static/data/live/bonuses.json"                                                                                        // Thank you raidbots
+	firesong_df_crafting_source       string = "https://gist.githubusercontent.com/Firesong25/cc294b9360ab37b01d2350cc266f73e5/raw/a50661505f38d93c46757cf9122b3360a52b601b/CraftedItems.json" //https://gist.github.com/Firesong25/cc294b9360ab37b01d2350cc266f73e5
+	firesong_df_crafting_fn           string = "CraftedItems.json"
 )
 
 // StaticSources allows for long cachable data to be saved. A future version may use embed
@@ -24,11 +26,14 @@ type StaticSources struct {
 	bonusCache                               *BonusesCache
 	rankMappingCache                         *RankMappingsCache
 	shoppingRecipeExclusionList              *ShoppingRecipeExclusionList
+	firesongDFCrafting                       *FireSongCraftingLinkTable
 	BonusCacheFileName                       string
 	RankMappingsCacheFileName                string
 	ShoppingRecipeExclusionListCacheFileName string
 	RootDirectory                            string
 	RaidbotsURI                              string
+	FireSongDfCraftingUri                    string
+	FireSongDFCraftingFileName               string
 }
 
 // A simplified version of the data availble for bonus mappings from raidbots
@@ -50,8 +55,22 @@ type ShoppingRecipeExclusionList struct {
 	Exclusions []uint
 }
 
+// A mapping for Firesongs list of items and crafted ids
+type FireSongCraftingLinkTable []struct {
+	Id              uint
+	ListOfReagents  *[]uint
+	Name            string
+	ProfessionId    uint
+	SkillTierId     uint
+	Category        *string
+	IsCommodity     bool
+	Reagents        *[]string
+	RecipeId        uint
+	CraftedQuantity uint
+}
+
 type staticSource interface {
-	BonusesCache | RankMappingsCache | ShoppingRecipeExclusionList
+	BonusesCache | RankMappingsCache | ShoppingRecipeExclusionList | FireSongCraftingLinkTable
 }
 
 // load a static resource from the filesystem
@@ -118,6 +137,12 @@ func (s *StaticSources) fillNames() {
 	if len(s.RaidbotsURI) == 0 {
 		s.RaidbotsURI = raidbots_dl_uri
 	}
+	if len(s.FireSongDfCraftingUri) == 0 {
+		s.FireSongDfCraftingUri = firesong_df_crafting_source
+	}
+	if len(s.FireSongDFCraftingFileName) == 0 {
+		s.FireSongDFCraftingFileName = firesong_df_crafting_fn
+	}
 }
 
 // Fetch the bonus catch, if it cannot be found locally it will be loaded from raidbots
@@ -168,4 +193,25 @@ func (s *StaticSources) GetShoppingRecipeExclusionList() *ShoppingRecipeExclusio
 		s.shoppingRecipeExclusionList = &sre
 	}
 	return s.shoppingRecipeExclusionList
+}
+
+// Fetch the crafting link table built by FireSong
+// https://us.forums.blizzard.com/en/blizzard/t/dragonflight-profession-recipes-crafted-item-id/37444/7
+// https://gist.github.com/Firesong25/cc294b9360ab37b01d2350cc266f73e5
+func (s *StaticSources) GetFireSongsCraftingLinkTable() (*FireSongCraftingLinkTable, error) {
+	s.fillNames()
+	if s.firesongDFCrafting == nil {
+		fdc := FireSongCraftingLinkTable{}
+		fn := path.Join(environment_variables.STATIC_DIR_ROOT, s.RootDirectory, s.FireSongDFCraftingFileName)
+		err := loadStaticResource(fn, &fdc)
+		if err != nil {
+			// lets go get it
+			fetchErr := fetchFromUri(s.FireSongDfCraftingUri, &fdc)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+		}
+		s.firesongDFCrafting = &fdc
+	}
+	return s.firesongDFCrafting, nil
 }

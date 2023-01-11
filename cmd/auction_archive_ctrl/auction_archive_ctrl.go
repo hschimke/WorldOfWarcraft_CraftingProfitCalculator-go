@@ -12,6 +12,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/auction_history"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
@@ -118,7 +119,7 @@ func main() {
 
 	if *fFillNItems {
 		fmt.Println("FillNItems selected with N=", *fCount)
-		auctionHouseDataServer.FillNItems(*fCount)
+		auctionHouseDataServer.FillNItems(*fCount, &static_sources.StaticSources{})
 	}
 
 	if *fFillNNames {

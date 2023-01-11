@@ -34,7 +34,7 @@ func main() {
 	fProfession := flag.String("profession", "[]", "Profession")
 	//fProfession := flag.String("profession", "[\"Tailoring\", \"Enchanting\"]", "Profession")
 	//fItem := flag.String("item", "171276", "Item")
-	fItem := flag.String("item", "Vibrant Wildercloth Girdle", "Item")
+	fItem := flag.String("item", "Shimmering Embroidery Thread", "Item")
 	//fItem := flag.String("item", "Crafter's Mark of the First Ones", "Item")
 	//fItem := flag.String("item", "Notorious Combatant's Mail Waistguard", "Item")
 	fCount := flag.Uint("count", 1, "How many of the main item to build")

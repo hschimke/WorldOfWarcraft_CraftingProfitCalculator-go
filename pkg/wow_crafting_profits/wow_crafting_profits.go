@@ -214,7 +214,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 	base_ilvl := item_detail.Level
 
 	if passedCyclicLinks == nil {
-		cos, err := cpc.Helper.BuildCyclicRecipeList(region)
+		cos, err := cpc.Helper.BuildCyclicRecipeList(region, &cpc.staticSources)
 		passedCyclicLinks = &cos
 		if err != nil {
 			return globalTypes.ProfitAnalysisObject{}, err
@@ -253,7 +253,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 	// Get Item AH price
 	price_obj.Ah_price = getAHItemPrice(item_id, auction_house, 0)
 
-	item_craftable, err := cpc.Helper.CheckIsCrafting(item_id, character_professions, region)
+	item_craftable, err := cpc.Helper.CheckIsCrafting(item_id, character_professions, region, &cpc.staticSources)
 	if err != nil {
 		return globalTypes.ProfitAnalysisObject{}, err
 	}
@@ -311,7 +311,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 				return globalTypes.ProfitAnalysisObject{}, err
 			}
 
-			price_obj.Item_quantity = float64(qauntity) / float64(getRecipeOutputValues(item_bom).Min)
+			price_obj.Item_quantity = float64(qauntity) / float64(getRecipeOutputValues(item_bom, &cpc.staticSources).Min)
 
 			// Get prices for BOM
 			var bom_prices []globalTypes.ProfitAnalysisObject
@@ -514,7 +514,7 @@ func (cpc *WoWCpCRunner) generateOutputFormat(price_data globalTypes.ProfitAnaly
 			Name:    recipe.Name,
 			Rank:    recipe_option.Rank,
 			Id:      recipe_option.Recipe.Recipe_id,
-			Output:  getRecipeOutputValues(recipe),
+			Output:  getRecipeOutputValues(recipe, &cpc.staticSources),
 			High:    option_price.High,
 			Low:     option_price.Low,
 			Average: option_price.Average,
@@ -555,16 +555,32 @@ func (cpc *WoWCpCRunner) generateOutputFormat(price_data globalTypes.ProfitAnaly
 	return object_output
 }
 
-func getRecipeOutputValues(recipe BlizzardApi.Recipe) globalTypes.OutpoutFormatRecipeOutput {
+func getRecipeOutputValues(recipe BlizzardApi.Recipe, static_source *static_sources.StaticSources) globalTypes.OutpoutFormatRecipeOutput {
 	var min, max, value float64
+
+	safe_found := false
 	if recipe.Crafted_quantity.Minimum != 0 {
 		min = recipe.Crafted_quantity.Minimum
+		safe_found = true
 	}
 	if recipe.Crafted_quantity.Maximum != 0 {
 		max = recipe.Crafted_quantity.Maximum
+		safe_found = true
 	}
 	if recipe.Crafted_quantity.Value != 0 {
 		value = recipe.Crafted_quantity.Value
+		safe_found = true
+	}
+
+	if !safe_found {
+		firesong_list, firesong_list_err := static_source.GetFireSongsCraftingLinkTable()
+		if firesong_list_err == nil {
+			for _, element := range *firesong_list {
+				if element.RecipeId == recipe.Id {
+					value = 1
+				}
+			}
+		}
 	}
 
 	if min == 0 && max == 0 {

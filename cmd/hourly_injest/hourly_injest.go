@@ -12,6 +12,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/auction_history"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 )
@@ -20,7 +21,7 @@ func job(ctx context.Context, auctionHouse *auction_history.AuctionHistoryServer
 	logger.Info("Starting hourly injest job.")
 
 	auctionHouse.ScanRealms(async)
-	auctionHouse.FillNItems(20)
+	auctionHouse.FillNItems(20, &static_sources.StaticSources{})
 	logger.Info("Performing daily archive.")
 	auctionHouse.ArchiveAuctions()
 	logger.Info("Finished hourly injest job.")

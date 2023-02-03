@@ -18,6 +18,7 @@ const (
 	getBlizSkillTierDetailUri      string = "/data/wow/profession/%d/skill-tier/%d"
 	getBlizRecipeDetailUri         string = "/data/wow/recipe/%d"
 	getAuctionHouseUri             string = "/data/wow/connected-realm/%d/auctions"
+	getAuctionCommonditiesUri      string = "/data/wow/auctions/commodities"
 )
 
 // Fetch item details from Blizzard API
@@ -165,12 +166,22 @@ func (helper *BlizzardApiHelper) GetAuctionHouse(server_id globalTypes.Connected
 		return item, fndErr
 	}
 
+	// Get the main auction house
 	auction_house_fetch_uri := fmt.Sprintf(getAuctionHouseUri, server_id)
 	result := BlizzardApi.Auctions{}
 	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, server_region, basicDataPackage{}, auction_house_fetch_uri, getNamespace(dynamic_ns, server_region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.Auctions{}, fetchErr
 	}
+	auction_commondities_fetch_uri := getAuctionCommonditiesUri
+	commodities_result := BlizzardApi.Auctions{}
+	_, comFetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, server_region, basicDataPackage{}, auction_commondities_fetch_uri, getNamespace(dynamic_ns, server_region), &commodities_result)
+	if comFetchErr != nil {
+		return BlizzardApi.Auctions{}, fetchErr
+	}
+
+	result.Auctions = append(result.Auctions, commodities_result.Auctions...)
+
 	cache_provider.CacheSet(helper.cache, AUCTION_DATA_CACHE, key, &result, time.Duration(time.Hour*1))
 	return result, nil
 }

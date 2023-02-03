@@ -1,12 +1,12 @@
 module github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go
 
-go 1.19
+go 1.20
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx/v4 v4.17.2
-	golang.org/x/exp v0.0.0-20230108222341-4b8118a2686a
+	golang.org/x/exp v0.0.0-20230202163644-54bba9f4231b
 )
 
 require (

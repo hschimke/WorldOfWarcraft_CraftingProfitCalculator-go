@@ -61,10 +61,10 @@ type localItem struct {
 }
 
 // Injest all the realms in the scan list
-func (ahs *AuctionHistoryServer) ScanRealms(async bool) error {
+func (ahs *AuctionHistoryServer) ScanRealms(ctx context.Context, async bool) error {
 	const sql string = "SELECT connected_realm_id, region FROM realm_scan_list"
 
-	realms, err := ahs.db.Query(context.TODO(), sql)
+	realms, err := ahs.db.Query(ctx, sql)
 	if err != nil {
 		ahs.logger.Errorf("Unable to query database: %v", err)
 		return err
@@ -77,7 +77,7 @@ func (ahs *AuctionHistoryServer) ScanRealms(async bool) error {
 			region             string
 		)
 		realms.Scan(&connected_realm_id, &region)
-		ingestErr := ahs.ingest(region, connected_realm_id, async)
+		ingestErr := ahs.ingest(ctx, region, connected_realm_id, async)
 		if ingestErr != nil {
 			return ingestErr
 		}
@@ -87,7 +87,7 @@ func (ahs *AuctionHistoryServer) ScanRealms(async bool) error {
 }
 
 // Add a realm for historic price data scanning
-func (ahs *AuctionHistoryServer) AddScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
+func (ahs *AuctionHistoryServer) AddScanRealm(ctx context.Context, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
 	const sql string = "INSERT INTO realm_scan_list(connected_realm_id,region,connected_realm_names) VALUES($1,$2,$3)"
 
 	var (
@@ -120,7 +120,7 @@ func (ahs *AuctionHistoryServer) AddScanRealm(realm globalTypes.ConnectedRealmSo
 		realmNameComposite = append(realmNameComposite, server.Name)
 	}
 
-	_, execErr := ahs.db.Exec(context.TODO(), sql, newRealmId, strings.ToLower(region), strings.Join(realmNameComposite, ", "))
+	_, execErr := ahs.db.Exec(ctx, sql, newRealmId, strings.ToLower(region), strings.Join(realmNameComposite, ", "))
 	if execErr != nil {
 		ahs.logger.Errorf(`Couldn't add %v in %s to scan realms table: %v.`, realm, region, execErr)
 		return execErr
@@ -130,7 +130,7 @@ func (ahs *AuctionHistoryServer) AddScanRealm(realm globalTypes.ConnectedRealmSo
 }
 
 // Remove a realm from the history scan list
-func (ahs *AuctionHistoryServer) RemoveScanRealm(realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
+func (ahs *AuctionHistoryServer) RemoveScanRealm(ctx context.Context, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode) error {
 	const sql string = "DELETE FROM realm_scan_list WHERE connected_realm_id = $1 AND region = $2"
 
 	var (
@@ -150,7 +150,7 @@ func (ahs *AuctionHistoryServer) RemoveScanRealm(realm globalTypes.ConnectedReal
 		panic("no realm")
 	}
 
-	_, execErr := ahs.db.Exec(context.TODO(), sql, newRealmId, strings.ToLower(region))
+	_, execErr := ahs.db.Exec(ctx, sql, newRealmId, strings.ToLower(region))
 	if execErr != nil {
 		return execErr
 	}
@@ -159,7 +159,7 @@ func (ahs *AuctionHistoryServer) RemoveScanRealm(realm globalTypes.ConnectedReal
 }
 
 // Return all bonuses availble for an item
-func (ahs *AuctionHistoryServer) GetAllBonuses(item globalTypes.ItemSoftIdentity, region globalTypes.RegionCode) (GetAllBonusesReturn, error) {
+func (ahs *AuctionHistoryServer) GetAllBonuses(ctx context.Context, item globalTypes.ItemSoftIdentity, region globalTypes.RegionCode) (GetAllBonusesReturn, error) {
 	ahs.logger.Debugf(`Fetching bonuses for %v`, item)
 
 	const sql string = "SELECT DISTINCT bonuses FROM auctions WHERE item_id = $1"
@@ -188,7 +188,7 @@ func (ahs *AuctionHistoryServer) GetAllBonuses(item globalTypes.ItemSoftIdentity
 	return_value.Item.Name = item.ItemName
 	return_value.Item.Level = fetchedItem.Level
 
-	rows, rowErr := ahs.db.Query(context.TODO(), sql, searchId)
+	rows, rowErr := ahs.db.Query(ctx, sql, searchId)
 	if rowErr != nil {
 		return GetAllBonusesReturn{}, rowErr
 	}
@@ -216,10 +216,10 @@ func (ahs *AuctionHistoryServer) GetAllBonuses(item globalTypes.ItemSoftIdentity
 }
 
 // Archive auctions, in this implementation it generally just deletes old auctions
-func (ahs *AuctionHistoryServer) ArchiveAuctions() {
+func (ahs *AuctionHistoryServer) ArchiveAuctions(ctx context.Context) {
 	twoWeeksAgo := time.Now().Add(time.Hour * (-1 * 24) * 14)
 
 	const sql string = "DELETE FROM auctions WHERE downloaded < $1"
 
-	ahs.db.Exec(context.TODO(), sql, twoWeeksAgo)
+	ahs.db.Exec(ctx, sql, twoWeeksAgo)
 }

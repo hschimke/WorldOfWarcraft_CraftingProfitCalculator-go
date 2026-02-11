@@ -17,9 +17,26 @@ services:
       - DISABLE_AUCTION_HISTORY=false
       - DATABASE_CONNECTION_STRING=user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} host=postgres port=5432 dbname=${POSTGRES_DB}
     depends_on:
-      - redis
-      - postgres
-      - job-runner
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      job-runner:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
   job-runner:
     image: cpc/job-run
     volumes:
@@ -31,7 +48,16 @@ services:
       - LOG_LEVEL=info
       - REDIS_URL=redis://:${REDIS_PSSWD}@redis
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
   injest:
     image: cpc/injest
     volumes:
@@ -45,14 +71,38 @@ services:
       - DISABLE_AUCTION_HISTORY=false
       - DATABASE_CONNECTION_STRING=user=${POSTGRES_USER} password=${POSTGRES_PASSWORD} host=postgres port=5432 dbname=${POSTGRES_DB}
     depends_on:
-      - redis
-      - postgres
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
   redis:
     image: redis:alpine
     restart: unless-stopped
     volumes:
       - "~/docker-dirs/cpc/reddis:/data"
     command: redis-server --save 380 15 --loglevel warning --requirepass ${REDIS_PSSWD}
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
   postgres:
     image: postgres:alpine
     restart: unless-stopped
@@ -62,6 +112,20 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - "~/docker-dirs/cpc/postgres:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
 volumes:
   static_files:

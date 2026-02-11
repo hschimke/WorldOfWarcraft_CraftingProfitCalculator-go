@@ -5,10 +5,10 @@ import (
 )
 
 // Get a list of all scanned realms
-func (ahs *AuctionHistoryServer) GetScanRealms() ([]ScanRealmsResult, error) {
+func (ahs *AuctionHistoryServer) GetScanRealms(ctx context.Context) ([]ScanRealmsResult, error) {
 	const sql string = "SELECT connected_realm_id, region, connected_realm_names FROM realm_scan_list"
 
-	realms, realmErr := ahs.db.Query(context.TODO(), sql)
+	realms, realmErr := ahs.db.Query(ctx, sql)
 	if realmErr != nil {
 		return []ScanRealmsResult{}, realmErr
 	}
@@ -25,10 +25,10 @@ func (ahs *AuctionHistoryServer) GetScanRealms() ([]ScanRealmsResult, error) {
 }
 
 // Get all the names available, filtering if availble
-func (ahs *AuctionHistoryServer) GetAllNames() []string {
+func (ahs *AuctionHistoryServer) GetAllNames(ctx context.Context) []string {
 	const sql string = "SELECT DISTINCT name FROM items WHERE name NOTNULL"
 
-	names, nameErr := ahs.db.Query(context.TODO(), sql)
+	names, nameErr := ahs.db.Query(ctx, sql)
 	if nameErr != nil {
 		panic(nameErr)
 	}

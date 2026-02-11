@@ -15,6 +15,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cache_provider"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/environment_variables"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/middleware"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/routes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/blizzard_api_helpers"
 )
@@ -31,6 +32,10 @@ func main() {
 	cpcRoutes := routes.NewCPCRoutes(ctx, environment_variables.DATABASE_CONNECTION_STRING, environment_variables.REDIS_URL, apiHelper, cache, logger)
 	defer cpcRoutes.Shutdown()
 	router := http.NewServeMux()
+
+	// Create rate limiter: 10 requests per second, burst of 20
+	rateLimiter := middleware.NewIPRateLimiter(10, 20)
+
 	/*
 		var frontend fs.FS = os.DirFS("html/build")
 		httpFS := http.FS(frontend)
@@ -41,23 +46,26 @@ func main() {
 	*/
 	spa := spaHandler{staticPath: "html/build", indexPath: "index.html"}
 
+	// Static files - no rate limiting
 	router.Handle("/", spa)
 
-	router.HandleFunc("/json_output_QUEUED", cpcRoutes.JsonOutputQueue)
-	router.HandleFunc("/json_output_CHECK", cpcRoutes.JsonOutputCheck)
-	//http.HandleFunc("/json_output", routes.JsonOutput)
+	// API endpoints - apply rate limiting
+	router.Handle("/json_output_QUEUED", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.JsonOutputQueue)))
+	router.Handle("/json_output_CHECK", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.JsonOutputCheck)))
 
 	if !environment_variables.DISABLE_AUCTION_HISTORY {
-		router.HandleFunc("/all_items", cpcRoutes.AllItems)
-		router.HandleFunc("/scanned_realms", cpcRoutes.ScannedRealms)
-		router.HandleFunc("/auction_history", cpcRoutes.AuctionHistory)
-		router.HandleFunc("/seen_item_bonuses", cpcRoutes.SeenItemBonuses)
+		router.Handle("/all_items", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.AllItems)))
+		router.Handle("/scanned_realms", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.ScannedRealms)))
+		router.Handle("/auction_history", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.AuctionHistory)))
+		router.Handle("/seen_item_bonuses", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.SeenItemBonuses)))
 	}
 
-	router.HandleFunc("/bonus_mappings", cpcRoutes.BonusMappings)
-	router.HandleFunc("/addon-download", cpcRoutes.AddonDownload)
+	router.Handle("/bonus_mappings", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.BonusMappings)))
+	router.Handle("/addon-download", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.AddonDownload)))
+	router.Handle("/all_realm_names", rateLimiter.Middleware(http.HandlerFunc(cpcRoutes.AllRealms)))
+
+	// Healthcheck - no rate limiting
 	router.HandleFunc("/healthcheck", cpcRoutes.Healthcheck)
-	router.HandleFunc("/all_realm_names", cpcRoutes.AllRealms)
 
 	address := fmt.Sprintf(":%d", environment_variables.SERVER_PORT)
 

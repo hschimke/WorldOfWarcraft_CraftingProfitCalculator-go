@@ -105,7 +105,7 @@ func main() {
 
 	if *fAddScanRealm {
 		fmt.Println("AddScanRealm selected for ", realm, " ", *fRegion)
-		err := auctionHouseDataServer.AddScanRealm(realm, *fRegion)
+		err := auctionHouseDataServer.AddScanRealm(ctx, realm, *fRegion)
 		if err != nil {
 			fmt.Println("Error adding realm")
 			fmt.Println(err)
@@ -114,22 +114,22 @@ func main() {
 
 	if *fArchiveAuctions {
 		fmt.Println("ArchiveAuctions selected")
-		auctionHouseDataServer.ArchiveAuctions()
+		auctionHouseDataServer.ArchiveAuctions(ctx)
 	}
 
 	if *fFillNItems {
 		fmt.Println("FillNItems selected with N=", *fCount)
-		auctionHouseDataServer.FillNItems(*fCount, &static_sources.StaticSources{})
+		auctionHouseDataServer.FillNItems(ctx, *fCount, &static_sources.StaticSources{})
 	}
 
 	if *fFillNNames {
 		fmt.Println("FillNNames selected with N=", *fCount)
-		auctionHouseDataServer.FillNNames(*fCount)
+		auctionHouseDataServer.FillNNames(ctx, *fCount)
 	}
 
 	if *fGetAllBonuses {
 		fmt.Println("GetAllBonuses selected with item: ", item, " and region: ", *fRegion)
-		all_bonuses, err := auctionHouseDataServer.GetAllBonuses(item, *fRegion)
+		all_bonuses, err := auctionHouseDataServer.GetAllBonuses(ctx, item, *fRegion)
 		if err != nil {
 			fmt.Println("Error getting bonuses")
 			fmt.Println(err)
@@ -139,13 +139,13 @@ func main() {
 
 	if *fGetAllNames {
 		fmt.Println("GetAllNames selected")
-		all_names := auctionHouseDataServer.GetAllNames()
+		all_names := auctionHouseDataServer.GetAllNames(ctx)
 		fmt.Println(all_names)
 	}
 
 	if *fGetAuctions {
 		fmt.Println("GetAuctions selected: ", item, " ", realm, " ", *fRegion, " ", start_dtm, "->", end_dtm)
-		auctions, err := auctionHouseDataServer.GetAuctions(item, realm, *fRegion, bonuses, start_dtm, end_dtm)
+		auctions, err := auctionHouseDataServer.GetAuctions(ctx, item, realm, *fRegion, bonuses, start_dtm, end_dtm)
 		if err != nil {
 			fmt.Println("Error selecting auctions")
 			fmt.Println(err)
@@ -155,7 +155,7 @@ func main() {
 
 	if *fGetScanRealms {
 		fmt.Println("GetScanRealms selected")
-		scan_realms, err := auctionHouseDataServer.GetScanRealms()
+		scan_realms, err := auctionHouseDataServer.GetScanRealms(ctx)
 		if err != nil {
 			fmt.Println("Error getting all scan realms")
 			fmt.Println(err)
@@ -165,12 +165,12 @@ func main() {
 
 	if *fRemoveScanRealm {
 		fmt.Println("RemoveScanRealm selected for ", realm, " ", *fRegion)
-		auctionHouseDataServer.RemoveScanRealm(realm, *fRegion)
+		auctionHouseDataServer.RemoveScanRealm(ctx, realm, *fRegion)
 	}
 
 	if *fScanRealms {
 		fmt.Println("ScanRealms selected")
-		err := auctionHouseDataServer.ScanRealms(false)
+		err := auctionHouseDataServer.ScanRealms(ctx, false)
 		if err != nil {
 			fmt.Println("Error scanning realms")
 			fmt.Println(err)

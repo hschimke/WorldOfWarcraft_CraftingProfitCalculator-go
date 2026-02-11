@@ -20,15 +20,15 @@ import (
 func job(ctx context.Context, auctionHouse *auction_history.AuctionHistoryServer, logger *cpclog.CpCLog, async bool) {
 	logger.Info("Starting hourly injest job.")
 
-	auctionHouse.ScanRealms(async)
-	auctionHouse.FillNItems(20, &static_sources.StaticSources{})
+	auctionHouse.ScanRealms(ctx, async)
+	auctionHouse.FillNItems(ctx, 20, &static_sources.StaticSources{})
 	logger.Info("Performing daily archive.")
-	auctionHouse.ArchiveAuctions()
+	auctionHouse.ArchiveAuctions(ctx)
 	logger.Info("Finished hourly injest job.")
 }
 
 func fillNames(ctx context.Context, auctionHouse *auction_history.AuctionHistoryServer) {
-	auctionHouse.FillNNames(100)
+	auctionHouse.FillNNames(ctx, 100)
 }
 
 func main() {

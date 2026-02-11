@@ -14,7 +14,7 @@ import (
 )
 
 // Get all auctions filtering with parameters
-func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint, start_dtm time.Time, end_dtm time.Time) (AuctionSummaryData, error) {
+func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint, start_dtm time.Time, end_dtm time.Time) (AuctionSummaryData, error) {
 	var value_searches []any
 
 	build_sql_with_addins := func(base_sql string, addin_list []string) string {
@@ -140,13 +140,13 @@ func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, 
 		latest_dl_value      time.Time
 	)
 
-	ahs.db.QueryRow(context.TODO(), min_max_avg_sql, value_searches...).Scan(&min_value, &max_value, &avg_value)
+	ahs.db.QueryRow(ctx, min_max_avg_sql, value_searches...).Scan(&min_value, &max_value, &avg_value)
 
-	ahs.db.QueryRow(context.TODO(), latest_dl_sql, value_searches...).Scan(&latest_dl_value)
+	ahs.db.QueryRow(ctx, latest_dl_sql, value_searches...).Scan(&latest_dl_value)
 
 	price_data_by_download := make(map[time.Time]AuctionPriceSummaryRecord)
 
-	dataRows, drError := ahs.db.Query(context.TODO(), downloaded_group_sql, value_searches...)
+	dataRows, drError := ahs.db.Query(ctx, downloaded_group_sql, value_searches...)
 	if drError != nil {
 		return AuctionSummaryData{}, drError
 	}
@@ -161,7 +161,7 @@ func (ahs *AuctionHistoryServer) GetAuctions(item globalTypes.ItemSoftIdentity, 
 		price_data_by_download[downloaded] = newSummary
 	}
 
-	prcMapRows, prMRErr := ahs.db.Query(context.TODO(), downloaded_price_map_sql, value_searches...)
+	prcMapRows, prMRErr := ahs.db.Query(ctx, downloaded_price_map_sql, value_searches...)
 	if prMRErr != nil {
 		return AuctionSummaryData{}, prMRErr
 	}

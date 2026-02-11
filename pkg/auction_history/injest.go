@@ -12,7 +12,7 @@ import (
 )
 
 // Injest a realm for auction archives
-func (ahs *AuctionHistoryServer) ingest(region globalTypes.RegionCode, connected_realm globalTypes.ConnectedRealmID, async bool) error {
+func (ahs *AuctionHistoryServer) ingest(ctx context.Context, region globalTypes.RegionCode, connected_realm globalTypes.ConnectedRealmID, async bool) error {
 	type lItm struct {
 		ItemId     globalTypes.ItemID
 		BonusLists []uint
@@ -88,12 +88,12 @@ func (ahs *AuctionHistoryServer) ingest(region globalTypes.RegionCode, connected
 	}
 
 	if async {
-		go ahs.churnAuctionItemsOnInjest(item_set)
+		go ahs.churnAuctionItemsOnInjest(context.Background(), item_set)
 	} else {
-		ahs.churnAuctionItemsOnInjest(item_set)
+		ahs.churnAuctionItemsOnInjest(ctx, item_set)
 	}
 
-	copyCount, copyErr := ahs.db.CopyFrom(context.TODO(),
+	copyCount, copyErr := ahs.db.CopyFrom(ctx,
 		pgx.Identifier{"auctions"},
 		[]string{"item_id", "quantity", "price", "downloaded", "connected_realm_id", "bonuses", "region"},
 		pgx.CopyFromRows(insert_values_array),
@@ -107,7 +107,7 @@ func (ahs *AuctionHistoryServer) ingest(region globalTypes.RegionCode, connected
 }
 
 // Add all auction items to the items table if they aren't already there
-func (ahs *AuctionHistoryServer) churnAuctionItemsOnInjest(items []localItem) {
+func (ahs *AuctionHistoryServer) churnAuctionItemsOnInjest(ctx context.Context, items []localItem) {
 	ahs.logger.Infof("start item churn for %d items", len(items))
 
 	insertBatch := &pgx.Batch{}
@@ -119,7 +119,7 @@ func (ahs *AuctionHistoryServer) churnAuctionItemsOnInjest(items []localItem) {
 		insertBatch.Queue(sql_insert_item, item.ItemId, item.Region, nil, false, false)
 	}
 
-	batchRes := ahs.db.SendBatch(context.TODO(), insertBatch)
+	batchRes := ahs.db.SendBatch(ctx, insertBatch)
 	batchRes.Close()
 
 	ahs.logger.Info("finished item churn")

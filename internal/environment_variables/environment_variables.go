@@ -3,10 +3,9 @@ package environment_variables
 import (
 	"log"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
-
-	"golang.org/x/exp/slices"
 )
 
 var (

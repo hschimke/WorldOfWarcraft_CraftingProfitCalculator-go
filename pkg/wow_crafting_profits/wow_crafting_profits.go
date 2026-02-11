@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
@@ -15,7 +16,6 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/text_output_helpers"
-	"golang.org/x/exp/slices"
 )
 
 type recipeCost struct {

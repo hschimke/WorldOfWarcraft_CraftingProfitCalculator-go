@@ -1,19 +1,7 @@
 import { useState, useEffect, useReducer } from 'react';
 
-/*function apiGetSeenBonuses(payload, cb) {
-    if (payload.item !== undefined && payload.item.length > 0) {
-        return apiCall('/seen_item_bonuses', payload, cb);
-    } else {
-        return { 'ERROR': 'Empty' };
-    }
-}*/
-
 function useFetchHistoryApi() {
     return useFetchApi<AuctionHistoryReturn>('/auction_history');
-}
-
-function useFetchCPCApi() {
-    return useFetchApi<ServerRunResultReturn>('/json_output');
 }
 
 export interface UseFetchApiState<FetchType> {

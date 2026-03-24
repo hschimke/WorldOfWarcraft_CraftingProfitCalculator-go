@@ -215,7 +215,7 @@ function RunResultDisplayQUEUE(props: RunResultDisplayPropsQUEUE) {
         }, 10);
         const queue_checker_functino = () => {
             if (raw_run?.job_id !== undefined) {
-                fetch('json_output_CHECK', {
+                fetch('/json_output_CHECK', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

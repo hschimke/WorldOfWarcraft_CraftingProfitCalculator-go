@@ -16,7 +16,8 @@ function AutoCompleteBox({ source, filter, onSelect, currentValue, targetField, 
         const timer = setTimeout(() => {
             onBatch(() => {
                 if (clickedValue !== currentValue) {
-                    const endPoint = `${source}${filter !== undefined ? '?' + filter + '=' + encodeURIComponent(currentValue) : ''}${region !== undefined ? '&region=' + encodeURIComponent(region) : ''}`;
+                    const baseSource = source.startsWith('/') ? source : `/${source}`;
+                    const endPoint = `${baseSource}${filter !== undefined ? '?' + filter + '=' + encodeURIComponent(currentValue) : ''}${region !== undefined ? '&region=' + encodeURIComponent(region) : ''}`;
                     if (!visible) {
                         setVisible(true);
                     }

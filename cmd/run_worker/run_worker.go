@@ -86,7 +86,7 @@ func main() {
 			run_id := job.JobId
 			run_config := job.JobConfig
 
-			logger.Infof(`Got new job with id %d -> %v`, run_id, run_config)
+			logger.Infof(`Got new job with id %s -> %v`, run_id, run_config)
 			config := globalTypes.NewRunConfig(&run_config.AddonData, run_config.Item, run_config.Count)
 			job_key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, run_id)
 

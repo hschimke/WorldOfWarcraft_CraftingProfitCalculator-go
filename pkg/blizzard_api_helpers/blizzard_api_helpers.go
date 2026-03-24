@@ -364,12 +364,12 @@ func (helper *BlizzardApiHelper) checkProfessionTierCrafting(skill_tier skilltie
 							helper.logger.Sillyf("Checking if uncraftable item %d is craftable with a synthetic item-recipe connection.", item_detail.Id)
 							slot := getSlotName(cat)
 							synthetic_item_name := fmt.Sprintf("Enchant %s - %s", slot, rec.Name)
-							helper.logger.Sillyf("Generated synthetic item name ", synthetic_item_name)
+							helper.logger.Sillyf("Generated synthetic item name %s", synthetic_item_name)
 							synthetic_item_id, err := helper.GetItemId(region, synthetic_item_name)
 							if err != nil {
 								return
 							}
-							helper.logger.Sillyf("Synthetic item %s has id %s", synthetic_item_name, synthetic_item_id)
+							helper.logger.Sillyf("Synthetic item %s has id %d", synthetic_item_name, synthetic_item_id)
 							if synthetic_item_id != 0 && synthetic_item_id == item_id {
 								crafty = true
 								helper.logger.Sillyf("Synthetic item %s match for %s.", synthetic_item_name, item_detail.Name)

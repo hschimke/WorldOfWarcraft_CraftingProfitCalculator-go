@@ -262,7 +262,7 @@ func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, cha
 
 	var errArr []error
 
-	for i := 0; i < len(character_professions); i++ {
+	for range character_professions {
 		go workerFunc(inputData, outputData)
 	}
 

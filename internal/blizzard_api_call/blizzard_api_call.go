@@ -91,7 +91,7 @@ func getAndFill[T BlizzardApi.BlizzardApiReponse](api *BlizzardApiProvider, uri 
 		getErr error
 	)
 
-	for attempt := 0; attempt < max_retries; attempt++ {
+	for attempt := range max_retries {
 		res, getErr = api.HttpClient.Do(req)
 		if getErr != nil {
 			api.Logger.Debugf("Failure fetching uri, will retry %d more times. (%v)", max_retries-attempt, getErr)

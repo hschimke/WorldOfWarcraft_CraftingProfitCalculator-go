@@ -36,7 +36,7 @@ type SeenItemBonusesReturn struct {
 		} `json:"quality"`
 		Unknown []string `json:"unknown"`
 		Empty   bool     `json:"empty,omitempty"`
-	} `json:"collected,omitempty"`
+	} `json:"collected"`
 }
 
 // Return a list of all realms being actively scanned for history

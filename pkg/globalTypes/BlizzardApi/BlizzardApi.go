@@ -14,7 +14,7 @@ type ItemSearch struct {
 		Data struct {
 			Name map[string]string  `json:"name,omitempty"`
 			Id   globalTypes.ItemID `json:"id,omitempty"`
-		} `json:"data,omitempty"`
+		} `json:"data"`
 	} `json:"results,omitempty"`
 }
 
@@ -83,21 +83,21 @@ type Recipe struct {
 	Reagents []struct {
 		Reagent struct {
 			Id uint `json:"id,omitempty"`
-		} `json:"reagent,omitempty"`
+		} `json:"reagent"`
 		Quantity uint `json:"quantity,omitempty"`
 	} `json:"reagents,omitempty"`
 	Crafted_quantity struct {
 		Minimum float64 `json:"minimum,omitempty"`
 		Maximum float64 `json:"maximum,omitempty"`
 		Value   float64 `json:"value,omitempty"`
-	} `json:"crafted_quantity,omitempty"`
+	} `json:"crafted_quantity"`
 }
 
 type Auction struct {
 	Item struct {
 		Id          globalTypes.ItemID `json:"id,omitempty"`
 		Bonus_lists []uint             `json:"bonus_lists,omitempty"`
-	} `json:"item,omitempty"`
+	} `json:"item"`
 	Quantity   uint `json:"quantity,omitempty"`
 	Buyout     uint `json:"buyout,omitempty"`
 	Unit_price uint `json:"unit_price,omitempty"`

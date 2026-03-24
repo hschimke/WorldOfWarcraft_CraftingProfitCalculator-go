@@ -74,7 +74,7 @@ type OutputFormatObject struct {
 	Id             uint                      `json:"id,omitempty"`
 	Required       float64                   `json:"required,omitempty"`
 	Recipes        []OutputFormatRecipe      `json:"recipes"`
-	Ah             OutputFormatPrice         `json:"ah,omitempty"`
+	Ah             OutputFormatPrice         `json:"ah"`
 	Vendor         float64                   `json:"vendor,omitempty"`
 	Bonus_prices   []OutputFormatBonusPrices `json:"bonus_prices,omitempty"`
 	Shopping_lists OutputFormatShoppingList  `json:"shopping_lists,omitempty"`
@@ -115,7 +115,7 @@ type ProfitAnalysisObject struct {
 
 type RunReturn struct {
 	Price        ProfitAnalysisObject `json:"-"`
-	Intermediate OutputFormatObject   `json:"intermediate,omitempty"`
+	Intermediate OutputFormatObject   `json:"intermediate"`
 	Formatted    string               `json:"formatted,omitempty"`
 }
 

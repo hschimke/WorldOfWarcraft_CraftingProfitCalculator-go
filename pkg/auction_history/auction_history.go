@@ -19,7 +19,7 @@ type ScanRealmsResult struct {
 
 type GetAllBonusesReturn struct {
 	Bonuses [][]uint         `json:"bonuses,omitempty"`
-	Item    BlizzardApi.Item `json:"item,omitempty"`
+	Item    BlizzardApi.Item `json:"item"`
 }
 
 type AuctionPriceSummaryRecord struct {
@@ -41,10 +41,10 @@ type AuctionSummaryData struct {
 	Max      uint                                    `json:"max,omitempty"`
 	Avg      float64                                 `json:"avg,omitempty"`
 	Med      float64                                 `json:"med,omitempty"`
-	Latest   time.Time                               `json:"latest,omitempty"`
+	Latest   time.Time                               `json:"latest"`
 	PriceMap map[time.Time]AuctionPriceSummaryRecord `json:"price_map,omitempty"`
 	Archives []struct {
-		Timestamp   time.Time           `json:"timestamp,omitempty"`
+		Timestamp   time.Time           `json:"timestamp"`
 		Data        []SalesCountSummary `json:"data,omitempty"`
 		MinValue    uint                `json:"min_value,omitempty"`
 		MaxValue    uint                `json:"max_value,omitempty"`

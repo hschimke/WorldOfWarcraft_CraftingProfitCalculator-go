@@ -11,7 +11,7 @@ type AddonData struct {
 		Region_name string           `json:"region_name,omitempty"`
 		Realm_id    ConnectedRealmID `json:"realm_id,omitempty"`
 		Realm_name  RealmName        `json:"realm_name,omitempty"`
-	} `json:"realm,omitempty"`
+	} `json:"realm"`
 }
 
 type RunConfiguration struct {
@@ -21,7 +21,7 @@ type RunConfiguration struct {
 	Professions        []CharacterProfession `json:"professions,omitempty"`
 	Realm_name         RealmName             `json:"realm_name,omitempty"`
 	Realm_region       RegionCode            `json:"realm_region,omitempty"`
-	Item               ItemSoftIdentity      `json:"item,omitempty"`
+	Item               ItemSoftIdentity      `json:"item"`
 	Item_count         uint                  `json:"item_count,omitempty"`
 }
 

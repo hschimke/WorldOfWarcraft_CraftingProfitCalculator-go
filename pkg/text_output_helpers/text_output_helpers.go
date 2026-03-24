@@ -25,11 +25,11 @@ func GoldFormatter(price_in float64) string {
  * @param level The number of indents to include.
  */
 func indentAdder(level uint) string {
-	str := ""
-	for i := uint(0); i < level; i++ {
-		str += "  "
+	var str strings.Builder
+	for range level {
+		str.WriteString("  ")
 	}
-	return str
+	return str.String()
 }
 
 /**

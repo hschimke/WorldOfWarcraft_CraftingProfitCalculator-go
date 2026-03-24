@@ -65,7 +65,7 @@ func (ahs *AuctionHistoryServer) ingest(ctx context.Context, region globalTypes.
 	}
 
 	//const item_set: Set<number> = new Set();
-	var insert_values_array [][]interface{}
+	var insert_values_array [][]any
 	var item_set []localItem
 
 	for key, itm := range items {
@@ -81,7 +81,7 @@ func (ahs *AuctionHistoryServer) ingest(ctx context.Context, region globalTypes.
 			} else {
 				bonusListString = "[]"
 			}
-			insert_values_array = append(insert_values_array, []interface{}{
+			insert_values_array = append(insert_values_array, []any{
 				items[key][pk].ItemId, items[key][pk].Quantity, items[key][pk].Price, fetchTime, connected_realm, bonusListString, strings.ToLower(region),
 			})
 		}

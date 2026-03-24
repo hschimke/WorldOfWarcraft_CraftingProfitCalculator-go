@@ -250,7 +250,7 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 	}
 
 	return_value.Archives = make([]struct {
-		Timestamp   time.Time           "json:\"timestamp,omitempty\""
+		Timestamp   time.Time           "json:\"timestamp\""
 		Data        []SalesCountSummary "json:\"data,omitempty\""
 		MinValue    uint                "json:\"min_value,omitempty\""
 		MaxValue    uint                "json:\"max_value,omitempty\""
@@ -299,7 +299,7 @@ func (ahs *AuctionHistoryServer) getSpotAuctionSummary(item globalTypes.ItemSoft
 			found_item = true
 			ahs.logger.Sillyf(`Found %d`, auction.Item.Id)
 		}
-		
+
 		found_bonus := len(bonuses) == 0 || checkBonus(bonuses, auction.Item.Bonus_lists)
 		ahs.logger.Sillyf(`Array bonus list %v returned %t for %v`, bonuses, found_bonus, auction.Item.Bonus_lists)
 

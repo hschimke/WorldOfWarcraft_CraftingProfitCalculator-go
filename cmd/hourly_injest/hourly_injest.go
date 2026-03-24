@@ -20,15 +20,21 @@ import (
 func job(ctx context.Context, auctionHouse *auction_history.AuctionHistoryServer, logger *cpclog.CpCLog, async bool) {
 	logger.Info("Starting hourly injest job.")
 
-	auctionHouse.ScanRealms(ctx, async)
-	auctionHouse.FillNItems(ctx, 20, &static_sources.StaticSources{})
+	if err := auctionHouse.ScanRealms(ctx, async); err != nil {
+		logger.Errorf("Error scanning realms: %v", err)
+	}
+	if err := auctionHouse.FillNItems(ctx, 20, &static_sources.StaticSources{}); err != nil {
+		logger.Errorf("Error filling items: %v", err)
+	}
 	logger.Info("Performing daily archive.")
 	auctionHouse.ArchiveAuctions(ctx)
 	logger.Info("Finished hourly injest job.")
 }
 
-func fillNames(ctx context.Context, auctionHouse *auction_history.AuctionHistoryServer) {
-	auctionHouse.FillNNames(ctx, 100)
+func fillNames(ctx context.Context, auctionHouse *auction_history.AuctionHistoryServer, logger *cpclog.CpCLog) {
+	if err := auctionHouse.FillNNames(ctx, 100); err != nil {
+		logger.Errorf("Error filling names: %v", err)
+	}
 }
 
 func main() {
@@ -54,7 +60,7 @@ func main() {
 			logger.Info("Started in default mode. Running job and exiting.")
 
 			job(ctx, auctionHouseServer, logger, false)
-			fillNames(ctx, auctionHouseServer)
+			fillNames(ctx, auctionHouseServer, logger)
 
 		case "worker":
 
@@ -71,7 +77,7 @@ func main() {
 
 			go func() {
 				for range nameFetchTick.C {
-					fillNames(ctx, auctionHouseServer)
+					fillNames(ctx, auctionHouseServer, logger)
 				}
 			}()
 

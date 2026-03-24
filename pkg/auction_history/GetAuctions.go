@@ -11,28 +11,29 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
+	"github.com/jackc/pgx/v4"
 )
+
+func buildSQLWithAddins(base_sql string, addin_list []string) string {
+	var construct strings.Builder
+	construct_sql := base_sql
+	construct.WriteString(base_sql)
+	if len(addin_list) > 0 {
+		construct.WriteString(" WHERE ")
+		for _, addin := range addin_list {
+			construct.WriteString(addin)
+			construct.WriteString(" AND ")
+		}
+		runicConstructSql := []rune(construct.String())
+		runicConstructSql = runicConstructSql[:len(runicConstructSql)-4]
+		construct_sql = string(runicConstructSql)
+	}
+	return construct_sql
+}
 
 // Get all auctions filtering with parameters
 func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint, start_dtm time.Time, end_dtm time.Time) (AuctionSummaryData, error) {
 	var value_searches []any
-
-	build_sql_with_addins := func(base_sql string, addin_list []string) string {
-		var construct strings.Builder
-		construct_sql := base_sql
-		construct.WriteString(base_sql)
-		if len(addin_list) > 0 {
-			construct.WriteString(" WHERE ")
-			for _, addin := range addin_list {
-				construct.WriteString(addin)
-				construct.WriteString(" AND ")
-			}
-			runicConstructSql := []rune(construct.String())
-			runicConstructSql = runicConstructSql[:len(runicConstructSql)-4]
-			construct_sql = string(runicConstructSql)
-		}
-		return construct_sql
-	}
 
 	get_place_marker := func() string {
 		return fmt.Sprintf("$%d", len(value_searches)+1)
@@ -48,7 +49,7 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 		sql_build_max            string = "SELECT MAX(price) AS max_price FROM auctions"
 		sql_build_avg            string = "SELECT SUM(price*quantity)/SUM(quantity) AS avg_price FROM auctions"
 		sql_build_latest_dtm     string = "SELECT MAX(downloaded) AS latest_download FROM auctions"
-		jsonQueryTemplate        string = `%s IN (SELECT json_array_elements_text(bonuses::json)::numeric)`
+		jsonQueryTemplate        string = `bonuses @> jsonb_build_array(%s)`
 
 		sql_build_min_max_avg               string = "SELECT MIN(price) as min_price, MAX(price) AS max_price, SUM(price*quantity)/SUM(quantity) AS avg_price FROM auctions"
 		sql_build_min_max_avg_downloaded    string = "SELECT MIN(price) as min_price, MAX(price) AS max_price, SUM(price*quantity)/SUM(quantity) AS avg_price, downloaded FROM auctions"
@@ -127,12 +128,21 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 	}*/
 
 	var (
-		min_max_avg_sql string = build_sql_with_addins(sql_build_min_max_avg, sql_addins)
-		latest_dl_sql   string = build_sql_with_addins(sql_build_latest_dtm, sql_addins)
+		min_max_avg_sql string = buildSQLWithAddins(sql_build_min_max_avg, sql_addins)
+		latest_dl_sql   string = buildSQLWithAddins(sql_build_latest_dtm, sql_addins)
 
-		downloaded_group_sql     string = build_sql_with_addins(sql_build_min_max_avg_downloaded, sql_addins) + " " + sql_group_by_downloaded_addin
-		downloaded_price_map_sql string = build_sql_with_addins(sql_build_price_map, sql_addins) + " " + sql_group_by_downloaded_price_addin
+		downloaded_group_sql     string = buildSQLWithAddins(sql_build_min_max_avg_downloaded, sql_addins) + " " + sql_group_by_downloaded_addin
+		downloaded_price_map_sql string = buildSQLWithAddins(sql_build_price_map, sql_addins) + " " + sql_group_by_downloaded_price_addin
 	)
+
+	batch := &pgx.Batch{}
+	batch.Queue(min_max_avg_sql, value_searches...)
+	batch.Queue(latest_dl_sql, value_searches...)
+	batch.Queue(downloaded_group_sql, value_searches...)
+	batch.Queue(downloaded_price_map_sql, value_searches...)
+
+	bRes := ahs.db.SendBatch(ctx, batch)
+	defer bRes.Close()
 
 	var (
 		min_value, max_value uint
@@ -140,17 +150,15 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 		latest_dl_value      time.Time
 	)
 
-	ahs.db.QueryRow(ctx, min_max_avg_sql, value_searches...).Scan(&min_value, &max_value, &avg_value)
-
-	ahs.db.QueryRow(ctx, latest_dl_sql, value_searches...).Scan(&latest_dl_value)
+	bRes.QueryRow().Scan(&min_value, &max_value, &avg_value)
+	bRes.QueryRow().Scan(&latest_dl_value)
 
 	price_data_by_download := make(map[time.Time]AuctionPriceSummaryRecord)
 
-	dataRows, drError := ahs.db.Query(ctx, downloaded_group_sql, value_searches...)
+	dataRows, drError := bRes.Query()
 	if drError != nil {
 		return AuctionSummaryData{}, drError
 	}
-	defer dataRows.Close()
 	for dataRows.Next() {
 		var (
 			downloaded time.Time
@@ -160,12 +168,12 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 
 		price_data_by_download[downloaded] = newSummary
 	}
+	dataRows.Close()
 
-	prcMapRows, prMRErr := ahs.db.Query(ctx, downloaded_price_map_sql, value_searches...)
+	prcMapRows, prMRErr := bRes.Query()
 	if prMRErr != nil {
 		return AuctionSummaryData{}, prMRErr
 	}
-	defer prcMapRows.Close()
 
 	overallMedianMap := make(map[float64]uint64)
 
@@ -184,6 +192,7 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 		}
 		overallMedianMap[float64(scSum.Price)] = overallMedianMap[float64(scSum.Price)] + uint64(scSum.QuantityAtPrice)
 	}
+	prcMapRows.Close()
 
 	for key, value := range price_data_by_download {
 		vHld := value
@@ -285,20 +294,14 @@ func (ahs *AuctionHistoryServer) getSpotAuctionSummary(item globalTypes.ItemSoft
 
 	var auction_set []BlizzardApi.Auction
 	for _, auction := range ah.Auctions {
-		found_item, found_bonus := false, false
+		found_item := false
 		if auction.Item.Id == item_id {
 			found_item = true
 			ahs.logger.Sillyf(`Found %d`, auction.Item.Id)
 		}
-		if len(bonuses) == 0 {
-			if len(auction.Item.Bonus_lists) > 0 {
-				found_bonus = true
-				ahs.logger.Sillyf(`Found $%d to match null bonus list`, auction.Item.Id)
-			}
-		} else {
-			found_bonus = checkBonus(bonuses, auction.Item.Bonus_lists)
-			ahs.logger.Sillyf(`Array bonus list %v returned %t for %v`, bonuses, found_bonus, auction.Item.Bonus_lists)
-		}
+		
+		found_bonus := len(bonuses) == 0 || checkBonus(bonuses, auction.Item.Bonus_lists)
+		ahs.logger.Sillyf(`Array bonus list %v returned %t for %v`, bonuses, found_bonus, auction.Item.Bonus_lists)
 
 		if found_bonus && found_item {
 			auction_set = append(auction_set, auction)
@@ -371,20 +374,17 @@ func (ahs *AuctionHistoryServer) getSpotAuctionSummary(item globalTypes.ItemSoft
 }
 
 // Check that the bonus list matches the target item listing
-func checkBonus(bonus_list []uint, target []uint) (found bool) {
-	found = true
-
-	// Take care of undefined targets
+func checkBonus(bonus_list []uint, target []uint) bool {
+	if len(bonus_list) == 0 {
+		return true
+	}
 	if len(target) == 0 {
-		if len(bonus_list) != 0 {
-			found = false
-		}
-		found = true
+		return false
 	}
-
 	for _, list_entry := range bonus_list {
-		found = found && slices.Contains(target, list_entry)
+		if !slices.Contains(target, list_entry) {
+			return false
+		}
 	}
-
-	return
+	return true
 }

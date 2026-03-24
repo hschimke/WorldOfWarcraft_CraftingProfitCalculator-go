@@ -119,12 +119,16 @@ func main() {
 
 	if *fFillNItems {
 		fmt.Println("FillNItems selected with N=", *fCount)
-		auctionHouseDataServer.FillNItems(ctx, *fCount, &static_sources.StaticSources{})
+		if err := auctionHouseDataServer.FillNItems(ctx, *fCount, &static_sources.StaticSources{}); err != nil {
+			fmt.Println("Error filling items:", err)
+		}
 	}
 
 	if *fFillNNames {
 		fmt.Println("FillNNames selected with N=", *fCount)
-		auctionHouseDataServer.FillNNames(ctx, *fCount)
+		if err := auctionHouseDataServer.FillNNames(ctx, *fCount); err != nil {
+			fmt.Println("Error filling names:", err)
+		}
 	}
 
 	if *fGetAllBonuses {

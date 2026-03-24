@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,10 +39,12 @@ func fillNames(ctx context.Context, auctionHouse *auction_history.AuctionHistory
 }
 
 func main() {
+	if err := environment_variables.Load(); err != nil {
+		log.Fatalf("failed to load environment variables: %v", err)
+	}
+
 	var (
-		logger = &cpclog.CpCLog{
-			LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
-		}
+		logger = cpclog.NewCpCLog(cpclog.GetLevel(environment_variables.LOG_LEVEL))
 		ctx, cancel             = context.WithCancel(context.Background())
 		server_mode             = environment_variables.STANDALONE_CONTAINER
 		include_auction_history = !environment_variables.DISABLE_AUCTION_HISTORY

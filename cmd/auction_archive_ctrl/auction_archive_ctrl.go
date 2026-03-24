@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
@@ -21,9 +22,11 @@ import (
 func main() {
 	fmt.Println("Auction Archive Control Program")
 
-	logger := &cpclog.CpCLog{
-		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
+	if err := environment_variables.Load(); err != nil {
+		log.Fatalf("failed to load environment variables: %v", err)
 	}
+
+	logger := cpclog.NewCpCLog(cpclog.GetLevel(environment_variables.LOG_LEVEL))
 
 	fAddScanRealm := flag.Bool("add_scan_realm", false, "Add a scanned realm")                     // (X)
 	fArchiveAuctions := flag.Bool("archive_auctions", false, "Perform an auction archive")         // (-)

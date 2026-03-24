@@ -1,7 +1,8 @@
 package environment_variables
 
 import (
-	"log"
+	"errors"
+	"fmt"
 	"os"
 	"slices"
 	"strconv"
@@ -52,34 +53,37 @@ func validateFromArray(check string, options []string) (found bool) {
 	return slices.Contains(options, check)
 }
 
-func init() {
+// Load configuration from environment variables.
+// This function replaces the previous init() to allow for better testing
+// and explicit error handling.
+func Load() error {
+	var errs []error
 
 	USE_REDIS = getBoolean(os.Getenv("USE_REDIS"))
-
 	DOCKERIZED = getBoolean(os.Getenv("DOCKERIZED"))
-
 	REDIS_URL = os.Getenv("REDIS_URL")
 
 	if val, present := os.LookupEnv("CLIENT_ID"); present {
 		CLIENT_ID = val
 	} else {
-		log.Fatal("must provide a CLIENT_ID environment variable")
+		errs = append(errs, errors.New("must provide a CLIENT_ID environment variable"))
 	}
 
 	if val, present := os.LookupEnv("CLIENT_SECRET"); present {
 		CLIENT_SECRET = val
 	} else {
-		log.Fatal("must provide a CLIENT_SECRET environment variable")
+		errs = append(errs, errors.New("must provide a CLIENT_SECRET environment variable"))
 	}
-	LOG_LEVEL = getWithDefault("LOG_LEVEL", "info")
 
-	DISABLE_AUCTION_HISTORY = getBoolean("DISABLE_AUCTION_HISTORY")
+	LOG_LEVEL = getWithDefault("LOG_LEVEL", "info")
+	DISABLE_AUCTION_HISTORY = getBoolean(os.Getenv("DISABLE_AUCTION_HISTORY"))
 
 	tempSP, err := strconv.ParseUint(getWithDefault("SERVER_PORT", "3001"), 0, 64)
 	if err != nil {
-		log.Fatal("could not parse SERVER_PORT from environment variable")
+		errs = append(errs, fmt.Errorf("could not parse SERVER_PORT from environment variable: %w", err))
+	} else {
+		SERVER_PORT = tempSP
 	}
-	SERVER_PORT = tempSP
 
 	DATABASE_CONNECTION_STRING = os.Getenv("DATABASE_CONNECTION_STRING")
 
@@ -87,10 +91,11 @@ func init() {
 	if fetched_var := getWithDefault("STANDALONE_CONTAINER", "normal"); validateFromArray(fetched_var, standaloneContainerOptions) {
 		STANDALONE_CONTAINER = fetched_var
 	} else {
-		log.Fatalf("STANDALONE_CONTAINER must be one of {%s}", standaloneContainerOptions)
+		errs = append(errs, fmt.Errorf("STANDALONE_CONTAINER must be one of %v", standaloneContainerOptions))
 	}
 
 	STATIC_DIR_ROOT = os.Getenv("STATIC_DIR_ROOT")
-
 	EXCLUDE_BEFORE_SHADOWLANDS = getBoolean(getWithDefault("SEARCH_BEFORE_SHADOWLANDS", "false"))
+
+	return errors.Join(errs...)
 }

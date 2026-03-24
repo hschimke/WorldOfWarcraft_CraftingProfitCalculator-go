@@ -21,11 +21,12 @@ import (
 )
 
 func main() {
+	if err := environment_variables.Load(); err != nil {
+		log.Fatalf("failed to load environment variables: %v", err)
+	}
 	ctx := context.Background()
 	cache := cache_provider.NewCacheProvider(ctx, environment_variables.REDIS_URL)
-	logger := &cpclog.CpCLog{
-		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
-	}
+	logger := cpclog.NewCpCLog(cpclog.GetLevel(environment_variables.LOG_LEVEL))
 	tokenServer := blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
 	api := blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 	apiHelper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)

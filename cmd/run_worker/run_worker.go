@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,10 +22,11 @@ import (
 )
 
 func main() {
-
-	logger := &cpclog.CpCLog{
-		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
+	if err := environment_variables.Load(); err != nil {
+		log.Fatalf("failed to load environment variables: %v", err)
 	}
+
+	logger := cpclog.NewCpCLog(cpclog.GetLevel(environment_variables.LOG_LEVEL))
 
 	logger.Info("Starting cpc-job-worker")
 

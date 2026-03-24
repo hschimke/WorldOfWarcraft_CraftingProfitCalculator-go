@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
@@ -18,9 +19,10 @@ import (
 )
 
 func main() {
-	logger := &cpclog.CpCLog{
-		LogLevel: cpclog.GetLevel(environment_variables.LOG_LEVEL),
+	if err := environment_variables.Load(); err != nil {
+		log.Fatalf("failed to load environment variables: %v", err)
 	}
+	logger := cpclog.NewCpCLog(cpclog.GetLevel(environment_variables.LOG_LEVEL))
 	//http.ListenAndServe("localhost:8080", nil)
 	//defer profile.Start(profile.ProfilePath("."), profile.CPUProfile, profile.MemProfileHeap).Stop()
 	//defer profile.Start(profile.BlockProfile).Stop()

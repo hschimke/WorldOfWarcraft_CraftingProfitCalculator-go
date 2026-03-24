@@ -3,6 +3,7 @@ package wow_crafting_profits
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -135,7 +136,6 @@ returned.
 */
 func (cpc *WoWCpCRunner) getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions) [][]uint {
 	var bonus_lists [][]uint
-	var bonus_lists_set [][]uint
 	for _, auction := range auction_house.Auctions {
 		if auction.Item.Id == item_id {
 			if len(auction.Item.Bonus_lists) > 0 {
@@ -143,17 +143,7 @@ func (cpc *WoWCpCRunner) getItemBonusLists(item_id globalTypes.ItemID, auction_h
 			}
 		}
 	}
-	for _, list := range bonus_lists {
-		found := false
-		for _, i := range bonus_lists_set {
-			if len(i) == len(list) && slices.Equal(i, list) {
-				found = true
-			}
-		}
-		if !found {
-			bonus_lists_set = append(bonus_lists_set, list)
-		}
-	}
+	bonus_lists_set := util.FilterArrayToSetDouble(bonus_lists)
 	cpc.Logger.Debug("Item ", item_id, " has ", len(bonus_lists_set), " bonus lists.")
 	return bonus_lists_set
 }
@@ -335,23 +325,15 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 			rank_level := uint(0)
 			var rank_AH globalTypes.AHItemPriceObject
 			if len(recipe_id_list) > 1 {
-				//var rank_level uint
-				if slices.Contains(recipe_id_list, recipe.Recipe_id) {
-					for loc, el := range recipe_id_list {
-						if el == recipe.Recipe_id {
-							if loc < len(rankings.Rank_mapping) {
-								rank_level = rankings.Available_levels[rankings.Rank_mapping[loc]]
-							} else {
-								rank_level = 0
-							}
-							break
-						}
+				if loc := slices.Index(recipe_id_list, recipe.Recipe_id); loc != -1 {
+					if loc < len(rankings.Rank_mapping) {
+						rank_level = rankings.Available_levels[rankings.Rank_mapping[loc]]
+					} else {
+						rank_level = 0
 					}
-					//rank_level = rankings.Available_levels[rankings.Rank_mapping[recipe_id_list.indexOf(recipe.Recipe_id)]]
 				} else {
 					rank_level = 0
 				}
-				//	               rank_level = recipe_id_list.indexOf(recipe.recipe_id) > -1 ? rankings.available_levels[rankings.rank_mapping[recipe_id_list.indexOf(recipe.recipe_id)]] : 0;
 				if bonus_link[rank_level] != 0 {
 					cpc.Logger.Debugf(`Looking for AH price for %d for level %d using bonus is %d`, item_id, rank_level, bonus_link[rank_level])
 					rank_AH = getAHItemPrice(item_id, auction_house, bonus_link[rank_level])
@@ -819,53 +801,65 @@ func saveOutput(price_data globalTypes.ProfitAnalysisObject, intermediate_data g
 		raw_output_fn          string = "raw_output.json"
 	)
 
+	var errs []error
+
 	logger.Info("Saving output")
 	if intermediate_data.Id != 0 {
-		intFile, err := os.Create(intermediate_output_fn)
+		if err := func() error {
+			intFile, err := os.Create(intermediate_output_fn)
+			if err != nil {
+				return err
+			}
+			defer intFile.Close()
+			encoder := json.NewEncoder(intFile)
+			encoder.SetIndent("", "  ")
+			if err := encoder.Encode(&intermediate_data); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			errs = append(errs, fmt.Errorf("error saving intermediate output: %w", err))
+		} else {
+			logger.Info("Intermediate output saved")
+		}
+	}
+
+	if err := func() error {
+		forFile, err := os.Create(formatted_output_fn)
 		if err != nil {
 			return err
 		}
-		defer intFile.Close()
-		encoder := json.NewEncoder(intFile)
-		encoder.SetIndent("", "  ")
-		encode_err := encoder.Encode(&intermediate_data)
-		if encode_err != nil {
-			fmt.Print(encode_err.Error())
-			return encode_err
+		defer forFile.Close()
+
+		formatted_writer := bufio.NewWriter(forFile)
+		if _, err := formatted_writer.WriteString(formatted_data); err != nil {
+			return err
 		}
-		logger.Info("Intermediate output saved")
+		return formatted_writer.Flush()
+	}(); err != nil {
+		errs = append(errs, fmt.Errorf("error saving formatted output: %w", err))
+	} else {
+		logger.Info("Formatted output saved")
 	}
-	forFile, err := os.Create(formatted_output_fn)
-	if err != nil {
-		return err
-	}
-	defer forFile.Close()
-
-	formatted_writer := bufio.NewWriter(forFile)
-	defer formatted_writer.Flush()
-
-	_, writer_err := formatted_writer.WriteString(formatted_data)
-	if writer_err != nil {
-		logger.Error("Issue writing to file for formatted data: ", writer_err)
-	}
-
-	logger.Info("Formatted output saved")
 
 	if price_data.Item_id != 0 {
-		rawFile, err := os.Create(raw_output_fn)
-		if err != nil {
-			return err
+		if err := func() error {
+			rawFile, err := os.Create(raw_output_fn)
+			if err != nil {
+				return err
+			}
+			defer rawFile.Close()
+			encoder := json.NewEncoder(rawFile)
+			encoder.SetIndent("", "  ")
+			return encoder.Encode(&price_data)
+		}(); err != nil {
+			errs = append(errs, fmt.Errorf("error saving raw output: %w", err))
+		} else {
+			logger.Info("Raw output saved")
 		}
-		defer rawFile.Close()
-		encoder := json.NewEncoder(rawFile)
-		encoder.SetIndent("", "  ")
-		encode_err := encoder.Encode(&price_data)
-		if encode_err != nil {
-			return encode_err
-		}
-		logger.Info("Raw output saved")
 	}
-	return nil
+
+	return errors.Join(errs...)
 }
 
 /**

@@ -6,23 +6,18 @@ import (
 
 // FilterStringArray filters an array of strings to return only those values containing a given partial
 func FilterStringArray(array []string, partial string, logName string) []string {
-	var filteredNames []string
-	if len(partial) > 0 {
-		//cpclog.Debugf(`Partial search for all %s with "%s"`, logName, partial)
-		comparePartial := strings.ToLower(partial)
-		for _, name := range array {
-			if strings.Contains(strings.ToLower(name), comparePartial) {
-				filteredNames = append(filteredNames, name)
-			}
+	if len(partial) == 0 {
+		if len(array) == 0 {
+			return make([]string, 0)
 		}
-		if len(filteredNames) == 0 {
-			filteredNames = make([]string, 0)
-		}
-	} else {
-		filteredNames = array
+		return array
+	}
 
-		if len(filteredNames) == 0 {
-			filteredNames = make([]string, 0)
+	comparePartial := strings.ToLower(partial)
+	filteredNames := make([]string, 0)
+	for _, name := range array {
+		if strings.Contains(strings.ToLower(name), comparePartial) {
+			filteredNames = append(filteredNames, name)
 		}
 	}
 	return filteredNames

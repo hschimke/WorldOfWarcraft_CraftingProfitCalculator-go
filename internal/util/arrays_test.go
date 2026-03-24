@@ -134,8 +134,7 @@ func TestFilterArrayToSet(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			//if gotResult := FilterArrayToSet(tt.args.array); !reflect.DeepEqual(gotResult, tt.wantResult) {
-			if gotResult := FilterArrayToSet(tt.args.array); !SetEqual(*(SetFromSlice(gotResult)), *(SetFromSlice(tt.wantResult))) {
+			if gotResult := FilterArrayToSet(tt.args.array); !SetEqual(SetFromSlice(gotResult), SetFromSlice(tt.wantResult)) {
 				t.Errorf("FilterArrayToSet() = %v, want %v", gotResult, tt.wantResult)
 			}
 		})

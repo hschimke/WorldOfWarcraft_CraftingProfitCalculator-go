@@ -1,17 +1,22 @@
 package util
 
 import (
-	"fmt"
+	"iter"
+	"slices"
 	"strconv"
 )
 
-// Filter an array or arrays to an array of unique arrays
+// Filter an array of arrays to an array of unique arrays
 func FilterArrayToSetDouble[T comparable](array [][]T) (result [][]T) {
-	hld := make(map[string]bool)
 	for _, element := range array {
-		srch := fmt.Sprint(element)
-		if _, present := hld[srch]; !present {
-			hld[srch] = true
+		found := false
+		for _, existing := range result {
+			if slices.Equal(existing, element) {
+				found = true
+				break
+			}
+		}
+		if !found {
 			result = append(result, element)
 		}
 	}
@@ -23,15 +28,25 @@ func FilterArrayToSet[T comparable](array []T) (result []T) {
 	return SetFromSlice(array).ToSlice()
 }
 
-// Flatten an array of arrays of uints to an array of uints
-func FlattenArray[T comparable](array [][]T) (return_array []T) {
-	for _, sub_array := range array {
-		return_array = append(return_array, sub_array...)
-	}
-	return
+// Flatten an array of arrays of any type to an array of that type
+func FlattenArray[T any](array [][]T) (return_array []T) {
+	return slices.Concat(array...)
 }
 
-// Parse an array of strinsg to an array of uints
+// Filter is a generic iterator-based filter
+func Filter[T any](seq iter.Seq[T], f func(T) bool) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v := range seq {
+			if f(v) {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// Parse an array of strings to an array of uints
 func ParseStringArrayToUint(array []string) []uint {
 	var r []uint
 	for _, s := range array {

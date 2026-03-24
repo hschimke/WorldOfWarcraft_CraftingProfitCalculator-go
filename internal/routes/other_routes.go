@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
+	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 )
 
 // Download the WOW addon
@@ -62,7 +63,7 @@ func (routes *CPCRoutes) AllRealms(w http.ResponseWriter, r *http.Request) {
 	region := r.URL.Query().Get("region")
 
 	if len(region) > 0 {
-		names = routes.helper.GetAllRealmNames(region)
+		names = routes.helper.GetAllRealmNames(r.Context(), globalTypes.RegionCode(region))
 	}
 
 	filterd_names := slices.Collect(util.FilterStringArray(names, partial))

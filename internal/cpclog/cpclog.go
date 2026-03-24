@@ -84,6 +84,10 @@ func (l *CpCLog) Info(v ...any) {
 	l.log(slog.LevelInfo, fmt.Sprint(v...))
 }
 
+func (l *CpCLog) Warn(v ...any) {
+	l.log(slog.LevelWarn, fmt.Sprint(v...))
+}
+
 func (l *CpCLog) Error(v ...any) {
 	l.log(slog.LevelError, fmt.Sprint(v...))
 }
@@ -103,6 +107,10 @@ func (l *CpCLog) Debugf(format string, v ...any) {
 
 func (l *CpCLog) Infof(format string, v ...any) {
 	l.log(slog.LevelInfo, fmt.Sprintf(format, v...))
+}
+
+func (l *CpCLog) Warnf(format string, v ...any) {
+	l.log(slog.LevelWarn, fmt.Sprintf(format, v...))
 }
 
 func (l *CpCLog) Errorf(format string, v ...any) {

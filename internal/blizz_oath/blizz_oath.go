@@ -1,6 +1,7 @@
 package blizz_oath
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,7 +35,7 @@ func (at *AccessToken) CheckExpired() (expired bool) {
 }
 
 // GetAuthorizationToken returns an authorization token for a given region, fetches a new one if an existing token isn't found or has expired.
-func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error) {
+func (ts *TokenServer) GetAuthorizationToken(ctx context.Context, region string) (*AccessToken, error) {
 	if region == "" {
 		return nil, fmt.Errorf("cannot have empty region")
 	}
@@ -59,8 +60,9 @@ func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error
 		form := url.Values{}
 		form.Add("grant_type", "client_credentials")
 
-		req, err := http.NewRequest(http.MethodPost, uri, strings.NewReader(form.Encode()))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri, strings.NewReader(form.Encode()))
 		if err != nil {
+			ts.authCheckMutex.Unlock()
 			ts.Logger.Errorf("error getting access token for region: %s, err: %s", region, err)
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, err)
 		}
@@ -71,6 +73,7 @@ func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error
 
 		res, getErr := ts.HttpClient.Do(req)
 		if getErr != nil {
+			ts.authCheckMutex.Unlock()
 			ts.Logger.Error(getErr)
 			ts.Logger.Error("an error was encountered while retrieving an authorization token: ", getErr.Error())
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, getErr)
@@ -83,6 +86,7 @@ func (ts *TokenServer) GetAuthorizationToken(region string) (*AccessToken, error
 		new_token := AccessToken{}
 		parseErr := json.NewDecoder(res.Body).Decode(&new_token)
 		if parseErr != nil {
+			ts.authCheckMutex.Unlock()
 			ts.Logger.Error(parseErr)
 			ts.Logger.Error("an error was encountered while parsing an authorization token: ", parseErr.Error())
 			return nil, fmt.Errorf("error getting access token for region: %s, err: %s", region, parseErr)

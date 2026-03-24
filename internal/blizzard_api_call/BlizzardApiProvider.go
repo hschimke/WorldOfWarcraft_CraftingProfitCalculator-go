@@ -2,44 +2,43 @@ package blizzard_api_call
 
 import (
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
+	"golang.org/x/time/rate"
 )
 
 type BlizzardApiProvider struct {
-	allowedDuringPeriod, inUse uint64
-	HttpClient                 *http.Client
-	clearTicks                 *time.Ticker
-	stopClear                  chan bool
-	TokenServer                *blizz_oath.TokenServer
-	Logger                     *cpclog.CpCLog
+	HttpClient  *http.Client
+	TokenServer *blizz_oath.TokenServer
+	Logger      *cpclog.CpCLog
+	Limiter     *rate.Limiter
 }
 
 func NewBlizzardApiProvider(tokenServer *blizz_oath.TokenServer, logger *cpclog.CpCLog) *BlizzardApiProvider {
+	// Blizzard limits: 100 requests per second, 36,000 requests per hour.
+	// 36,000 requests per hour is 10 requests per second.
+	// We use a rate of 10 per second with a burst of 100 to stay within both limits.
+	limiter := rate.NewLimiter(rate.Limit(10), 100)
+
 	client := BlizzardApiProvider{
-		allowedDuringPeriod: 0,
-		inUse:               0,
 		HttpClient: &http.Client{
 			Timeout: 20 * time.Second,
 			Transport: &http.Transport{
 				DisableCompression: false,
 				ForceAttemptHTTP2:  true,
-				MaxConnsPerHost:    allowed_connections_per_period,
+				MaxConnsPerHost:    100,
 			},
 		},
-		clearTicks:  time.NewTicker(time.Duration(time.Second * period_reset_window)),
-		stopClear:   make(chan bool),
 		Logger:      logger,
 		TokenServer: tokenServer,
+		Limiter:     limiter,
 	}
-	appShutdownDetected := make(chan os.Signal, 1)
-	signal.Notify(appShutdownDetected, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	go client.blizzardApiFlowManager(client.stopClear, appShutdownDetected)
 
 	return &client
+}
+
+// ShutdownApiManager is now a no-op as we use rate.Limiter which doesn't need a background goroutine
+func (client *BlizzardApiProvider) ShutdownApiManager() {
 }

@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 )
 
 type jsonOutputBodyQueueData struct {
-	//AddonData   globalTypes.AddonData `json:"addon_data,omitempty"`
 	AddonData         string   `json:"addon_data,omitempty"`
 	Type              string   `json:"type,omitempty"`
 	ItemId            string   `json:"item_id,omitempty"`
@@ -40,15 +38,11 @@ func (routes *CPCRoutes) JsonOutputQueue(w http.ResponseWriter, r *http.Request)
 	}
 
 	var adData globalTypes.AddonData
-
-	adDataErr := json.Unmarshal([]byte(data.AddonData), &adData)
-	if adDataErr != nil {
-		adData = globalTypes.AddonData{}
-	}
+	_ = json.Unmarshal([]byte(data.AddonData), &adData)
 
 	switch data.Type {
 	case "custom":
-		routes.Logger.Debugf(`Custom search for item: %s, server: %s, region: %s, professions: %v. JSON DATA: %d`, data.ItemId, data.Server, data.Region, data.Professions, len(adData.Inventory))
+		routes.Logger.Debugf(`Custom search for item: %s, server: %s, region: %s`, data.ItemId, data.Server, data.Region)
 		runJob := globalTypes.RunJob{
 			JobId: jobUUID,
 			JobConfig: struct {
@@ -61,7 +55,7 @@ func (routes *CPCRoutes) JsonOutputQueue(w http.ResponseWriter, r *http.Request)
 				Count:             data.Count,
 				UseAllProfessions: data.UseAllProfessions,
 				AddonData: globalTypes.AddonData{
-					Inventory:   adData.Inventory, //data.AddonData.Inventory,
+					Inventory:   adData.Inventory,
 					Professions: data.Professions,
 					Realm: struct {
 						Region_id   uint   "json:\"region_id,omitempty\""
@@ -75,12 +69,8 @@ func (routes *CPCRoutes) JsonOutputQueue(w http.ResponseWriter, r *http.Request)
 				},
 			},
 		}
-		rjs, rjsErr := json.Marshal(runJob)
-		if rjsErr != nil {
-			http.Error(w, rjsErr.Error(), http.StatusInternalServerError)
-			return
-		}
-		routes.redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
+		rjs, _ := json.Marshal(runJob)
+		routes.redisClient.LPush(r.Context(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
 	case "json":
 		routes.Logger.Debug("json search")
 		runJob := globalTypes.RunJob{
@@ -94,15 +84,11 @@ func (routes *CPCRoutes) JsonOutputQueue(w http.ResponseWriter, r *http.Request)
 				Item:              globalTypes.NewItemFromString(data.ItemId),
 				Count:             data.Count,
 				UseAllProfessions: false,
-				AddonData:         adData, //data.AddonData,
+				AddonData:         adData,
 			},
 		}
-		rjs, rjsErr := json.Marshal(runJob)
-		if rjsErr != nil {
-			http.Error(w, rjsErr.Error(), http.StatusInternalServerError)
-			return
-		}
-		routes.redisClient.LPush(context.TODO(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
+		rjs, _ := json.Marshal(runJob)
+		routes.redisClient.LPush(r.Context(), globalTypes.CPC_JOB_QUEUE_NAME, rjs)
 	default:
 		http.Error(w, "type must be one of 'custom' or 'json'", http.StatusBadRequest)
 		return
@@ -130,29 +116,16 @@ func (routes *CPCRoutes) JsonOutputCheck(w http.ResponseWriter, r *http.Request)
 	}
 
 	key := fmt.Sprintf(globalTypes.CPC_JOB_RETURN_FORMAT_STRING, data.JobId)
-	jobDone := false
-
-	fnd, err := routes.redisClient.Exists(context.TODO(), key).Result()
-	if err != nil {
-		jobDone = false
-	} else {
-		jobDone = (fnd == 1)
-	}
-
-	if jobDone {
-		job, jobErr := routes.redisClient.Get(context.TODO(), key).Result()
-		if jobErr != nil {
-			json.NewEncoder(w).Encode(globalTypes.ReturnError{
-				ERROR: jobErr.Error(),
-			})
-			w.WriteHeader(http.StatusInternalServerError)
-		}
-		w.Write([]byte(job))
-	} else {
-		json.NewEncoder(w).Encode(globalTypes.QueuedJobReturn{
-			JobId: data.JobId,
-		})
+	
+	val, err := routes.redisClient.Get(r.Context(), key).Result()
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.Write([]byte(val))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(globalTypes.QueuedJobReturn{
+		JobId: data.JobId,
+	})
 }

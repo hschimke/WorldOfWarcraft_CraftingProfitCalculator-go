@@ -1,7 +1,7 @@
 package blizzard_api_helpers
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -14,6 +14,7 @@ import (
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/pkg/globalTypes/BlizzardApi"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -65,7 +66,7 @@ func checkPageSearchResults(page BlizzardApi.ItemSearch, itemName globalTypes.It
 }
 
 // Find the item ID for an item with name itemName
-func (helper *BlizzardApiHelper) GetItemId(region globalTypes.RegionCode, itemName globalTypes.ItemName) (globalTypes.ItemID, error) {
+func (helper *BlizzardApiHelper) GetItemId(ctx context.Context, region globalTypes.RegionCode, itemName globalTypes.ItemName) (globalTypes.ItemID, error) {
 	if found, err := cache_provider.CacheCheck(helper.cache, ITEM_SEARCH_CACHE, itemName); err == nil && found {
 		item := globalTypes.ItemID(0)
 		fndErr := cache_provider.CacheGet(helper.cache, ITEM_SEARCH_CACHE, itemName, &item)
@@ -74,33 +75,30 @@ func (helper *BlizzardApiHelper) GetItemId(region globalTypes.RegionCode, itemNa
 
 	item_id := uint(0)
 
-	//current_page := uint(0)
 	page_count := uint(0)
 	const search_api_uri = "/data/wow/search/item"
 
 	fetchPage := BlizzardApi.ItemSearch{}
-	_, err := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, searchDataPackage{
+	err := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, searchDataPackage{
 		"locale":     blizzard_api_call.ENGLISH_US,
 		"name.en_US": itemName,
 		"orderby":    "id:desc",
 		"_pageSize":  searchPageSize,
 	}, search_api_uri, getNamespace(static_ns, region), &fetchPage)
-	//current_page = fetchPage.Page
-	if err != nil && fetchPage.PageCount <= 0 {
-		return 0, fmt.Errorf("no results for %s", itemName)
+	if err != nil {
+		return 0, fmt.Errorf("search error for %s: %w", itemName, err)
 	}
 	page_count = fetchPage.PageCount
-	//return fetchPage, fetchPage.Page, fetchPage.PageCount, err
 
 	helper.logger.Debug("Found ", page_count, " pages for item search ", itemName)
 	if page_count > 0 {
 		if page_item_id, itemFound := checkPageSearchResults(fetchPage, itemName); itemFound {
 			item_id = page_item_id
 		} else {
-			for cp := fetchPage.Page; cp <= page_count; cp++ {
+			for cp := fetchPage.Page + 1; cp <= page_count; cp++ {
 				helper.logger.Silly("Checking page ", cp, " for ", itemName)
 				getPage := BlizzardApi.ItemSearch{}
-				_, err := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, searchPageDataPackage{
+				err := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, searchPageDataPackage{
 					"locale":     blizzard_api_call.ENGLISH_US,
 					"name.en_US": itemName,
 					"orderby":    "id:desc",
@@ -123,13 +121,17 @@ func (helper *BlizzardApiHelper) GetItemId(region globalTypes.RegionCode, itemNa
 		return 0, fmt.Errorf("no items match search %s", itemName)
 	}
 
+	if item_id == 0 {
+		return 0, fmt.Errorf("no exact match found for %s", itemName)
+	}
+
 	cache_provider.CacheSet(helper.cache, ITEM_SEARCH_CACHE, itemName, item_id, cache_provider.GetStaticTimeWithShift())
 
 	return item_id, nil
 }
 
 // Get a list of all connected realms
-func (helper *BlizzardApiHelper) getAllConnectedRealms(region globalTypes.RegionCode) (BlizzardApi.ConnectedRealmIndex, error) {
+func (helper *BlizzardApiHelper) getAllConnectedRealms(ctx context.Context, region globalTypes.RegionCode) (BlizzardApi.ConnectedRealmIndex, error) {
 
 	const list_connected_realms_api string = "/data/wow/connected-realm/index"
 	list_connected_realms_form := basicDataPackage{
@@ -137,7 +139,7 @@ func (helper *BlizzardApiHelper) getAllConnectedRealms(region globalTypes.Region
 	}
 
 	var realm_index BlizzardApi.ConnectedRealmIndex
-	_, fetchError := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, list_connected_realms_form, list_connected_realms_api, getNamespace(dynamic_ns, region), &realm_index)
+	fetchError := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, list_connected_realms_form, list_connected_realms_api, getNamespace(dynamic_ns, region), &realm_index)
 	if fetchError != nil {
 		return BlizzardApi.ConnectedRealmIndex{}, fetchError
 	}
@@ -146,7 +148,7 @@ func (helper *BlizzardApiHelper) getAllConnectedRealms(region globalTypes.Region
 }
 
 // Get a blizzard connected realm based on its ID
-func (helper *BlizzardApiHelper) GetConnectedRealmId(server_name globalTypes.RealmName, server_region globalTypes.RegionCode) (globalTypes.ConnectedRealmID, error) {
+func (helper *BlizzardApiHelper) GetConnectedRealmId(ctx context.Context, server_name globalTypes.RealmName, server_region globalTypes.RegionCode) (globalTypes.ConnectedRealmID, error) {
 	connected_realm_key := fmt.Sprintf("%s::%s", server_region, server_name)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, CONNECTED_REALM_ID_CACHE, connected_realm_key); err == nil && found {
@@ -162,7 +164,7 @@ func (helper *BlizzardApiHelper) GetConnectedRealmId(server_name globalTypes.Rea
 	realm_id := globalTypes.ConnectedRealmID(0)
 
 	// Get a list of all connected realms
-	all_connected_realms, err := helper.getAllConnectedRealms(server_region)
+	all_connected_realms, err := helper.getAllConnectedRealms(ctx, server_region)
 	if err != nil {
 		return globalTypes.ConnectedRealmID(0), err
 	}
@@ -171,9 +173,9 @@ func (helper *BlizzardApiHelper) GetConnectedRealmId(server_name globalTypes.Rea
 	for _, realm_href := range all_connected_realms.Connected_realms {
 		hr := realm_href.Href
 		var connected_realm_detail BlizzardApi.ConnectedRealm
-		_, crErr := blizzard_api_call.GetBlizzardRawUriResponse(helper.api, get_connected_realm_form, hr, server_region, getNamespace(dynamic_ns, server_region), &connected_realm_detail)
-		if crErr != nil {
-			return globalTypes.ConnectedRealmID(0), crErr
+		fetchErr := blizzard_api_call.GetBlizzardRawUriResponse(ctx, helper.api, get_connected_realm_form, hr, server_region, getNamespace(dynamic_ns, server_region), &connected_realm_detail)
+		if fetchErr != nil {
+			return globalTypes.ConnectedRealmID(0), fetchErr
 		}
 
 		found_realm := false
@@ -203,7 +205,7 @@ func (helper *BlizzardApiHelper) GetConnectedRealmId(server_name globalTypes.Rea
 }
 
 // Check whether an item is craftable with a given set of professions.
-func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, character_professions []globalTypes.CharacterProfession, region globalTypes.RegionCode, static_source *static_sources.StaticSources) (globalTypes.CraftingStatus, error) {
+func (helper *BlizzardApiHelper) CheckIsCrafting(ctx context.Context, item_id globalTypes.ItemID, character_professions []globalTypes.CharacterProfession, region globalTypes.RegionCode, static_source *static_sources.StaticSources) (globalTypes.CraftingStatus, error) {
 	// Check if we've already run this check, and if so return the cached version, otherwise keep on
 	key := fmt.Sprintf("%s::%d::%v", region, item_id, character_professions)
 
@@ -213,7 +215,7 @@ func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, cha
 		return item, fndErr
 	}
 
-	profession_list, err := helper.GetBlizProfessionsList(region)
+	profession_list, err := helper.GetBlizProfessionsList(ctx, region)
 	if err != nil {
 		return globalTypes.CraftingStatus{}, err
 	}
@@ -223,7 +225,7 @@ func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, cha
 	}
 
 	// Check if a vendor is mentioned in the item description and if so just short circuit
-	item_detail, err := helper.GetItemDetails(item_id, region)
+	item_detail, err := helper.GetItemDetails(ctx, item_id, region)
 	if err != nil {
 		return globalTypes.CraftingStatus{}, err
 	}
@@ -236,60 +238,30 @@ func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, cha
 	}
 
 	var profession_result_array []globalTypes.CraftingStatus
+	var mutex sync.Mutex
 
-	type iData struct {
-		profession_id uint
-		prof          globalTypes.CharacterProfession
-		region        globalTypes.RegionCode
-		item_id       globalTypes.ItemID
-		item_detail   BlizzardApi.Item
-	}
-
-	type iRet struct {
-		ret globalTypes.CraftingStatus
-		err error
-	}
-
-	inputData := make(chan iData, 3)
-	outputData := make(chan iRet, len(character_professions))
-
-	workerFunc := func(input chan iData, output chan iRet) {
-		for z := range input {
-			z, err := helper.checkProfessionCrafting(z.profession_id, z.prof, z.region, z.item_id, z.item_detail, static_source)
-			output <- iRet{z, err}
-		}
-	}
-
-	var errArr []error
-
-	for range character_professions {
-		go workerFunc(inputData, outputData)
-	}
+	g, gCtx := errgroup.WithContext(ctx)
 
 	for _, prof := range character_professions {
+		prof := prof
 		if profession_id, profErr := getProfessionId(profession_list, prof); profErr == nil {
-			inputData <- iData{profession_id, prof, region, item_id, item_detail}
+			g.Go(func() error {
+				res, err := helper.checkProfessionCrafting(gCtx, profession_id, prof, region, item_id, item_detail, static_source)
+				if err != nil {
+					return err
+				}
+				mutex.Lock()
+				profession_result_array = append(profession_result_array, res)
+				mutex.Unlock()
+				return nil
+			})
 		} else {
-			errArr = append(errArr, profErr)
+			helper.logger.Warnf("Could not find profession ID for %s: %v", prof, profErr)
 		}
 	}
-	close(inputData)
 
-	for job := 1; job <= len(character_professions); job++ {
-		jBr := <-outputData
-		if jBr.err != nil {
-			errArr = append(errArr, jBr.err)
-		}
-		profession_result_array = append(profession_result_array, jBr.ret)
-	}
-
-	if len(errArr) != 0 {
-		var str strings.Builder
-
-		for i, e := range errArr {
-			str.WriteString(fmt.Sprintf("error %d: %v\n", i, e))
-		}
-		return globalTypes.CraftingStatus{}, errors.New(str.String())
+	if err := g.Wait(); err != nil {
+		return globalTypes.CraftingStatus{}, err
 	}
 
 	// collate professions
@@ -300,7 +272,6 @@ func (helper *BlizzardApiHelper) CheckIsCrafting(item_id globalTypes.ItemID, cha
 	}
 
 	cache_provider.CacheSet(helper.cache, CRAFTABLE_BY_PROFESSION_SET_CACHE, key, &recipe_options, cache_provider.GetComputedTimeWithShift())
-	//{craftable: found_craftable, recipe_id: found_recipe_id, crafting_profession: found_profession};
 	return recipe_options, nil
 }
 
@@ -320,95 +291,87 @@ func getProfessionId(profession_list BlizzardApi.ProfessionsIndex, profession_na
 }
 
 // Check whether and item can be crafted by a given skilltier within a profession
-func (helper *BlizzardApiHelper) checkProfessionTierCrafting(skill_tier skilltier, region globalTypes.RegionCode, item_id uint, check_profession_id uint, prof string, item_detail BlizzardApi.Item, profession_recipe_options *globalTypes.CraftingStatus, mutex *sync.Mutex, static_source *static_sources.StaticSources) {
+func (helper *BlizzardApiHelper) checkProfessionTierCrafting(ctx context.Context, skill_tier skilltier, region globalTypes.RegionCode, item_id uint, check_profession_id uint, prof string, item_detail BlizzardApi.Item, profession_recipe_options *globalTypes.CraftingStatus, mutex *sync.Mutex, static_source *static_sources.StaticSources) error {
 	check_scan_tier := true
 	if exclude_before_shadowlands {
 		check_scan_tier = strings.Contains(skill_tier.Name, "Shadowlands")
 	}
 
-	if check_scan_tier {
-		helper.logger.Debugf("Checking: %s for: %d", skill_tier.Name, item_id)
-		// Get a list of all recipes each level can do
-		skill_tier_detail, err := helper.GetBlizSkillTierDetail(check_profession_id, skill_tier.Id, region)
-		if err != nil {
-			return
-		}
+	if !check_scan_tier {
+		return nil
+	}
 
-		checked_categories := 0
-		recipes_checked := 0
+	helper.logger.Debugf("Checking: %s for: %d", skill_tier.Name, item_id)
+	// Get a list of all recipes each level can do
+	skill_tier_detail, err := helper.GetBlizSkillTierDetail(ctx, check_profession_id, skill_tier.Id, region)
+	if err != nil {
+		return err
+	}
 
-		if skill_tier_detail.Categories != nil {
-			categories := skill_tier_detail.Categories
+	if skill_tier_detail.Categories == nil {
+		helper.logger.Debugf("Skill tier %s has no categories.", skill_tier.Name)
+		return nil
+	}
 
-			checked_categories += len(categories)
-			for _, cat := range categories {
-				for _, rec := range cat.Recipes {
-					recipe, err := helper.GetBlizRecipeDetail(rec.Id, region)
-					if err != nil {
-						return
-					}
-					recipes_checked++
-					helper.logger.Sillyf("Check recipe %s", recipe.Name)
-					if !(strings.Contains(recipe.Name, "Prospect") || strings.Contains(recipe.Name, "Mill")) {
-						crafty := false
-						ids := getRecipeCraftedItemID(recipe, region, helper, static_source)
+	g, gCtx := errgroup.WithContext(ctx)
 
-						for _, id := range ids {
-							if id == item_id {
-								crafty = true
-							}
-						}
+	for _, cat := range skill_tier_detail.Categories {
+		cat := cat
+		for _, rec := range cat.Recipes {
+			rec := rec
+			g.Go(func() error {
+				recipe, err := helper.GetBlizRecipeDetail(gCtx, rec.Id, region)
+				if err != nil {
+					return err
+				}
 
-						// Enchantments and Echantments must be checked because of a onetime data error in the API response
-						if !crafty && (strings.Contains(skill_tier.Name, "Enchanting") && (strings.Contains(cat.Name, "Enchantments") || strings.Contains(cat.Name, "Echantments"))) {
-							helper.logger.Sillyf("Checking if uncraftable item %d is craftable with a synthetic item-recipe connection.", item_detail.Id)
-							slot := getSlotName(cat)
-							synthetic_item_name := fmt.Sprintf("Enchant %s - %s", slot, rec.Name)
-							helper.logger.Sillyf("Generated synthetic item name %s", synthetic_item_name)
-							synthetic_item_id, err := helper.GetItemId(region, synthetic_item_name)
-							if err != nil {
-								return
-							}
-							helper.logger.Sillyf("Synthetic item %s has id %d", synthetic_item_name, synthetic_item_id)
-							if synthetic_item_id != 0 && synthetic_item_id == item_id {
-								crafty = true
-								helper.logger.Sillyf("Synthetic item %s match for %s.", synthetic_item_name, item_detail.Name)
-							}
-						} else {
-							helper.logger.Sillyf("Skipping synthetic for %t (%t) %s (%t) %s (%t) %s", crafty, !crafty, skill_tier.Name, strings.Contains(skill_tier.Name, "Enchanting"), cat.Name, strings.Contains(cat.Name, "Enchantments"), rec.Name)
-						}
+				if strings.Contains(recipe.Name, "Prospect") || strings.Contains(recipe.Name, "Mill") {
+					return nil
+				}
 
-						// item is craftable
-						if crafty {
-							mutex.Lock()
-							helper.logger.Infof("Found recipe (%d): %s for (%d) %s", recipe.Id, recipe.Name, item_detail.Id, item_detail.Name)
+				crafty := false
+				ids := getRecipeCraftedItemID(gCtx, recipe, region, helper, static_source)
 
-							profession_recipe_options.Recipes = append(profession_recipe_options.Recipes, struct {
-								Recipe_id           uint
-								Crafting_profession string
-							}{
-								recipe.Id,
-								prof,
-							})
-
-							profession_recipe_options.Recipe_ids = append(profession_recipe_options.Recipe_ids, recipe.Id)
-							profession_recipe_options.Craftable = true
-							mutex.Unlock()
-						}
-					} else {
-						helper.logger.Sillyf("Skipping Recipe: (%d) \"%s\"", recipe.Id, recipe.Name)
+				for _, id := range ids {
+					if id == item_id {
+						crafty = true
 					}
 				}
-			}
-		} else {
-			helper.logger.Debugf("Skill tier %s has no categories.", skill_tier.Name)
+
+				// Enchantments fallback
+				if !crafty && (strings.Contains(skill_tier.Name, "Enchanting") && (strings.Contains(cat.Name, "Enchantments") || strings.Contains(cat.Name, "Echantments"))) {
+					slot := getSlotName(cat)
+					synthetic_item_name := fmt.Sprintf("Enchant %s - %s", slot, rec.Name)
+					synthetic_item_id, err := helper.GetItemId(gCtx, region, synthetic_item_name)
+					if err == nil && synthetic_item_id != 0 && synthetic_item_id == item_id {
+						crafty = true
+					}
+				}
+
+				if crafty {
+					mutex.Lock()
+					helper.logger.Infof("Found recipe (%d): %s for (%d) %s", recipe.Id, recipe.Name, item_detail.Id, item_detail.Name)
+					profession_recipe_options.Recipes = append(profession_recipe_options.Recipes, struct {
+						Recipe_id           uint
+						Crafting_profession string
+					}{
+						recipe.Id,
+						prof,
+					})
+					profession_recipe_options.Recipe_ids = append(profession_recipe_options.Recipe_ids, recipe.Id)
+					profession_recipe_options.Craftable = true
+					mutex.Unlock()
+				}
+				return nil
+			})
 		}
-		helper.logger.Debug("Checked ", recipes_checked, " recipes in ", checked_categories, " categories for ", item_id, " in ", skill_tier.Name)
 	}
+
+	return g.Wait()
 }
 
 // Check whether an item can be crafted by a given profession
-func (helper *BlizzardApiHelper) checkProfessionCrafting(profession_id uint, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item, static_source *static_sources.StaticSources) (globalTypes.CraftingStatus, error) {
+func (helper *BlizzardApiHelper) checkProfessionCrafting(ctx context.Context, profession_id uint, prof globalTypes.CharacterProfession, region globalTypes.RegionCode, item_id globalTypes.ItemID, item_detail BlizzardApi.Item, static_source *static_sources.StaticSources) (globalTypes.CraftingStatus, error) {
 	cache_key := fmt.Sprintf("%s:%s:%d", region, prof, item_id)
 	if found, err := cache_provider.CacheCheck(helper.cache, CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key); err == nil && found {
 		item := globalTypes.CraftingStatus{}
@@ -418,33 +381,27 @@ func (helper *BlizzardApiHelper) checkProfessionCrafting(profession_id uint, pro
 	profession_recipe_options := globalTypes.CraftingStatus{}
 	profession_recipe_options.Craftable = false
 
-	/*check_profession_id, err := getProfessionId(profession_list, prof)
-	if err != nil {
-		return globalTypes.CraftingStatus{}, err
-	}*/
-
-	// Get a list of the crafting levels for the professions
-	profession_detail, err := helper.GetBlizProfessionDetail(profession_id, region)
+	profession_detail, err := helper.GetBlizProfessionDetail(ctx, profession_id, region)
 	if err != nil {
 		return globalTypes.CraftingStatus{}, err
 	}
-	crafting_levels := profession_detail.Skill_tiers
 
 	helper.logger.Debug("Scanning profession: ", profession_detail.Name)
 
-	var wg sync.WaitGroup
+	g, gCtx := errgroup.WithContext(ctx)
 	var lock sync.Mutex
 
-	for _, tier := range crafting_levels {
-		wg.Add(1)
-		st := tier
-		go func() {
-			defer wg.Done()
-			helper.checkProfessionTierCrafting(st, region, item_id, profession_id, prof, item_detail, &profession_recipe_options, &lock, static_source)
-		}()
+	for _, tier := range profession_detail.Skill_tiers {
+		tier := tier
+		st := skilltier{Name: tier.Name, Id: tier.Id}
+		g.Go(func() error {
+			return helper.checkProfessionTierCrafting(gCtx, st, region, uint(item_id), profession_id, string(prof), item_detail, &profession_recipe_options, &lock, static_source)
+		})
 	}
 
-	wg.Wait()
+	if err := g.Wait(); err != nil {
+		return globalTypes.CraftingStatus{}, err
+	}
 
 	cache_provider.CacheSet(helper.cache, CRAFTABLE_BY_SINGLE_PROFESSION_CACHE, cache_key, profession_recipe_options, cache_provider.GetComputedTimeWithShift())
 
@@ -453,7 +410,7 @@ func (helper *BlizzardApiHelper) checkProfessionCrafting(profession_id uint, pro
 }
 
 // Get the ID of an item crafted by a given recipe. If multiple items are crafted return them all
-func getRecipeCraftedItemID(recipe BlizzardApi.Recipe, region globalTypes.RegionCode, helper *BlizzardApiHelper, static_source *static_sources.StaticSources) []globalTypes.ItemID {
+func getRecipeCraftedItemID(ctx context.Context, recipe BlizzardApi.Recipe, region globalTypes.RegionCode, helper *BlizzardApiHelper, static_source *static_sources.StaticSources) []globalTypes.ItemID {
 	item_ids := make(map[globalTypes.ItemID]bool)
 
 	found := false
@@ -469,22 +426,20 @@ func getRecipeCraftedItemID(recipe BlizzardApi.Recipe, region globalTypes.Region
 		item_ids[recipe.Crafted_item.Id] = true
 		found = true
 	}
-	/*
-	 FIX: Search all items BY NAME for the item ID to craft
-	*/
+
 	if !found {
-		searched_id, search_id_err := helper.GetItemId(region, recipe.Name)
+		searched_id, search_id_err := helper.GetItemId(ctx, region, recipe.Name)
 		if search_id_err == nil {
 			item_ids[searched_id] = true
 			found = true
 		}
 		if !found {
-			// If that fails, try to find the item using the FireSong crafting link table for DF
 			firesong_link_table, fetch_err := static_source.GetFireSongsCraftingLinkTable()
 			if fetch_err == nil {
 				for _, element := range *firesong_link_table {
 					if element.RecipeId == recipe.Id {
 						item_ids[element.Id] = true
+						found = true
 					}
 				}
 			}
@@ -526,95 +481,45 @@ func getSlotName(category BlizzardApi.Category) (raw_slot_name string) {
 }
 
 // Construct a list of cyclic links between recipes
-func (helper *BlizzardApiHelper) BuildCyclicRecipeList(region globalTypes.RegionCode, static_source *static_sources.StaticSources) (globalTypes.SkillTierCyclicLinks, error) {
-	profession_list, err := helper.GetBlizProfessionsList(region)
+func (helper *BlizzardApiHelper) BuildCyclicRecipeList(ctx context.Context, region globalTypes.RegionCode, static_source *static_sources.StaticSources) (globalTypes.SkillTierCyclicLinks, error) {
+	profession_list, err := helper.GetBlizProfessionsList(ctx, region)
 	if err != nil {
 		return globalTypes.SkillTierCyclicLinks{}, err
 	}
 
 	var links SkillTierCyclicLinksBuild
+	var linksMutex sync.Mutex
+	var counter uint64
 
-	var professionScanList []BlizzardApi.Profession
+	g, gCtx := errgroup.WithContext(ctx)
+
 	for _, pro := range profession_list.Professions {
-		profDetail, err := helper.GetBlizProfessionDetail(pro.Id, region)
-		if err != nil {
-			return globalTypes.SkillTierCyclicLinks{}, err
-		}
-		professionScanList = append(professionScanList, profDetail)
-	}
-
-	counter := uint64(0)
-	profession_counter := int64(0)
-
-	type oData struct {
-		ret SkillTierCyclicLinksBuild
-		err error
-	}
-
-	inputData := make(chan BlizzardApi.Profession, 4)
-	outputData := make(chan oData, len(professionScanList))
-
-	workerFunc := func(input chan BlizzardApi.Profession, output chan oData) {
-		var (
-			appendMutex        sync.Mutex
-			buildCLSkillTierWG sync.WaitGroup
-		)
-		for prof := range input {
-			//var collectLinks SkillTierCyclicLinksBuild
-			return_data := oData{}
-			last_count := atomic.LoadUint64(&counter)
-			helper.logger.Debug("Scanning profession: ", prof.Name, " for cyclic relationships.")
-			profession, err := helper.GetBlizProfessionDetail(prof.Id, region)
+		pro := pro
+		g.Go(func() error {
+			profession, err := helper.GetBlizProfessionDetail(gCtx, pro.Id, region)
 			if err != nil {
-				return_data.err = err
-			} else if profession.Skill_tiers != nil {
-				for _, st := range profession.Skill_tiers {
-					buildCLSkillTierWG.Add(1)
-					st := st
-					profession := profession
-					region := region
-					go func() {
-						defer buildCLSkillTierWG.Done()
-						data, new_count := helper.buildCyclicLinkforSkillTier(st, profession, region, static_source)
-						appendMutex.Lock()
-						return_data.ret = append(return_data.ret, data...)
-						atomic.AddUint64(&counter, new_count)
-						appendMutex.Unlock()
-					}()
-				}
-				buildCLSkillTierWG.Wait()
+				return err
 			}
-			helper.logger.Debug("Scanned ", atomic.LoadUint64(&counter)-last_count, " new recipes in ", prof.Name, ".")
-			atomic.AddInt64(&profession_counter, 1)
-			output <- return_data
-		}
+			
+			sg, sgCtx := errgroup.WithContext(gCtx)
+			for _, st := range profession.Skill_tiers {
+				st := st
+				sg.Go(func() error {
+					data, new_count := helper.buildCyclicLinkforSkillTier(sgCtx, skilltier{Name: st.Name, Id: st.Id}, profession, region, static_source)
+					linksMutex.Lock()
+					links = append(links, data...)
+					atomic.AddUint64(&counter, new_count)
+					linksMutex.Unlock()
+					return nil
+				})
+			}
+			return sg.Wait()
+		})
 	}
 
-	for i := 0; i < len(professionScanList); i++ {
-		go workerFunc(inputData, outputData)
+	if err := g.Wait(); err != nil {
+		return globalTypes.SkillTierCyclicLinks{}, err
 	}
-
-	for _, prof := range professionScanList {
-		inputData <- prof
-	}
-	close(inputData)
-
-	var errors []error
-	for job := 1; job <= len(professionScanList); job++ {
-		jbR := <-outputData
-		//for job := range outputData {
-		if jbR.err != nil {
-			errors = append(errors, jbR.err)
-		}
-
-		links = append(links, jbR.ret...)
-	}
-
-	if len(errors) > 0 {
-		return globalTypes.SkillTierCyclicLinks{}, errors[0]
-	}
-
-	helper.logger.Debug("Scanned ", counter, " recipes in ", atomic.LoadInt64(&profession_counter), " professions")
 
 	link_lookup := make(globalTypes.SkillTierCyclicLinks)
 
@@ -624,7 +529,7 @@ func (helper *BlizzardApiHelper) BuildCyclicRecipeList(region globalTypes.Region
 
 		// Item 1 links
 		for _, id_1 := range item_1.Id {
-			if _, present := link_lookup[id_1]; present {
+			if _, present := link_lookup[id_1]; !present {
 				link_lookup[id_1] = make([]struct {
 					Id    uint
 					Takes float64
@@ -648,7 +553,7 @@ func (helper *BlizzardApiHelper) BuildCyclicRecipeList(region globalTypes.Region
 
 		// Item 2 links
 		for _, id_2 := range item_2.Id {
-			if _, present := link_lookup[id_2]; present {
+			if _, present := link_lookup[id_2]; !present {
 				link_lookup[id_2] = make([]struct {
 					Id    uint
 					Takes float64
@@ -675,7 +580,7 @@ func (helper *BlizzardApiHelper) BuildCyclicRecipeList(region globalTypes.Region
 }
 
 // Check of cyclic links within a single skill tier
-func (helper *BlizzardApiHelper) buildCyclicLinkforSkillTier(skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode, static_source *static_sources.StaticSources) (SkillTierCyclicLinksBuild, uint64) {
+func (helper *BlizzardApiHelper) buildCyclicLinkforSkillTier(ctx context.Context, skill_tier skilltier, profession BlizzardApi.Profession, region globalTypes.RegionCode, static_source *static_sources.StaticSources) (SkillTierCyclicLinksBuild, uint64) {
 	cache_key := fmt.Sprintf("%s::%s::%d", region, skill_tier.Name, profession.Id)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, CYCLIC_LINK_CACHE, cache_key); err == nil && found {
@@ -684,16 +589,17 @@ func (helper *BlizzardApiHelper) buildCyclicLinkforSkillTier(skill_tier skilltie
 		return item, 0
 	}
 	var counter uint64
-	helper.logger.Debug("Scanning st: ", skill_tier.Name)
-	var checked_set util.Set[uint]
 	var found_links SkillTierCyclicLinksBuild
-	skill_tier_detail, err := helper.GetBlizSkillTierDetail(profession.Id, skill_tier.Id, region)
+	skill_tier_detail, err := helper.GetBlizSkillTierDetail(ctx, profession.Id, skill_tier.Id, region)
 	if err != nil {
 		return SkillTierCyclicLinksBuild{}, 0
 	}
+	
+	// This is a heavy operation, but we'll keep it simple for now and rely on parent context for cancellation
+	var checked_set util.Set[uint]
 	for _, sk_category := range skill_tier_detail.Categories {
 		for _, sk_recipe := range sk_category.Recipes {
-			recipe, err := helper.GetBlizRecipeDetail(sk_recipe.Id, region)
+			recipe, err := helper.GetBlizRecipeDetail(ctx, sk_recipe.Id, region)
 			if err != nil {
 				return SkillTierCyclicLinksBuild{}, 0
 			}
@@ -701,35 +607,26 @@ func (helper *BlizzardApiHelper) buildCyclicLinkforSkillTier(skill_tier skilltie
 				checked_set.Add(recipe.Id)
 				counter++
 				if len(recipe.Reagents) == 1 {
-					// Go through them all again
 					for _, sk_recheck_category := range skill_tier_detail.Categories {
 						for _, sk_recheck_recipe := range sk_recheck_category.Recipes {
-							recheck_recipe, err := helper.GetBlizRecipeDetail(sk_recheck_recipe.Id, region)
+							recheck_recipe, err := helper.GetBlizRecipeDetail(ctx, sk_recheck_recipe.Id, region)
 							if err != nil {
 								return SkillTierCyclicLinksBuild{}, 0
 							}
 							if len(recheck_recipe.Reagents) == 1 && !checked_set.Has(recheck_recipe.Id) {
-								r_ids := getRecipeCraftedItemID(recipe, region, helper, static_source)
-
-								rc_ids := getRecipeCraftedItemID(recheck_recipe, region, helper, static_source)
+								r_ids := getRecipeCraftedItemID(ctx, recipe, region, helper, static_source)
+								rc_ids := getRecipeCraftedItemID(ctx, recheck_recipe, region, helper, static_source)
 
 								if slices.Contains(r_ids, recheck_recipe.Reagents[0].Reagent.Id) {
 									if slices.Contains(rc_ids, recipe.Reagents[0].Reagent.Id) {
-										helper.logger.Debugf("Found cyclic link for %s (%d) and %s (%d)", recipe.Name, recipe.Id, recheck_recipe.Name, recheck_recipe.Id)
-										p1 := getRecipeCraftedItemID(recipe, region, helper, static_source)
-										p2 := getRecipeCraftedItemID(recheck_recipe, region, helper, static_source)
+										p1 := getRecipeCraftedItemID(ctx, recipe, region, helper, static_source)
+										p2 := getRecipeCraftedItemID(ctx, recheck_recipe, region, helper, static_source)
 										found_links = append(found_links, []struct {
 											Id       []uint
 											Quantity uint
 										}{
-											{
-												Id:       p1,
-												Quantity: recheck_recipe.Reagents[0].Quantity,
-											},
-											{
-												Id:       p2,
-												Quantity: recipe.Reagents[0].Quantity,
-											},
+											{Id: p1, Quantity: recheck_recipe.Reagents[0].Quantity},
+											{Id: p2, Quantity: recipe.Reagents[0].Quantity},
 										})
 										checked_set.Add(recheck_recipe.Id)
 									}
@@ -749,11 +646,11 @@ func (helper *BlizzardApiHelper) buildCyclicLinkforSkillTier(skill_tier skilltie
 
 // Construct the blizzard namespace for a given region and type (static or dynamic)
 func getNamespace(ns_type string, region globalTypes.RegionCode) string {
-	return fmt.Sprintf("%s-%s", ns_type, strings.ToLower(region))
+	return fmt.Sprintf("%s-%s", ns_type, strings.ToLower(string(region)))
 }
 
 // Return a list of all realm names
-func (helper *BlizzardApiHelper) GetAllRealmNames(region globalTypes.RegionCode) []string {
+func (helper *BlizzardApiHelper) GetAllRealmNames(ctx context.Context, region globalTypes.RegionCode) []string {
 	all_realm_key := string(region)
 
 	var realmNames []string
@@ -768,7 +665,7 @@ func (helper *BlizzardApiHelper) GetAllRealmNames(region globalTypes.RegionCode)
 	}
 
 	// Get a list of all connected realms
-	all_connected_realms, err := helper.getAllConnectedRealms(region)
+	all_connected_realms, err := helper.getAllConnectedRealms(ctx, region)
 	if err != nil {
 		return realmNames
 	}
@@ -777,8 +674,8 @@ func (helper *BlizzardApiHelper) GetAllRealmNames(region globalTypes.RegionCode)
 	for _, realm_href := range all_connected_realms.Connected_realms {
 		hr := realm_href.Href
 		var connected_realm_detail BlizzardApi.ConnectedRealm
-		_, crErr := blizzard_api_call.GetBlizzardRawUriResponse(helper.api, get_connected_realm_form, hr, region, getNamespace(dynamic_ns, region), &connected_realm_detail)
-		if crErr != nil {
+		fetchErr := blizzard_api_call.GetBlizzardRawUriResponse(ctx, helper.api, get_connected_realm_form, hr, region, getNamespace(dynamic_ns, region), &connected_realm_detail)
+		if fetchErr != nil {
 			return realmNames
 		}
 

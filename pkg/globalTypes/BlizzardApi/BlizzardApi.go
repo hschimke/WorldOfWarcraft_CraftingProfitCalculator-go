@@ -38,6 +38,21 @@ type Item struct {
 	Purchase_price    uint                 `json:"purchase_price,omitempty"`
 	Purchase_quantity uint                 `json:"purchase_quantity,omitempty"`
 	Level             uint                 `json:"level,omitempty"`
+	Item_class        struct {
+		Name string `json:"name,omitempty"`
+		Id   int    `json:"id,omitempty"`
+	} `json:"item_class,omitempty"`
+	Item_subclass struct {
+		Name string `json:"name,omitempty"`
+		Id   int    `json:"id,omitempty"`
+	} `json:"item_subclass,omitempty"`
+	Quality struct {
+		Type string `json:"type,omitempty"`
+		Name string `json:"name,omitempty"`
+	} `json:"quality,omitempty"`
+	Preview_item struct {
+		Context int `json:"context,omitempty"`
+	} `json:"preview_item,omitempty"`
 }
 
 type ProfessionsIndex struct {
@@ -91,25 +106,44 @@ type Recipe struct {
 		Maximum float64 `json:"maximum,omitempty"`
 		Value   float64 `json:"value,omitempty"`
 	} `json:"crafted_quantity"`
+	Modified_crafting_slots []struct {
+		Slot_type struct {
+			Name string `json:"name,omitempty"`
+			Id   int    `json:"id,omitempty"`
+		} `json:"slot_type"`
+		Display_order int `json:"display_order"`
+	} `json:"modified_crafting_slots,omitempty"`
 }
 
 type Auction struct {
+	Id   uint64 `json:"id,omitempty"`
 	Item struct {
 		Id          globalTypes.ItemID `json:"id,omitempty"`
+		Context     int                `json:"context,omitempty"`
 		Bonus_lists []uint             `json:"bonus_lists,omitempty"`
+		Modifiers   []struct {
+			Type  int `json:"type,omitempty"`
+			Value int `json:"value,omitempty"`
+		} `json:"modifiers,omitempty"`
 	} `json:"item"`
 	Quantity   uint `json:"quantity,omitempty"`
 	Buyout     uint `json:"buyout,omitempty"`
 	Unit_price uint `json:"unit_price,omitempty"`
-	//Fetched          time.Time `json:"-" bson:"fetched"`
-	//Region           string    `json:"-" bson:"region"`
-	//ConnectedRealmId uint      `json:"-" bson:"realm"`
+	Bid        uint `json:"bid,omitempty"`
+	Time_left  string `json:"time_left,omitempty"`
 }
 
 type Auctions struct {
 	Auctions []Auction `json:"auctions,omitempty"`
 }
 
+type Media struct {
+	Assets []struct {
+		Key   string `json:"key"`
+		Value string `json:"value"`
+	} `json:"assets"`
+}
+
 type BlizzardApiReponse interface {
-	Auctions | Recipe | ProfessionSkillTier | Profession | ProfessionsIndex | Item | ConnectedRealm | ConnectedRealmIndex | ItemSearch
+	Auctions | Recipe | ProfessionSkillTier | Profession | ProfessionsIndex | Item | ConnectedRealm | ConnectedRealmIndex | ItemSearch | Media
 }

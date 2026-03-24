@@ -1,6 +1,7 @@
 package blizzard_api_helpers
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -19,10 +20,12 @@ const (
 	getBlizRecipeDetailUri         string = "/data/wow/recipe/%d"
 	getAuctionHouseUri             string = "/data/wow/connected-realm/%d/auctions"
 	getAuctionCommonditiesUri      string = "/data/wow/auctions/commodities"
+	getItemMediaUri                string = "/data/wow/media/item/%d"
+	getRecipeMediaUri               string = "/data/wow/media/recipe/%d"
 )
 
 // Fetch item details from Blizzard API
-func (helper *BlizzardApiHelper) GetItemDetails(item_id globalTypes.ItemID, region globalTypes.RegionCode) (BlizzardApi.Item, error) {
+func (helper *BlizzardApiHelper) GetItemDetails(ctx context.Context, item_id globalTypes.ItemID, region globalTypes.RegionCode) (BlizzardApi.Item, error) {
 	var key = fmt.Sprint(item_id)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, ITEM_DATA_CACHE, key); err == nil && found {
@@ -32,10 +35,9 @@ func (helper *BlizzardApiHelper) GetItemDetails(item_id globalTypes.ItemID, regi
 	}
 
 	var profession_item_detail_uri string = fmt.Sprintf(getItemDetailsUri, item_id)
-	//categories[array].recipes[array].name categories[array].recipes[array].id
 	result := BlizzardApi.Item{}
 
-	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, basicDataPackage{
+	fetchErr := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, basicDataPackage{
 		"locale": blizzard_api_call.ENGLISH_US,
 	}, profession_item_detail_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
@@ -47,9 +49,9 @@ func (helper *BlizzardApiHelper) GetItemDetails(item_id globalTypes.ItemID, regi
 }
 
 // Fetch a list of all professions from Blizzard API
-func (helper *BlizzardApiHelper) GetBlizProfessionsList(region globalTypes.RegionCode) (BlizzardApi.ProfessionsIndex, error) {
+func (helper *BlizzardApiHelper) GetBlizProfessionsList(ctx context.Context, region globalTypes.RegionCode) (BlizzardApi.ProfessionsIndex, error) {
 
-	key := region
+	key := string(region)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, PROFESSION_LIST_CACHE, key); err == nil && found {
 		item := BlizzardApi.ProfessionsIndex{}
@@ -58,7 +60,7 @@ func (helper *BlizzardApiHelper) GetBlizProfessionsList(region globalTypes.Regio
 	}
 
 	result := BlizzardApi.ProfessionsIndex{}
-	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, basicDataPackage{
+	fetchErr := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, basicDataPackage{
 		"locale": blizzard_api_call.ENGLISH_US,
 	}, profession_list_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
@@ -69,7 +71,7 @@ func (helper *BlizzardApiHelper) GetBlizProfessionsList(region globalTypes.Regio
 }
 
 // Fetch Profession details from Blizzard API
-func (helper *BlizzardApiHelper) GetBlizProfessionDetail(profession_id uint, region globalTypes.RegionCode) (BlizzardApi.Profession, error) {
+func (helper *BlizzardApiHelper) GetBlizProfessionDetail(ctx context.Context, profession_id uint, region globalTypes.RegionCode) (BlizzardApi.Profession, error) {
 	key := fmt.Sprintf("%s::%d", region, profession_id)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, PROFESSION_DETAIL_CACHE, key); err == nil && found {
@@ -80,7 +82,7 @@ func (helper *BlizzardApiHelper) GetBlizProfessionDetail(profession_id uint, reg
 
 	profession_detail_uri := fmt.Sprintf(getBlizProfessionDetailUri, profession_id)
 	result := BlizzardApi.Profession{}
-	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, basicDataPackage{
+	fetchErr := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, basicDataPackage{
 		"locale": blizzard_api_call.ENGLISH_US,
 	}, profession_detail_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
@@ -91,7 +93,7 @@ func (helper *BlizzardApiHelper) GetBlizProfessionDetail(profession_id uint, reg
 }
 
 // Get details about a connected realm from Blizzard API
-func (helper *BlizzardApiHelper) GetBlizConnectedRealmDetail(connected_realm_id globalTypes.ConnectedRealmID, region globalTypes.RegionCode) (BlizzardApi.ConnectedRealm, error) {
+func (helper *BlizzardApiHelper) GetBlizConnectedRealmDetail(ctx context.Context, connected_realm_id globalTypes.ConnectedRealmID, region globalTypes.RegionCode) (BlizzardApi.ConnectedRealm, error) {
 	key := fmt.Sprintf("%s::%d", region, connected_realm_id)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, COMPOSITE_REALM_NAME_CACHE, key); err == nil && found {
@@ -102,7 +104,7 @@ func (helper *BlizzardApiHelper) GetBlizConnectedRealmDetail(connected_realm_id 
 
 	connected_realm_detail_uri := fmt.Sprintf(getBlizConnectedRealmDetailUri, connected_realm_id)
 	result := BlizzardApi.ConnectedRealm{}
-	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, basicDataPackage{
+	fetchErr := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, basicDataPackage{
 		"locale": blizzard_api_call.ENGLISH_US,
 	}, connected_realm_detail_uri, getNamespace(dynamic_ns, region), &result)
 	if fetchErr != nil {
@@ -113,7 +115,7 @@ func (helper *BlizzardApiHelper) GetBlizConnectedRealmDetail(connected_realm_id 
 }
 
 // Fetch an individual crafting skill tier from Blizzard API
-func (helper *BlizzardApiHelper) GetBlizSkillTierDetail(profession_id uint, skillTier_id uint, region globalTypes.RegionCode) (BlizzardApi.ProfessionSkillTier, error) {
+func (helper *BlizzardApiHelper) GetBlizSkillTierDetail(ctx context.Context, profession_id uint, skillTier_id uint, region globalTypes.RegionCode) (BlizzardApi.ProfessionSkillTier, error) {
 	key := fmt.Sprintf("%s::%d::%d", region, profession_id, skillTier_id)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, PROFESSION_SKILL_TIER_DETAILS_CACHE, key); err == nil && found {
@@ -124,7 +126,7 @@ func (helper *BlizzardApiHelper) GetBlizSkillTierDetail(profession_id uint, skil
 
 	profession_skill_tier_detail_uri := fmt.Sprintf(getBlizSkillTierDetailUri, profession_id, skillTier_id)
 	result := BlizzardApi.ProfessionSkillTier{}
-	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, basicDataPackage{
+	fetchErr := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, basicDataPackage{
 		"locale": blizzard_api_call.ENGLISH_US,
 	}, profession_skill_tier_detail_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
@@ -135,7 +137,7 @@ func (helper *BlizzardApiHelper) GetBlizSkillTierDetail(profession_id uint, skil
 }
 
 // Fetch a recipe detail from Blizzard API
-func (helper *BlizzardApiHelper) GetBlizRecipeDetail(recipe_id uint, region globalTypes.RegionCode) (BlizzardApi.Recipe, error) {
+func (helper *BlizzardApiHelper) GetBlizRecipeDetail(ctx context.Context, recipe_id uint, region globalTypes.RegionCode) (BlizzardApi.Recipe, error) {
 	key := fmt.Sprintf("%s::%d", region, recipe_id)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, PROFESSION_RECIPE_DETAIL_CACHE, key); err == nil && found {
@@ -146,7 +148,7 @@ func (helper *BlizzardApiHelper) GetBlizRecipeDetail(recipe_id uint, region glob
 
 	profession_recipe_uri := fmt.Sprintf(getBlizRecipeDetailUri, recipe_id)
 	result := BlizzardApi.Recipe{}
-	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, region, basicDataPackage{
+	fetchErr := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, basicDataPackage{
 		"locale": blizzard_api_call.ENGLISH_US,
 	}, profession_recipe_uri, getNamespace(static_ns, region), &result)
 	if fetchErr != nil {
@@ -157,7 +159,7 @@ func (helper *BlizzardApiHelper) GetBlizRecipeDetail(recipe_id uint, region glob
 }
 
 // Return an auction house for a given realm and region from the Blizzard API
-func (helper *BlizzardApiHelper) GetAuctionHouse(server_id globalTypes.ConnectedRealmID, server_region globalTypes.RegionCode) (BlizzardApi.Auctions, error) {
+func (helper *BlizzardApiHelper) GetAuctionHouse(ctx context.Context, server_id globalTypes.ConnectedRealmID, server_region globalTypes.RegionCode) (BlizzardApi.Auctions, error) {
 	key := fmt.Sprint(server_id)
 
 	if found, err := cache_provider.CacheCheck(helper.cache, AUCTION_DATA_CACHE, key); err == nil && found {
@@ -169,19 +171,52 @@ func (helper *BlizzardApiHelper) GetAuctionHouse(server_id globalTypes.Connected
 	// Get the main auction house
 	auction_house_fetch_uri := fmt.Sprintf(getAuctionHouseUri, server_id)
 	result := BlizzardApi.Auctions{}
-	_, fetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, server_region, basicDataPackage{}, auction_house_fetch_uri, getNamespace(dynamic_ns, server_region), &result)
+	fetchErr := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, server_region, basicDataPackage{}, auction_house_fetch_uri, getNamespace(dynamic_ns, server_region), &result)
 	if fetchErr != nil {
 		return BlizzardApi.Auctions{}, fetchErr
 	}
 	auction_commondities_fetch_uri := getAuctionCommonditiesUri
 	commodities_result := BlizzardApi.Auctions{}
-	_, comFetchErr := blizzard_api_call.GetBlizzardAPIResponse(helper.api, server_region, basicDataPackage{}, auction_commondities_fetch_uri, getNamespace(dynamic_ns, server_region), &commodities_result)
+	comFetchErr := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, server_region, basicDataPackage{}, auction_commondities_fetch_uri, getNamespace(dynamic_ns, server_region), &commodities_result)
 	if comFetchErr != nil {
-		return BlizzardApi.Auctions{}, fetchErr
+		// If commodities fail, we still return the main auctions but log the error
+		helper.logger.Errorf("Failed to fetch commodities: %v", comFetchErr)
+	} else {
+		result.Auctions = append(result.Auctions, commodities_result.Auctions...)
 	}
-
-	result.Auctions = append(result.Auctions, commodities_result.Auctions...)
 
 	cache_provider.CacheSet(helper.cache, AUCTION_DATA_CACHE, key, &result, time.Duration(time.Hour*1))
 	return result, nil
+}
+
+// GetItemMedia fetches the icon for an item
+func (helper *BlizzardApiHelper) GetItemMedia(ctx context.Context, item_id globalTypes.ItemID, region globalTypes.RegionCode) (string, error) {
+	uri := fmt.Sprintf(getItemMediaUri, item_id)
+	var media BlizzardApi.Media
+	err := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, basicDataPackage{"locale": blizzard_api_call.ENGLISH_US}, uri, getNamespace(static_ns, region), &media)
+	if err != nil {
+		return "", err
+	}
+	for _, asset := range media.Assets {
+		if asset.Key == "icon" {
+			return asset.Value, nil
+		}
+	}
+	return "", nil
+}
+
+// GetRecipeMedia fetches the icon for a recipe
+func (helper *BlizzardApiHelper) GetRecipeMedia(ctx context.Context, recipe_id uint, region globalTypes.RegionCode) (string, error) {
+	uri := fmt.Sprintf(getRecipeMediaUri, recipe_id)
+	var media BlizzardApi.Media
+	err := blizzard_api_call.GetBlizzardAPIResponse(ctx, helper.api, region, basicDataPackage{"locale": blizzard_api_call.ENGLISH_US}, uri, getNamespace(static_ns, region), &media)
+	if err != nil {
+		return "", err
+	}
+	for _, asset := range media.Assets {
+		if asset.Key == "icon" {
+			return asset.Value, nil
+		}
+	}
+	return "", nil
 }

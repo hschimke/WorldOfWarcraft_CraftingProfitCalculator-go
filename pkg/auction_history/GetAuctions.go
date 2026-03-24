@@ -16,7 +16,6 @@ import (
 
 func buildSQLWithAddins(base_sql string, addin_list []string) string {
 	var construct strings.Builder
-	construct_sql := base_sql
 	construct.WriteString(base_sql)
 	if len(addin_list) > 0 {
 		construct.WriteString(" WHERE ")
@@ -26,9 +25,9 @@ func buildSQLWithAddins(base_sql string, addin_list []string) string {
 		}
 		runicConstructSql := []rune(construct.String())
 		runicConstructSql = runicConstructSql[:len(runicConstructSql)-4]
-		construct_sql = string(runicConstructSql)
+		return string(runicConstructSql)
 	}
-	return construct_sql
+	return base_sql
 }
 
 // Get all auctions filtering with parameters
@@ -41,13 +40,7 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 
 	ahs.logger.Debugf(`getAuctions(%v, %v, %s, %v, %T, %T)`, item, realm, region, bonuses, start_dtm, end_dtm)
 	const (
-		sql_archive_build        string = "SELECT downloaded, summary FROM auction_archive"
-		sql_build_distinct_dtm   string = "SELECT DISTINCT downloaded FROM auctions"
 		sql_build_price_map      string = "SELECT price, count(price) AS sales_at_price, sum(quantity) AS quantity_at_price, downloaded FROM auctions"
-		sql_group_by_price_addin string = "GROUP BY price"
-		sql_build_min            string = "SELECT MIN(price) AS min_price FROM auctions"
-		sql_build_max            string = "SELECT MAX(price) AS max_price FROM auctions"
-		sql_build_avg            string = "SELECT SUM(price*quantity)/SUM(quantity) AS avg_price FROM auctions"
 		sql_build_latest_dtm     string = "SELECT MAX(downloaded) AS latest_download FROM auctions"
 		jsonQueryTemplate        string = `bonuses @> jsonb_build_array(%s)`
 
@@ -62,70 +55,56 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 
 	// Get realm
 	if realm.Name != "" {
-		rlm, err := ahs.helper.GetConnectedRealmId(realm.Name, region)
+		rlm, err := ahs.helper.GetConnectedRealmId(ctx, realm.Name, region)
 		if err != nil {
 			return AuctionSummaryData{}, err
 		}
-		connectedRealmId = rlm
+		connectedRealmId = uint(rlm)
 	} else {
-		connectedRealmId = realm.Id
+		connectedRealmId = uint(realm.Id)
 	}
 
 	// Get item
 	if item.ItemName != "" {
-		itm, err := ahs.helper.GetItemId(region, item.ItemName)
+		itm, err := ahs.helper.GetItemId(ctx, region, item.ItemName)
 		if err != nil {
 			return AuctionSummaryData{}, err
 		}
-		itemId = itm
+		itemId = uint(itm)
 	} else {
-		itemId = item.ItemId
+		itemId = uint(item.ItemId)
 	}
 
 	if itemId != 0 {
 		sql_addins = append(sql_addins, fmt.Sprintf(`item_id = %s`, get_place_marker()))
 		value_searches = append(value_searches, itemId)
-	} /*else {
-		// All items
-	}*/
+	}
 
 	if connectedRealmId != 0 {
-		// Get specific realm
 		sql_addins = append(sql_addins, fmt.Sprintf(`connected_realm_id = %s`, get_place_marker()))
 		value_searches = append(value_searches, connectedRealmId)
-	} /*else {
-		// All realms
-	}*/
+	}
 
 	if len(region) > 0 {
-		// Get specific region
 		sql_addins = append(sql_addins, fmt.Sprintf(`region = %s`, get_place_marker()))
-		value_searches = append(value_searches, strings.ToLower(region))
-	} /*else {
-		// All regions
-	}*/
+		value_searches = append(value_searches, strings.ToLower(string(region)))
+	}
 
-	// Include oldest fetch date time
 	sql_addins = append(sql_addins, fmt.Sprintf(`downloaded >= %s`, get_place_marker()))
 	value_searches = append(value_searches, start_dtm)
 
-	// Include newest fetch date time
 	sql_addins = append(sql_addins, fmt.Sprintf(`downloaded <= %s`, get_place_marker()))
 	value_searches = append(value_searches, end_dtm)
 
 	if len(bonuses) > 0 {
-		// Get only with specific bonuses
 		for _, b := range bonuses {
 			if b != 0 {
-				ahs.logger.Debugf(`Add bonus %d in (select json_each.value from json_each(bonuses))`, b)
 				json_query := fmt.Sprintf(jsonQueryTemplate, get_place_marker())
 				sql_addins = append(sql_addins, json_query)
 				value_searches = append(value_searches, b)
 			}
 		}
-	} /*else {
-		// any bonuses or none
-	}*/
+	}
 
 	var (
 		min_max_avg_sql string = buildSQLWithAddins(sql_build_min_max_avg, sql_addins)
@@ -156,43 +135,35 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 	price_data_by_download := make(map[time.Time]AuctionPriceSummaryRecord)
 
 	dataRows, drError := bRes.Query()
-	if drError != nil {
-		return AuctionSummaryData{}, drError
+	if drError == nil {
+		for dataRows.Next() {
+			var (
+				downloaded time.Time
+				newSummary AuctionPriceSummaryRecord
+			)
+			dataRows.Scan(&newSummary.MinValue, &newSummary.MaxValue, &newSummary.AvgValue, &downloaded)
+			price_data_by_download[downloaded] = newSummary
+		}
+		dataRows.Close()
 	}
-	for dataRows.Next() {
-		var (
-			downloaded time.Time
-			newSummary AuctionPriceSummaryRecord
-		)
-		dataRows.Scan(&newSummary.MinValue, &newSummary.MaxValue, &newSummary.AvgValue, &downloaded)
-
-		price_data_by_download[downloaded] = newSummary
-	}
-	dataRows.Close()
 
 	prcMapRows, prMRErr := bRes.Query()
-	if prMRErr != nil {
-		return AuctionSummaryData{}, prMRErr
-	}
+	if prMRErr == nil {
+		overallMedianMap := make(map[float64]uint64)
+		for prcMapRows.Next() {
+			var (
+				scSum      SalesCountSummary
+				downloaded time.Time
+			)
+			prcMapRows.Scan(&scSum.Price, &scSum.SalesAtPrice, &scSum.QuantityAtPrice, &downloaded)
+			hldPDBD := price_data_by_download[downloaded]
+			hldPDBD.Data = append(hldPDBD.Data, scSum)
+			price_data_by_download[downloaded] = hldPDBD
 
-	overallMedianMap := make(map[float64]uint64)
-
-	for prcMapRows.Next() {
-		var (
-			scSum      SalesCountSummary
-			downloaded time.Time
-		)
-		prcMapRows.Scan(&scSum.Price, &scSum.SalesAtPrice, &scSum.QuantityAtPrice, &downloaded)
-		hldPDBD := price_data_by_download[downloaded]
-		hldPDBD.Data = append(hldPDBD.Data, scSum)
-		price_data_by_download[downloaded] = hldPDBD
-
-		if _, present := overallMedianMap[float64(scSum.Price)]; !present {
-			overallMedianMap[float64(scSum.Price)] = 0
+			overallMedianMap[float64(scSum.Price)] += uint64(scSum.QuantityAtPrice)
 		}
-		overallMedianMap[float64(scSum.Price)] = overallMedianMap[float64(scSum.Price)] + uint64(scSum.QuantityAtPrice)
+		prcMapRows.Close()
 	}
-	prcMapRows.Close()
 
 	for key, value := range price_data_by_download {
 		vHld := value
@@ -200,29 +171,22 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 		for _, item := range value.Data {
 			medianMap[float64(item.Price)] = uint64(item.QuantityAtPrice)
 		}
-		if median, medianErr := util.MedianFromMap(medianMap); medianErr != nil {
-			vHld.MedianValue = 0
-		} else {
+		if median, medianErr := util.MedianFromMap(medianMap); medianErr == nil {
 			vHld.MedianValue = median
 		}
 		price_data_by_download[key] = vHld
 	}
 
 	var return_value AuctionSummaryData
-	return_value.PriceMap = make(map[time.Time]AuctionPriceSummaryRecord)
-
 	return_value.Min = min_value
 	return_value.Max = max_value
 	return_value.Avg = avg_value
 	return_value.PriceMap = price_data_by_download
 
 	// Get spot auctions
-	spotSummary, err := ahs.getSpotAuctionSummary(item, realm, region, bonuses)
-	if err != nil {
-		return AuctionSummaryData{}, err
-	}
-	cTime := time.Now()
-	if len(spotSummary.Data) > 0 {
+	spotSummary, err := ahs.getSpotAuctionSummary(ctx, item, realm, region, bonuses)
+	if err == nil && len(spotSummary.Data) > 0 {
+		cTime := time.Now()
 		return_value.PriceMap[cTime] = spotSummary
 		return_value.Latest = cTime
 
@@ -232,89 +196,74 @@ func (ahs *AuctionHistoryServer) GetAuctions(ctx context.Context, item globalTyp
 		if spotSummary.MaxValue > return_value.Max {
 			return_value.Max = spotSummary.MaxValue
 		}
-
-		for _, value := range spotSummary.Data {
-			if _, present := overallMedianMap[float64(value.Price)]; !present {
-				overallMedianMap[float64(value.Price)] = 0
-			}
-			overallMedianMap[float64(value.Price)] = overallMedianMap[float64(value.Price)] + uint64(value.QuantityAtPrice)
-		}
 	} else {
 		return_value.Latest = latest_dl_value
 	}
 
-	if median, medianErr := util.MedianFromMap(overallMedianMap); medianErr != nil {
-		return_value.Med = 0
-	} else {
+	// Calculate overall median
+	overallMedianMap := make(map[float64]uint64)
+	for _, summary := range return_value.PriceMap {
+		for _, data := range summary.Data {
+			overallMedianMap[float64(data.Price)] += uint64(data.QuantityAtPrice)
+		}
+	}
+	if median, medianErr := util.MedianFromMap(overallMedianMap); medianErr == nil {
 		return_value.Med = median
 	}
-
-	return_value.Archives = make([]struct {
-		Timestamp   time.Time           "json:\"timestamp\""
-		Data        []SalesCountSummary "json:\"data,omitempty\""
-		MinValue    uint                "json:\"min_value,omitempty\""
-		MaxValue    uint                "json:\"max_value,omitempty\""
-		AvgValue    float64             "json:\"avg_value,omitempty\""
-		MedianValue float64             "json:\"median_value,omitempty\""
-	}, 0)
 
 	return return_value, nil
 }
 
 // Get a current auction spot summary from the internet
-func (ahs *AuctionHistoryServer) getSpotAuctionSummary(item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint) (AuctionPriceSummaryRecord, error) {
+func (ahs *AuctionHistoryServer) getSpotAuctionSummary(ctx context.Context, item globalTypes.ItemSoftIdentity, realm globalTypes.ConnectedRealmSoftIentity, region globalTypes.RegionCode, bonuses []uint) (AuctionPriceSummaryRecord, error) {
 	var realm_get uint
 	if realm.Id != 0 {
-		realm_get = realm.Id
+		realm_get = uint(realm.Id)
 	} else if realm.Name != "" {
-		var realmGetError error
-		realm_get, realmGetError = ahs.helper.GetConnectedRealmId(realm.Name, region)
-		if realmGetError != nil {
+		rlm, err := ahs.helper.GetConnectedRealmId(ctx, realm.Name, region)
+		if err != nil {
 			return AuctionPriceSummaryRecord{}, fmt.Errorf("no realm found with %s", realm.Name)
 		}
+		realm_get = uint(rlm)
 	} else {
 		return AuctionPriceSummaryRecord{}, fmt.Errorf("realm %v could not be found", realm)
 	}
 
-	ah, _ := ahs.helper.GetAuctionHouse(realm_get, region)
-	ahs.logger.Debugf(`Spot search for item: %v and realm %v and region %s, with bonuses %v`, item, realm, region, bonuses)
+	ah, err := ahs.helper.GetAuctionHouse(ctx, globalTypes.ConnectedRealmID(realm_get), region)
+	if err != nil {
+		return AuctionPriceSummaryRecord{}, err
+	}
 
 	var item_id uint
 	if item.ItemId != 0 {
-		item_id = item.ItemId
+		item_id = uint(item.ItemId)
 	} else if item.ItemName != "" {
-		var it_err error
-		item_id, it_err = ahs.helper.GetItemId(region, item.ItemName)
-		if it_err != nil {
+		itm, err := ahs.helper.GetItemId(ctx, region, item.ItemName)
+		if err != nil {
 			return AuctionPriceSummaryRecord{}, fmt.Errorf("could not find item for %v", item)
 		}
+		item_id = uint(itm)
 	} else {
 		return AuctionPriceSummaryRecord{}, fmt.Errorf("could not find item for %v", item)
 	}
 
 	var auction_set []BlizzardApi.Auction
 	for _, auction := range ah.Auctions {
-		found_item := false
-		if auction.Item.Id == item_id {
-			found_item = true
-			ahs.logger.Sillyf(`Found %d`, auction.Item.Id)
-		}
-
-		found_bonus := len(bonuses) == 0 || checkBonus(bonuses, auction.Item.Bonus_lists)
-		ahs.logger.Sillyf(`Array bonus list %v returned %t for %v`, bonuses, found_bonus, auction.Item.Bonus_lists)
-
-		if found_bonus && found_item {
-			auction_set = append(auction_set, auction)
+		if auction.Item.Id == globalTypes.ItemID(item_id) {
+			if len(bonuses) == 0 || checkBonus(bonuses, auction.Item.Bonus_lists) {
+				auction_set = append(auction_set, auction)
+			}
 		}
 	}
 
-	ahs.logger.Debugf(`Found %d auctions`, len(auction_set))
+	if len(auction_set) == 0 {
+		return AuctionPriceSummaryRecord{}, nil
+	}
 
 	return_value := AuctionPriceSummaryRecord{
 		MinValue: math.MaxUint,
 	}
 
-	//total_sales, total_price := 0, 0
 	var total_price, total_sales uint
 	price_map := make(map[uint]struct {
 		Quantity uint
@@ -323,39 +272,39 @@ func (ahs *AuctionHistoryServer) getSpotAuctionSummary(item globalTypes.ItemSoft
 
 	for _, auction := range auction_set {
 		var price uint
-		quantity := auction.Quantity
-		if auction.Buyout != 0 {
+		if auction.Unit_price != 0 {
+			price = auction.Unit_price
+		} else if auction.Buyout != 0 {
 			price = auction.Buyout
 		} else {
-			price = auction.Unit_price
+			price = auction.Bid
 		}
 
-		if return_value.MaxValue < price {
+		if price == 0 {
+			continue
+		}
+
+		if price > return_value.MaxValue {
 			return_value.MaxValue = price
 		}
-		if return_value.MinValue > price {
+		if price < return_value.MinValue {
 			return_value.MinValue = price
 		}
-		total_sales += quantity
-		total_price += price * quantity
+		total_sales += auction.Quantity
+		total_price += price * auction.Quantity
 
-		if _, found := price_map[price]; !found {
-			price_map[price] = struct {
-				Quantity uint
-				Sales    uint
-			}{}
-		}
 		pmh := price_map[price]
-		pmh.Quantity += quantity
+		pmh.Quantity += auction.Quantity
 		pmh.Sales += 1
 		price_map[price] = pmh
 	}
 
+	if total_sales > 0 {
+		return_value.AvgValue = float64(total_price) / float64(total_sales)
+	}
+	
 	medianCollect := make(map[float64]uint64)
-
-	return_value.AvgValue = float64(total_price) / float64(total_sales)
 	for price, price_lu := range price_map {
-		//const p_lookup = Number(price);
 		return_value.Data = append(return_value.Data, SalesCountSummary{
 			Price:           price,
 			QuantityAtPrice: price_lu.Quantity,
@@ -364,9 +313,7 @@ func (ahs *AuctionHistoryServer) getSpotAuctionSummary(item globalTypes.ItemSoft
 		medianCollect[float64(price)] = uint64(price_lu.Quantity)
 	}
 
-	if median, medErr := util.MedianFromMap(medianCollect); medErr != nil {
-		return_value.MedianValue = 0
-	} else {
+	if median, medErr := util.MedianFromMap(medianCollect); medErr == nil {
 		return_value.MedianValue = median
 	}
 

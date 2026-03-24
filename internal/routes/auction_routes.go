@@ -44,7 +44,7 @@ type SeenItemBonusesReturn struct {
 func (routes *CPCRoutes) ScannedRealms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	gsc, err := routes.auctionHouseServer.GetScanRealms(routes.ctx)
+	gsc, err := routes.auctionHouseServer.GetScanRealms(r.Context())
 	if err != nil {
 		http.Error(w, "Could not load scan realms", http.StatusInternalServerError)
 	} else {
@@ -68,6 +68,7 @@ func (routes *CPCRoutes) AllItems(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Header().Set("X-CPC-ERROR", err.Error())
 		fmt.Fprint(w, "[]")
+		return
 	}
 	var names []string
 	if found {
@@ -77,10 +78,11 @@ func (routes *CPCRoutes) AllItems(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			w.Header().Set("X-CPC-ERROR", err.Error())
 			fmt.Fprint(w, "[]")
+			return
 		}
 	} else {
 		routes.Logger.Debug("Getting fresh all items.")
-		names = routes.auctionHouseServer.GetAllNames(routes.ctx)
+		names = routes.auctionHouseServer.GetAllNames(r.Context())
 		cache_provider.CacheSet(routes.cache, cacheNS, cacheKey, names, time.Hour)
 	}
 
@@ -127,7 +129,7 @@ func (routes *CPCRoutes) AuctionHistory(w http.ResponseWriter, r *http.Request) 
 		endTime = time.Now()
 	}
 
-	auctionData, auctionDataError := routes.auctionHouseServer.GetAuctions(routes.ctx, item, realm, data.Region, util.ParseStringArrayToUint(data.Bonuses), startTime, endTime)
+	auctionData, auctionDataError := routes.auctionHouseServer.GetAuctions(r.Context(), item, realm, globalTypes.RegionCode(data.Region), util.ParseStringArrayToUint(data.Bonuses), startTime, endTime)
 	if auctionDataError != nil {
 		routes.Logger.Error("Issue getting auctions ", auctionDataError)
 		json.NewEncoder(w).Encode(globalTypes.ReturnError{ERROR: auctionDataError.Error()})
@@ -165,7 +167,7 @@ func (routes *CPCRoutes) SeenItemBonuses(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	bonuses, allBonusesErr := routes.auctionHouseServer.GetAllBonuses(routes.ctx, globalTypes.NewItemFromString(data.Item), data.Region)
+	bonuses, allBonusesErr := routes.auctionHouseServer.GetAllBonuses(r.Context(), globalTypes.NewItemFromString(data.Item), globalTypes.RegionCode(data.Region))
 	if allBonusesErr != nil {
 		routes.Logger.Errorf("Issue getting bonuses %v", allBonusesErr)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -217,7 +219,6 @@ func (routes *CPCRoutes) SeenItemBonuses(w http.ResponseWriter, r *http.Request)
 						unknown_adjusts.Add(cur)
 					}
 				}
-				//return value;
 			}
 			sb_hld := sb.String()
 			v.Reduced = &sb_hld

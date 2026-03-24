@@ -50,11 +50,11 @@ func (ahs *AuctionHistoryServer) FillNItems(ctx context.Context, fillCount uint,
 
 	for _, i := range items {
 		safe := true
-		fetchedItem, fetchErr := ahs.helper.GetItemDetails(i.item_id, i.region)
+		fetchedItem, fetchErr := ahs.helper.GetItemDetails(ctx, globalTypes.ItemID(i.item_id), globalTypes.RegionCode(i.region))
 		if fetchErr != nil {
 			safe = false
 		}
-		isCraftable, craftErr := ahs.helper.CheckIsCrafting(i.item_id, globalTypes.ALL_PROFESSIONS, i.region, static_source)
+		isCraftable, craftErr := ahs.helper.CheckIsCrafting(ctx, globalTypes.ItemID(i.item_id), globalTypes.ALL_PROFESSIONS, globalTypes.RegionCode(i.region), static_source)
 		if craftErr != nil {
 			safe = false
 		}
@@ -139,7 +139,7 @@ func (ahs *AuctionHistoryServer) FillNNames(ctx context.Context, fillCount uint)
 	var results []processResult
 
 	for _, i := range items {
-		fetchedItem, fetchErr := ahs.helper.GetItemDetails(i.item_id, i.region)
+		fetchedItem, fetchErr := ahs.helper.GetItemDetails(ctx, globalTypes.ItemID(i.item_id), globalTypes.RegionCode(i.region))
 		results = append(results, processResult{
 			item: i,
 			safe: fetchErr == nil,

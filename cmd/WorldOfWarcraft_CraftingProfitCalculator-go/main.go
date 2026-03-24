@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizzard_api_call"
@@ -23,35 +27,23 @@ func main() {
 		log.Fatalf("failed to load environment variables: %v", err)
 	}
 	logger := cpclog.NewCpCLog(cpclog.GetLevel(environment_variables.LOG_LEVEL))
-	//http.ListenAndServe("localhost:8080", nil)
-	//defer profile.Start(profile.ProfilePath("."), profile.CPUProfile, profile.MemProfileHeap).Stop()
-	//defer profile.Start(profile.BlockProfile).Stop()
-	//defer profile.Start(profile.MemProfileHeap).Stop()
-	//defer profile.Start(profile.MemProfileAllocs).Stop()
-	//defer profile.Start(profile.MutexProfile).Stop()
-	//allProfessions, _ := json.Marshal(globalTypes.ALL_PROFESSIONS)
 
 	fRegion := flag.String("region", "us", "Region")
 	fServer := flag.String("server", "Hyjal", "Server")
 	fProfession := flag.String("profession", "[]", "Profession")
-	//fProfession := flag.String("profession", "[\"Tailoring\", \"Enchanting\"]", "Profession")
-	//fItem := flag.String("item", "171276", "Item")
-	//fItem := flag.String("item", "Shimmering Embroidery Thread", "Item")
 	fItem := flag.String("item", "Crafter's Mark of the First Ones", "Item")
-	//fItem := flag.String("item", "Notorious Combatant's Mail Waistguard", "Item")
 	fCount := flag.Uint("count", 1, "How many of the main item to build")
 	fJsonData := flag.String("json_data", "", "JSON configuration data")
 	fUseJsonFlag := flag.Bool("json", false, "Use JSON to configure region, realm, and professions")
 	fAllProfessionsFlag := flag.Bool("allprof", true, "Use all professions and ignore profession flag")
 	flag.Parse()
 
-	//character_config_json := globalTypes.AddonData{}
 	var character_config_json globalTypes.AddonData
-
-	err := json.Unmarshal([]byte(*fJsonData), &character_config_json)
-	//err := json.Unmarshal([]byte(testJson), &character_config_json)
-	if err != nil {
-		fmt.Printf("JSON character input cannot be parsed: %v", err)
+	if *fJsonData != "" {
+		err := json.Unmarshal([]byte(*fJsonData), &character_config_json)
+		if err != nil {
+			fmt.Printf("JSON character input cannot be parsed: %v", err)
+		}
 	}
 
 	if !(*fUseJsonFlag) {
@@ -65,7 +57,6 @@ func main() {
 	}
 
 	item := globalTypes.ItemSoftIdentity{}
-
 	if itm_id, err := strconv.ParseUint(*fItem, 0, 64); err == nil {
 		item.ItemId = uint(itm_id)
 	} else {
@@ -74,8 +65,22 @@ func main() {
 
 	config := globalTypes.NewRunConfig(&character_config_json, item, *fCount)
 	config.UseAllProfessions = *fAllProfessionsFlag
+
+	// Set up context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		logger.Info("Shutdown signal received, cancelling operations...")
+		cancel()
+	}()
+
 	tokenServer := blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
-	cache := cache_provider.NewCacheProvider(context.TODO(), environment_variables.REDIS_URL)
+	cache := cache_provider.NewCacheProvider(ctx, environment_variables.REDIS_URL)
 	api := blizzard_api_call.NewBlizzardApiProvider(tokenServer, logger)
 	helper := blizzard_api_helpers.NewBlizzardApiHelper(cache, logger, api)
 	cpc := wow_crafting_profits.WoWCpCRunner{
@@ -83,15 +88,12 @@ func main() {
 		Logger: logger,
 	}
 
-	runErr := cpc.CliRun(config)
+	runErr := cpc.CliRun(ctx, config)
 	if runErr != nil {
-		logger.Error(runErr.Error())
+		if errors.Is(runErr, context.Canceled) {
+			logger.Info("Operation cancelled by user.")
+		} else {
+			logger.Errorf("Run error: %v", runErr)
+		}
 	}
-
-	//fl, _ := os.Create("memprof.pprof")
-	//fl2, _ := os.Create("allocs.pprof")
-	//defer fl2.Close()
-	//defer fl.Close()
-	//pprof.WriteHeapProfile(fl)
-	//pprof.Lookup("allocs").WriteTo(fl2, 0)
 }

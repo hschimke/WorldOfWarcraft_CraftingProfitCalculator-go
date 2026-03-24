@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/blizz_oath"
@@ -28,36 +32,39 @@ func main() {
 
 	logger := cpclog.NewCpCLog(cpclog.GetLevel(environment_variables.LOG_LEVEL))
 
-	fAddScanRealm := flag.Bool("add_scan_realm", false, "Add a scanned realm")                     // (X)
-	fArchiveAuctions := flag.Bool("archive_auctions", false, "Perform an auction archive")         // (-)
-	fFillNItems := flag.Bool("fill_n_items", false, "Fill items with crafting data")               // (X)
-	fFillNNames := flag.Bool("fill_n_names", false, "Fill items with names")                       // (X)
-	fGetAllBonuses := flag.Bool("get_all_bonuses", false, "Return all bonuses for item")           // (X)
-	fGetAllNames := flag.Bool("get_all_names", false, "Return all names in the system")            // (X)
-	fGetAuctions := flag.Bool("get_auctions", false, "Perform an auction search")                  // (X)
-	fGetScanRealms := flag.Bool("get_scan_realms", false, "Return a list of all scanned realms")   // (X)
-	fRemoveScanRealm := flag.Bool("remove_scan_realm", false, "Remove a realm from the scan list") // (X)
-	fScanRealms := flag.Bool("scan_realms", false, "Perform a scan on all scan realms")            // (X)
+	fAddScanRealm := flag.Bool("add_scan_realm", false, "Add a scanned realm")
+	fArchiveAuctions := flag.Bool("archive_auctions", false, "Perform an auction archive")
+	fFillNItems := flag.Bool("fill_n_items", false, "Fill items with crafting data")
+	fFillNNames := flag.Bool("fill_n_names", false, "Fill items with names")
+	fGetAllBonuses := flag.Bool("get_all_bonuses", false, "Return all bonuses for item")
+	fGetAllNames := flag.Bool("get_all_names", false, "Return all names in the system")
+	fGetAuctions := flag.Bool("get_auctions", false, "Perform an auction search")
+	fGetScanRealms := flag.Bool("get_scan_realms", false, "Return a list of all scanned realms")
+	fRemoveScanRealm := flag.Bool("remove_scan_realm", false, "Remove a realm from the scan list")
+	fScanRealms := flag.Bool("scan_realms", false, "Perform a scan on all scan realms")
 	fLogLevel := flag.String("log_level", "info", "Loglevel to output")
 
 	fRealmName := flag.String("realm_name", "", "A name of a realm")
 	fRealmId := flag.Uint("realm_id", 0, "A connected realm ID")
-
 	fRegion := flag.String("region", "us", "The region to work within")
-
 	fCount := flag.Uint("count", 0, "Used for any thing with a count")
-
 	fItemName := flag.String("item_name", "", "Name of an item")
 	fItemId := flag.Uint("item_id", 0, "An item id number")
-
 	fStartDtm := flag.String("start_dtm", "", "Start date")
 	fEndDtm := flag.String("end_dtm", "", "End date")
-
 	fBonuses := flag.String("bonuses", "[]", "json formatted array of bonuses")
 
 	flag.Parse()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		cancel()
+	}()
 
 	cache := cache_provider.NewCacheProvider(ctx, environment_variables.REDIS_URL)
 	tokenServer := blizz_oath.NewTokenServer(environment_variables.CLIENT_ID, environment_variables.CLIENT_SECRET, logger)
@@ -101,86 +108,77 @@ func main() {
 	}
 
 	var bonuses []uint
-	err := json.Unmarshal([]byte(*fBonuses), &bonuses)
-	if err != nil {
+	if err := json.Unmarshal([]byte(*fBonuses), &bonuses); err != nil {
 		panic(fmt.Sprintf("bad bonuses: %v", *fBonuses))
 	}
 
 	if *fAddScanRealm {
-		fmt.Println("AddScanRealm selected for ", realm, " ", *fRegion)
-		err := auctionHouseDataServer.AddScanRealm(ctx, realm, *fRegion)
-		if err != nil {
-			fmt.Println("Error adding realm")
-			fmt.Println(err)
+		if err := auctionHouseDataServer.AddScanRealm(ctx, realm, *fRegion); err != nil {
+			fmt.Printf("Error adding realm: %v\n", err)
 		}
 	}
 
 	if *fArchiveAuctions {
-		fmt.Println("ArchiveAuctions selected")
 		auctionHouseDataServer.ArchiveAuctions(ctx)
 	}
 
 	if *fFillNItems {
-		fmt.Println("FillNItems selected with N=", *fCount)
 		if err := auctionHouseDataServer.FillNItems(ctx, *fCount, &static_sources.StaticSources{}); err != nil {
-			fmt.Println("Error filling items:", err)
+			fmt.Printf("Error filling items: %v\n", err)
 		}
 	}
 
 	if *fFillNNames {
-		fmt.Println("FillNNames selected with N=", *fCount)
 		if err := auctionHouseDataServer.FillNNames(ctx, *fCount); err != nil {
-			fmt.Println("Error filling names:", err)
+			fmt.Printf("Error filling names: %v\n", err)
 		}
 	}
 
 	if *fGetAllBonuses {
-		fmt.Println("GetAllBonuses selected with item: ", item, " and region: ", *fRegion)
 		all_bonuses, err := auctionHouseDataServer.GetAllBonuses(ctx, item, *fRegion)
 		if err != nil {
-			fmt.Println("Error getting bonuses")
-			fmt.Println(err)
+			fmt.Printf("Error getting bonuses: %v\n", err)
+		} else {
+			fmt.Println(all_bonuses)
 		}
-		fmt.Println(all_bonuses)
 	}
 
 	if *fGetAllNames {
-		fmt.Println("GetAllNames selected")
 		all_names := auctionHouseDataServer.GetAllNames(ctx)
 		fmt.Println(all_names)
 	}
 
 	if *fGetAuctions {
-		fmt.Println("GetAuctions selected: ", item, " ", realm, " ", *fRegion, " ", start_dtm, "->", end_dtm)
 		auctions, err := auctionHouseDataServer.GetAuctions(ctx, item, realm, *fRegion, bonuses, start_dtm, end_dtm)
 		if err != nil {
-			fmt.Println("Error selecting auctions")
-			fmt.Println(err)
+			fmt.Printf("Error selecting auctions: %v\n", err)
+		} else {
+			fmt.Println(auctions)
 		}
-		fmt.Println(auctions)
 	}
 
 	if *fGetScanRealms {
-		fmt.Println("GetScanRealms selected")
 		scan_realms, err := auctionHouseDataServer.GetScanRealms(ctx)
 		if err != nil {
-			fmt.Println("Error getting all scan realms")
-			fmt.Println(err)
+			fmt.Printf("Error getting all scan realms: %v\n", err)
+		} else {
+			fmt.Println(scan_realms)
 		}
-		fmt.Println(scan_realms)
 	}
 
 	if *fRemoveScanRealm {
-		fmt.Println("RemoveScanRealm selected for ", realm, " ", *fRegion)
-		auctionHouseDataServer.RemoveScanRealm(ctx, realm, *fRegion)
+		if err := auctionHouseDataServer.RemoveScanRealm(ctx, realm, *fRegion); err != nil {
+			fmt.Printf("Error removing realm: %v\n", err)
+		}
 	}
 
 	if *fScanRealms {
-		fmt.Println("ScanRealms selected")
-		err := auctionHouseDataServer.ScanRealms(ctx, false)
-		if err != nil {
-			fmt.Println("Error scanning realms")
-			fmt.Println(err)
+		if err := auctionHouseDataServer.ScanRealms(ctx, false); err != nil {
+			fmt.Printf("Error scanning realms: %v\n", err)
 		}
+	}
+
+	if errors.Is(ctx.Err(), context.Canceled) {
+		fmt.Println("Operations cancelled.")
 	}
 }

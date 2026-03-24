@@ -48,19 +48,19 @@ func (ahs *AuctionHistoryServer) dbSetup() {
 		sql_create_items_name_ind        string = "CREATE INDEX IF NOT EXISTS items_name_index on items (name)"
 	)
 
-	dbpool, err := ahs.db.Acquire(ahs.ctx) //pgxpool.Connect(context.Background(), ahs.connectionString)
+	dbpool, err := ahs.db.Acquire(ahs.ctx)
 	if err != nil {
 		ahs.logger.Errorf("Unable to connect to database: %v", err)
 		panic(err)
 	}
 	defer dbpool.Release()
 
-	dbpool.Exec(context.TODO(), sql_create_item_table)
-	dbpool.Exec(context.TODO(), sql_create_items_table)
-	dbpool.Exec(context.TODO(), sql_create_realm_scan_table)
-	dbpool.Exec(context.TODO(), sql_create_archive_table)
-	dbpool.Exec(context.TODO(), sql_create_auction_archive_index)
-	dbpool.Exec(context.TODO(), sql_create_auctions_index)
-	dbpool.Exec(context.TODO(), sql_create_auctions_bonuses_idx)
-	dbpool.Exec(context.TODO(), sql_create_items_name_ind)
+	dbpool.Exec(ahs.ctx, sql_create_item_table)
+	dbpool.Exec(ahs.ctx, sql_create_items_table)
+	dbpool.Exec(ahs.ctx, sql_create_realm_scan_table)
+	dbpool.Exec(ahs.ctx, sql_create_archive_table)
+	dbpool.Exec(ahs.ctx, sql_create_auction_archive_index)
+	dbpool.Exec(ahs.ctx, sql_create_auctions_index)
+	dbpool.Exec(ahs.ctx, sql_create_auctions_bonuses_idx)
+	dbpool.Exec(ahs.ctx, sql_create_items_name_ind)
 }

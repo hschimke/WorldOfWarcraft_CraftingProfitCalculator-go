@@ -24,7 +24,7 @@ func (ahs *AuctionHistoryServer) ingest(ctx context.Context, region globalTypes.
 	ahs.logger.Infof("start ingest for %v - %v", region, connected_realm)
 
 	// Get Auctions
-	auctions, auctionError := ahs.helper.GetAuctionHouse(connected_realm, region)
+	auctions, auctionError := ahs.helper.GetAuctionHouse(ctx, connected_realm, region)
 	if auctionError != nil {
 		return auctionError
 	}
@@ -45,10 +45,16 @@ func (ahs *AuctionHistoryServer) ingest(ctx context.Context, region globalTypes.
 		var price uint
 		quantity := auction.Quantity
 
-		if auction.Buyout != 0 {
+		if auction.Unit_price != 0 {
+			price = auction.Unit_price
+		} else if auction.Buyout != 0 {
 			price = auction.Buyout
 		} else {
-			price = auction.Unit_price
+			price = auction.Bid
+		}
+
+		if price == 0 {
+			continue
 		}
 
 		if _, prcPres := items[item_id_key][price]; !prcPres {
@@ -64,7 +70,6 @@ func (ahs *AuctionHistoryServer) ingest(ctx context.Context, region globalTypes.
 		items[item_id_key][price] = hld
 	}
 
-	//const item_set: Set<number> = new Set();
 	var insert_values_array [][]any
 	var item_set []localItem
 
@@ -74,7 +79,6 @@ func (ahs *AuctionHistoryServer) ingest(ctx context.Context, region globalTypes.
 				ItemId: r.ItemId,
 				Region: region,
 			})
-			//item_id, quantity, price, downloaded, connected_realm_id, bonuses
 			var bonusListString string
 			if bstr, jsonErr := json.Marshal(items[key][pk].BonusLists); jsonErr == nil {
 				bonusListString = string(bstr)
@@ -82,7 +86,7 @@ func (ahs *AuctionHistoryServer) ingest(ctx context.Context, region globalTypes.
 				bonusListString = "[]"
 			}
 			insert_values_array = append(insert_values_array, []any{
-				items[key][pk].ItemId, items[key][pk].Quantity, items[key][pk].Price, fetchTime, connected_realm, bonusListString, strings.ToLower(region),
+				items[key][pk].ItemId, items[key][pk].Quantity, items[key][pk].Price, fetchTime, connected_realm, bonusListString, strings.ToLower(string(region)),
 			})
 		}
 	}

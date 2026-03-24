@@ -9,14 +9,9 @@ import (
 // Filter an array of arrays to an array of unique arrays
 func FilterArrayToSetDouble[T comparable](array [][]T) (result [][]T) {
 	for _, element := range array {
-		found := false
-		for _, existing := range result {
-			if slices.Equal(existing, element) {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.ContainsFunc(result, func(existing []T) bool {
+			return slices.Equal(existing, element)
+		}) {
 			result = append(result, element)
 		}
 	}

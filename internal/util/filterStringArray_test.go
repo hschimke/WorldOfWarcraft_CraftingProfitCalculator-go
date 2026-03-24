@@ -2,6 +2,7 @@ package util
 
 import (
 	"reflect"
+	"slices"
 	"testing"
 )
 
@@ -9,7 +10,6 @@ func TestFilterStringArray(t *testing.T) {
 	type args struct {
 		array   []string
 		partial string
-		logName string
 	}
 	tests := []struct {
 		name string
@@ -21,7 +21,6 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   []string{"lkdjf", "jlkje8", "iu4087dujO*", "jdflkj38h xz", "jdlk:KDJ"},
 				partial: "",
-				logName: "",
 			},
 			want: []string{"lkdjf", "jlkje8", "iu4087dujO*", "jdflkj38h xz", "jdlk:KDJ"},
 		},
@@ -30,7 +29,6 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   []string{"lkdjf", "jlkje8", "iu4087dujO*", "jdflkj38h xz", "jdlk:KDJ"},
 				partial: "jd",
-				logName: "",
 			},
 			want: []string{"jdflkj38h xz", "jdlk:KDJ"},
 		},
@@ -39,7 +37,6 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   []string{"lkdjf", "jlkje8", "iu4087dujO*", "jdflkj38h xz", "jdlk:KDJ"},
 				partial: "jdlk:KDJ",
-				logName: "",
 			},
 			want: []string{"jdlk:KDJ"},
 		},
@@ -48,7 +45,6 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   []string{"lkdjf"},
 				partial: "",
-				logName: "",
 			},
 			want: []string{"lkdjf"},
 		},
@@ -57,7 +53,6 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   []string{"jdlk:KDJ"},
 				partial: "jdlk:KDJ",
-				logName: "",
 			},
 			want: []string{"jdlk:KDJ"},
 		},
@@ -66,7 +61,6 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   []string{},
 				partial: "",
-				logName: "",
 			},
 			want: []string{},
 		},
@@ -75,7 +69,6 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   []string{},
 				partial: "jd",
-				logName: "",
 			},
 			want: []string{},
 		},
@@ -84,7 +77,6 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   nil,
 				partial: "",
-				logName: "",
 			},
 			want: []string{},
 		},
@@ -93,14 +85,17 @@ func TestFilterStringArray(t *testing.T) {
 			args: args{
 				array:   nil,
 				partial: "jd",
-				logName: "",
 			},
 			want: []string{},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := FilterStringArray(tt.args.array, tt.args.partial, tt.args.logName); !reflect.DeepEqual(got, tt.want) {
+			got := slices.Collect(FilterStringArray(tt.args.array, tt.args.partial))
+			if len(got) == 0 && len(tt.want) == 0 {
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("FilterStringArray() = %v, want %v", got, tt.want)
 			}
 		})

@@ -1,6 +1,7 @@
 package util
 
 import (
+	"iter"
 	"maps"
 	"slices"
 )
@@ -29,9 +30,14 @@ func (s Set[T]) Remove(value T) {
 	delete(s, value)
 }
 
+// All returns an iterator for the set
+func (s Set[T]) All() iter.Seq[T] {
+	return maps.Keys(s)
+}
+
 // ToSlice converts a set into a slice
 func (s Set[T]) ToSlice() []T {
-	return slices.Collect(maps.Keys(s))
+	return slices.Collect(s.All())
 }
 
 // Len returns the number of elements in the set

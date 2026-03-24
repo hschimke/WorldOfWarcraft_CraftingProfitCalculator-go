@@ -2,13 +2,17 @@ package wow_crafting_profits
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
+	"maps"
 	"os"
 	"slices"
 	"strings"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/cpclog"
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/static_sources"
@@ -24,9 +28,17 @@ type recipeCost struct {
 }
 
 type WoWCpCRunner struct {
-	Helper        *blizzard_api_helpers.BlizzardApiHelper
-	staticSources static_sources.StaticSources
-	Logger        *cpclog.CpCLog
+	Helper          *blizzard_api_helpers.BlizzardApiHelper
+	staticSources   static_sources.StaticSources
+	Logger          *cpclog.CpCLog
+	indexedAuctions map[globalTypes.ItemID][]BlizzardApi.Auction
+}
+
+func (cpc *WoWCpCRunner) indexAuctions(auction_house *BlizzardApi.Auctions) {
+	cpc.indexedAuctions = make(map[globalTypes.ItemID][]BlizzardApi.Auction)
+	for _, auction := range auction_house.Auctions {
+		cpc.indexedAuctions[auction.Item.Id] = append(cpc.indexedAuctions[auction.Item.Id], auction)
+	}
 }
 
 /*
@@ -34,7 +46,7 @@ Find the value of an item on the auction house.
 Items might be for sale on the auction house and be available from vendors.
 The auction house items have complicated bonus types.
 */
-func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions, bonus_level_required uint) globalTypes.AHItemPriceObject {
+func getAHItemPrice(item_id globalTypes.ItemID, indexedAuctions map[globalTypes.ItemID][]BlizzardApi.Auction, bonus_level_required uint) globalTypes.AHItemPriceObject {
 	// Find the item and return best, worst, average prices
 	auction_high := float64(0)
 	auction_low := float64(math.MaxUint)
@@ -48,31 +60,35 @@ func getAHItemPrice(item_id globalTypes.ItemID, auction_house *BlizzardApi.Aucti
 	//prices := make([]float64, 0, len(auction_house.Auctions)*3)
 	prices := make(map[float64]uint64)
 
-	for _, auction := range auction_house.Auctions {
-		if auction.Item.Id == item_id {
+	auctions, present := indexedAuctions[item_id]
+	if !present {
+		return globalTypes.AHItemPriceObject{
+			Low: auction_low,
+		}
+	}
 
-			if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && slices.Contains(auction.Item.Bonus_lists, bonus_level_required))) || (bonus_level_required == 0) {
-				var foundPrice float64
-				if auction.Buyout != 0 {
-					foundPrice = float64(auction.Buyout)
-				} else {
-					foundPrice = float64(auction.Unit_price)
-				}
-				if foundPrice > auction_high {
-					auction_high = foundPrice
-				}
-				if foundPrice < auction_low {
-					auction_low = foundPrice
-				}
-				auction_average_accumulator += foundPrice * float64(auction.Quantity)
-
-				if _, priceFound := prices[foundPrice]; !priceFound {
-					prices[foundPrice] = 0
-				}
-				prices[foundPrice] = prices[foundPrice] + uint64(auction.Quantity)
-
-				auction_counter += auction.Quantity
+	for _, auction := range auctions {
+		if ((bonus_level_required != 0) && (len(auction.Item.Bonus_lists) > 0 && slices.Contains(auction.Item.Bonus_lists, bonus_level_required))) || (bonus_level_required == 0) {
+			var foundPrice float64
+			if auction.Buyout != 0 {
+				foundPrice = float64(auction.Buyout)
+			} else {
+				foundPrice = float64(auction.Unit_price)
 			}
+			if foundPrice > auction_high {
+				auction_high = foundPrice
+			}
+			if foundPrice < auction_low {
+				auction_low = foundPrice
+			}
+			auction_average_accumulator += foundPrice * float64(auction.Quantity)
+
+			if _, priceFound := prices[foundPrice]; !priceFound {
+				prices[foundPrice] = 0
+			}
+			prices[foundPrice] = prices[foundPrice] + uint64(auction.Quantity)
+
+			auction_counter += auction.Quantity
 		}
 	}
 
@@ -134,10 +150,10 @@ currently the only way to do that is by pulling an auction house down
 and then scanning it. If no bonus lists are found an empty array is
 returned.
 */
-func (cpc *WoWCpCRunner) getItemBonusLists(item_id globalTypes.ItemID, auction_house *BlizzardApi.Auctions) [][]uint {
+func (cpc *WoWCpCRunner) getItemBonusLists(item_id globalTypes.ItemID) [][]uint {
 	var bonus_lists [][]uint
-	for _, auction := range auction_house.Auctions {
-		if auction.Item.Id == item_id {
+	if auctions, present := cpc.indexedAuctions[item_id]; present {
+		for _, auction := range auctions {
 			if len(auction.Item.Bonus_lists) > 0 {
 				bonus_lists = append(bonus_lists, auction.Item.Bonus_lists)
 			}
@@ -240,8 +256,12 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 		auction_house = passed_ah
 	}
 
+	if cpc.indexedAuctions == nil {
+		cpc.indexAuctions(auction_house)
+	}
+
 	// Get Item AH price
-	price_obj.Ah_price = getAHItemPrice(item_id, auction_house, 0)
+	price_obj.Ah_price = getAHItemPrice(item_id, cpc.indexedAuctions, 0)
 
 	item_craftable, err := cpc.Helper.CheckIsCrafting(item_id, character_professions, region, &cpc.staticSources)
 	if err != nil {
@@ -267,18 +287,15 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 	// possible bonus_list. They're actually different items, blizz just tells us they aren't.
 
 	//  price_obj.bonus_lists = Array.from(new Set(await getItemBonusLists(item_id, auction_house)));
-	price_obj.Bonus_lists = util.FilterArrayToSetDouble(cpc.getItemBonusLists(item_id, auction_house))
+	price_obj.Bonus_lists = util.FilterArrayToSetDouble(cpc.getItemBonusLists(item_id))
 	bonus_link := make(map[uint]uint)
 	//bl_flat := filterArrayToSet(flattenArray(price_obj.bonus_lists)).filter((bonus: number) => bonus in raidbots_bonus_lists && 'level' in raidbots_bonus_lists[bonus]));)
 	fltn_arr := util.FlattenArray(price_obj.Bonus_lists) //Flatten(price_obj.Bonus_lists)
 	bl_flat_hld := util.FilterArrayToSet(fltn_arr)
 	var bl_flat []uint
 	for _, bonus := range bl_flat_hld {
-		bns, rb_b_pres := raidbots_bonus_lists[fmt.Sprint(bonus)]
-		if rb_b_pres {
-			if bns.Level != 0 {
-				bl_flat = append(bl_flat, bonus)
-			}
+		if bns, rb_b_pres := raidbots_bonus_lists[fmt.Sprint(bonus)]; rb_b_pres && bns.Level != 0 {
+			bl_flat = append(bl_flat, bonus)
 		}
 	}
 	for _, bonus := range bl_flat {
@@ -304,24 +321,34 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 			price_obj.Item_quantity = float64(qauntity) / float64(getRecipeOutputValues(item_bom, &cpc.staticSources).Min)
 
 			// Get prices for BOM
-			var bom_prices []globalTypes.ProfitAnalysisObject
+			bom_prices := make([]globalTypes.ProfitAnalysisObject, len(item_bom.Reagents))
 
 			cpc.Logger.Debug("Recipe ", item_bom.Name, " (", recipe.Recipe_id, ") has ", len(item_bom.Reagents), " reagents")
 
-			for _, reagent := range item_bom.Reagents {
+			g, _ := errgroup.WithContext(context.Background())
+
+			for i, reagent := range item_bom.Reagents {
 				if _, fnd := craftable_item_swaps[reagent.Reagent.Id]; fnd {
 					cpc.Logger.Error("Cycles are not fully implemented.", craftable_item_swaps[reagent.Reagent.Id])
 					return globalTypes.ProfitAnalysisObject{}, fmt.Errorf("cycles are not supported")
 				}
+				i, reagent := i, reagent
 				itm := globalTypes.ItemSoftIdentity{
 					ItemId: reagent.Reagent.Id,
 				}
-				new_analysis, err := cpc.performProfitAnalysis(region, server, character_professions, itm, reagent.Quantity, auction_house, passedCyclicLinks)
-				if err != nil {
-					return globalTypes.ProfitAnalysisObject{}, err
-				}
-				bom_prices = append(bom_prices, new_analysis)
+				g.Go(func() error {
+					new_analysis, err := cpc.performProfitAnalysis(region, server, character_professions, itm, reagent.Quantity, auction_house, passedCyclicLinks)
+					if err != nil {
+						return err
+					}
+					bom_prices[i] = new_analysis
+					return nil
+				})
 			}
+			if err := g.Wait(); err != nil {
+				return globalTypes.ProfitAnalysisObject{}, err
+			}
+
 			rank_level := uint(0)
 			var rank_AH globalTypes.AHItemPriceObject
 			if len(recipe_id_list) > 1 {
@@ -336,7 +363,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 				}
 				if bonus_link[rank_level] != 0 {
 					cpc.Logger.Debugf(`Looking for AH price for %d for level %d using bonus is %d`, item_id, rank_level, bonus_link[rank_level])
-					rank_AH = getAHItemPrice(item_id, auction_house, bonus_link[rank_level])
+					rank_AH = getAHItemPrice(item_id, cpc.indexedAuctions, bonus_link[rank_level])
 				} else {
 					cpc.Logger.Debugf(`Item %d has no auctions for level %d`, item_id, rank_level)
 				}
@@ -352,7 +379,10 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 	} else {
 		cpc.Logger.Debugf(`Item %s (%d) not craftable with professions: %v`, item_detail.Name, item_id, character_professions)
 		if len(price_obj.Bonus_lists) > 0 {
-			//price_obj.bonus_prices = [];
+			price_obj.Bonus_prices = make([]struct {
+				Level uint
+				Ah    globalTypes.AHItemPriceObject
+			}, 0, len(bl_flat))
 			for _, bonus := range bl_flat {
 				rbl := raidbots_bonus_lists[fmt.Sprint(bonus)]
 				level_uncrafted_ah_cost := struct {
@@ -360,7 +390,7 @@ func (cpc *WoWCpCRunner) performProfitAnalysis(region globalTypes.RegionCode, se
 					Ah    globalTypes.AHItemPriceObject
 				}{
 					Level: uint(int(base_ilvl) + rbl.Level),
-					Ah:    getAHItemPrice(item_id, auction_house, bonus),
+					Ah:    getAHItemPrice(item_id, cpc.indexedAuctions, bonus),
 				}
 				price_obj.Bonus_prices = append(price_obj.Bonus_prices, level_uncrafted_ah_cost)
 			}
@@ -420,7 +450,7 @@ func (cpc *WoWCpCRunner) recipeCostCalculator(recipe_option globalTypes.RecipeOp
 			high := float64(0)
 			low := math.MaxFloat64
 
-			var costs []float64
+			costs := make([]float64, 0, len(component.Recipe_options))
 
 			for _, opt := range component.Recipe_options {
 				recurse_price := cpc.recipeCostCalculator(opt)
@@ -467,10 +497,11 @@ func (cpc *WoWCpCRunner) recipeCostCalculator(recipe_option globalTypes.RecipeOp
  */
 func (cpc *WoWCpCRunner) generateOutputFormat(price_data globalTypes.ProfitAnalysisObject, region globalTypes.RegionCode) globalTypes.OutputFormatObject {
 	object_output := globalTypes.OutputFormatObject{
-		Name:     price_data.Item_name,
-		Id:       price_data.Item_id,
-		Required: price_data.Item_quantity,
-		Recipes:  make([]globalTypes.OutputFormatRecipe, 0),
+		Name:         price_data.Item_name,
+		Id:           price_data.Item_id,
+		Required:     price_data.Item_quantity,
+		Recipes:      make([]globalTypes.OutputFormatRecipe, 0, len(price_data.Recipe_options)),
+		Bonus_prices: make([]globalTypes.OutputFormatBonusPrices, 0, len(price_data.Bonus_prices)),
 	}
 
 	if (price_data.Ah_price.Total_sales != 0) && (price_data.Ah_price.Total_sales > 0) {
@@ -501,6 +532,7 @@ func (cpc *WoWCpCRunner) generateOutputFormat(price_data globalTypes.ProfitAnaly
 			Low:     option_price.Low,
 			Average: option_price.Average,
 			Median:  option_price.Median,
+			Parts:   make([]globalTypes.OutputFormatObject, 0, len(recipe_option.Prices)),
 		}
 		//obj_recipe.parts = [];
 
@@ -582,7 +614,7 @@ func getRecipeOutputValues(recipe BlizzardApi.Recipe, static_source *static_sour
  * @param {!object} intermediate_data Data from generateOutputFormat.
  */
 func getShoppingListRanks(intermediate_data globalTypes.OutputFormatObject) []uint {
-	ranks := make([]uint, 0)
+	ranks := make([]uint, 0, len(intermediate_data.Recipes))
 	for _, recipe := range intermediate_data.Recipes {
 		ranks = append(ranks, recipe.Rank)
 	}
@@ -696,7 +728,6 @@ func (cpc *WoWCpCRunner) build_shopping_list(intermediate_data globalTypes.Outpu
 
 	// Build the return shopping list.
 	tmp := make(map[uint]globalTypes.ShoppingList)
-	ret_list := make([]globalTypes.ShoppingList, 0)
 	//logger.debug(shopping_list);
 	for _, list_element := range shopping_list {
 		hld, present := tmp[list_element.Id]
@@ -710,11 +741,7 @@ func (cpc *WoWCpCRunner) build_shopping_list(intermediate_data globalTypes.Outpu
 		tmp[list_element.Id] = hld
 	}
 
-	for _, list := range tmp {
-		ret_list = append(ret_list, list)
-	}
-
-	return ret_list
+	return slices.Collect(maps.Values(tmp))
 }
 
 // Get the globalTypes.RegionCode version of a string or an error
@@ -766,6 +793,7 @@ func (cpc *WoWCpCRunner) run(region string, server globalTypes.RealmName, useAll
 		if profErr != nil {
 			return globalTypes.RunReturn{Formatted: "NO DATA"}, profErr
 		}
+		professions = make([]globalTypes.CharacterProfession, 0, len(profList.Professions))
 		for _, prof := range profList.Professions {
 			professions = append(professions, prof.Name)
 		}

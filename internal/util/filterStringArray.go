@@ -1,24 +1,20 @@
 package util
 
 import (
+	"iter"
 	"strings"
 )
 
 // FilterStringArray filters an array of strings to return only those values containing a given partial
-func FilterStringArray(array []string, partial string, logName string) []string {
-	if len(partial) == 0 {
-		if len(array) == 0 {
-			return make([]string, 0)
-		}
-		return array
-	}
-
+func FilterStringArray(array []string, partial string) iter.Seq[string] {
 	comparePartial := strings.ToLower(partial)
-	filteredNames := make([]string, 0)
-	for _, name := range array {
-		if strings.Contains(strings.ToLower(name), comparePartial) {
-			filteredNames = append(filteredNames, name)
+	return func(yield func(string) bool) {
+		for _, name := range array {
+			if strings.Contains(strings.ToLower(name), comparePartial) {
+				if !yield(name) {
+					return
+				}
+			}
 		}
 	}
-	return filteredNames
 }

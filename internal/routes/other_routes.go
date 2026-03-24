@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/hschimke/WorldOfWarcraft_CraftingProfitCalculator-go/internal/util"
 )
@@ -64,6 +65,6 @@ func (routes *CPCRoutes) AllRealms(w http.ResponseWriter, r *http.Request) {
 		names = routes.helper.GetAllRealmNames(region)
 	}
 
-	filterd_names := util.FilterStringArray(names, partial, "realms")
+	filterd_names := slices.Collect(util.FilterStringArray(names, partial))
 	json.NewEncoder(w).Encode(filterd_names)
 }

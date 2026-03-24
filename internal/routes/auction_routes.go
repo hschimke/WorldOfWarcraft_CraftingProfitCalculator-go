@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -85,7 +86,7 @@ func (routes *CPCRoutes) AllItems(w http.ResponseWriter, r *http.Request) {
 
 	partial := r.URL.Query().Get("partial")
 
-	filterd_names := util.FilterStringArray(names, partial, "items")
+	filterd_names := slices.Collect(util.FilterStringArray(names, partial))
 	json.NewEncoder(w).Encode(filterd_names)
 }
 
